@@ -61,7 +61,8 @@ idx = seek_index(obj, obj.nFeature3DReconstructed, [obj.features(:).is_3D_recons
 % Initialze scale, in the case of the first time
 if ~obj.scale_initialized
 	
-	scale = 10 / ( [0 0 1 0] * min([obj.features(idx).point],[],2) );
+	scale = .1;
+% 	scale = 10 / ( [0 0 1 0] * min([obj.features(idx).point],[],2) );
 	obj.nFeatureInlier = length(idx);
 	obj.scale_initialized = true;
 	
@@ -83,7 +84,7 @@ for i = idx
 	end
 end
 
-disp(scale);
+% disp(scale);
 % disp( norm(obj.TRec{obj.step-1}(1:3,4)) );
 
 end
