@@ -8,6 +8,9 @@ step = obj.step - 1;
 % Get uv-pixel point to paint over the image
 features = obj.features;
 
+x_window = [-50 50];
+y_window = [-30 70];
+
 max_len = max(max([obj.features(:).life]), 2);
 uv = {obj.features(:).uv};
 uv = cellfun(@(x) fill_nan(x, max_len), uv, 'un', 0);
@@ -79,8 +82,8 @@ if ~plot_initialized
 	h_curr = scatter(obj.PocRec(1,step), obj.PocRec(3,step), 'ro', 'LineWidth', 2);
 	axis square equal;grid on;
 	
-	xlim(sfig2, [obj.PocRec(1,step)-5 obj.PocRec(1,step)+5]);
-	ylim(sfig2, [obj.PocRec(3,step)-3 obj.PocRec(3,step)+7]);
+	xlim(sfig2, obj.PocRec(1,step)+x_window);
+	ylim(sfig2, obj.PocRec(3,step)+y_window);
 	set(sfig2, 'View', [0 90]);
 	colormap(sfig2, cool);
 	caxis([0 10]);
@@ -109,8 +112,8 @@ else
 	set(h_traj, 'XData', obj.PocRec(1,1:step), 'YData', obj.PocRec(3,1:step));
 	set(h_curr, 'XData', obj.PocRec(1,step), 'YData', obj.PocRec(3,step));
 		
-	xlim(sfig2, [obj.PocRec(1,step)-5 obj.PocRec(1,step)+5]);
-	ylim(sfig2, [obj.PocRec(3,step)-3 obj.PocRec(3,step)+7]);
+	xlim(sfig2, obj.PocRec(1,step)+x_window);
+	ylim(sfig2, obj.PocRec(3,step)+y_window);
 	
 end
 
