@@ -1,4 +1,4 @@
-function dist = calculate_scale_error(obj, scale, P1, P1_ref, weight)
+function dist = calculate_scale_error(obj, scale, P1, P1_ref)
 
 % n = length(idx1);
 % P1_ref = zeros(3, n);
@@ -12,4 +12,4 @@ function dist = calculate_scale_error(obj, scale, P1, P1_ref, weight)
 % end
 
 P1_scaled = scale * P1;
-dist = weight .* ( sum( (P1_ref - P1_scaled).^2 ) ).^0.5;
+dist = ( sum( (P1_ref - P1_scaled).^2 ) ).^0.5;

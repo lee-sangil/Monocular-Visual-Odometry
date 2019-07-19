@@ -61,7 +61,7 @@ switch( varargin{1} )
 		calibDir = 'E:\Datasets\KITTI\2011_10_03\';
 
 		imInit      = 0; % initial image number, 0-base index
-        imLength    = 700; % number of image
+        imLength    = 1400; % number of image
 		
 	otherwise
 		error('Unvalid dataset.');

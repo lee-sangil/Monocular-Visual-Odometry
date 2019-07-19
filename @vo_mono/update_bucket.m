@@ -4,7 +4,7 @@ nFeature = obj.nFeature;
 
 obj.bucket.mass = zeros(obj.bucket.grid);
 for i = 1:nFeature
-	uv = obj.features(i).uv(:,1).';
+	uv = obj.features(i).uv2.';
 	idx_bucket = ceil(uv./obj.params.imSize.*obj.bucket.grid);
 	obj.features(i).bucket = idx_bucket;
 	obj.bucket.mass(idx_bucket(1), idx_bucket(2)) = obj.bucket.mass(idx_bucket(1), idx_bucket(2)) + 1;

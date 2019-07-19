@@ -1,28 +1,24 @@
 function obj = add_feature( obj )
 
-% Load bucket parameters
-bkSize = obj.bucket.size;
-bkSafety = obj.bucket.safety;
+% variable
+bucketMass = obj.bucket.mass;
 
-% Choose ROI based on the probabilistic approaches with the mass of bucket
-[i, j] = idx_randselect(obj.bucket);
-ROI = floor([(i-1)*bkSize(1)+1, (j-1)*bkSize(2)+1, bkSize(1), bkSize(2)]);
+% constant
+bucketSize = obj.bucket.size;
+bucketGrid = obj.bucket.grid;
+descriptor = obj.params.descriptor;
 
-ROI(1) = max(bkSafety, ROI(1));
-ROI(2) = max(bkSafety, ROI(2));
-ROI(3) = min(obj.params.imSize(1)-bkSafety, ROI(1)+ROI(3))-ROI(1);
-ROI(4) = min(obj.params.imSize(2)-bkSafety, ROI(2)+ROI(4))-ROI(2);
+%
+[i, j] = idx_randselect(bucketMass, bucketGrid, obj.params.kernel);
+ROI = floor([(i-1)*bucketSize(1)+1, (j-1)*bucketSize(2)+1, bucketSize(1), bucketSize(2)]);
 
-% Seek index of which feature is extracted specific bucket
-try
-	[idx, nInBucket] = seek_index(obj, obj.nFeatureMatched, all(bsxfun(@eq, reshape([obj.features(:).bucket], 2, []).', [i, j]), 2));
-catch
-	idx = [];
-	nInBucket = 0;
-end
+ROI(1) = max(20, ROI(1));
+ROI(2) = max(20, ROI(2));
+ROI(3) = min(size(obj.cur_image, 2)-20, ROI(1)+ROI(3))-ROI(1);
+ROI(4) = min(size(obj.cur_image, 1)-20, ROI(2)+ROI(4))-ROI(2);
 
-% Try to find a seperate feature
-dist = zeros(1,nInBucket);
+locs = [];
+dist = zeros(1,obj.nFeature);
 filterSize = 5;
 
 while true
@@ -31,30 +27,14 @@ while true
 		return;
 	end
 
-	crop_image = obj.cur_image(ROI(2):ROI(2)+ROI(4), ROI(1):ROI(1)+ROI(3));
-
-% 	keypoints = cv.FAST(crop_image);
-% 	locs = reshape([keypoints.pt], 2, []).';
-% 	[~, sidx] = sort([keypoints.response], 2, 'descend');
-% 	locs = locs(sidx, :);
-	
-% 	keypoints = detectKAZEFeatures(crop_image);
-% 	locs = keypoints.Location;
-	
-	keypoints = cv.goodFeaturesToTrack(crop_image, 'UseHarrisDetector', true);
-	keypoints = cellfun(@transpose, keypoints, 'un', 0);
-	locs = [keypoints{:}].'; % xy-coordinates
-	
+	[des, locs] = descriptor(obj.cur_image, 'ROI', ROI, 'FilterSize', filterSize);
 	if isempty(locs)
 		return;
-	else
-		locs(:,1) = locs(:,1) + ROI(2) - 1;
-		locs(:,2) = locs(:,2) + ROI(1) - 1;
 	end
 	
 	for l = 1:size(locs,1)
-		for f = 1:length(idx)
-			dist(f) = norm(locs(l,[2 1]).' - obj.features(idx(f)).uv(:,1));
+		for f = 1:obj.nFeature
+			dist(f) = norm(locs(l,[2 1]).' - obj.features(f).uv2);
 		end
 		if all(dist > 2)
 			break;
@@ -67,40 +47,45 @@ while true
 	filterSize = filterSize - 2;
 end
 
-% Add new feature to VO object
+% add new feature
 new = obj.nFeature + 1;
 
 obj.features(new).id = obj.new_feature_id;
-obj.features(new).uv = double(locs(l,[2 1])).';
+obj.features(new).uv1 = nan(1,2);
+obj.features(new).uv2 = locs(l,[2 1]).';
+obj.features(new).uvs = locs(l,[2 1]).';
 obj.features(new).life = 1;
+obj.features(new).des = des(l,:).';
 obj.features(new).bucket = [i, j];
 obj.features(new).point = nan(4,1);
 obj.features(new).is_matched = false;
 obj.features(new).is_2D_inliered = false;
 obj.features(new).is_3D_reconstructed = false;
 obj.features(new).is_3D_init = false;
+obj.features(new).point_init_step = 0;
 obj.features(new).point_init = nan(4,1);
-obj.features(new).point_var = obj.params.var_point;
-obj.features(new).point_prev_var = obj.params.var_point;
+obj.features(new).transform_from_init = eye(4);
+obj.features(new).transform_to_step = eye(4);
 
 obj.new_feature_id = obj.new_feature_id + 1;
 obj.nFeature = obj.nFeature + 1;
 
-% Update bucket
-obj.bucket.prob = conv2(obj.bucket.mass, obj.params.kernel, 'same');
-obj.bucket.mass(i, j) = obj.bucket.mass(i, j) + 1;
+% update bucket mass
+bucketMass(i, j) = bucketMass(i, j) + 1;
+obj.bucket.mass = bucketMass;
 
 end
 
-function [i, j] = idx_randselect(bucket)
+function [i, j] = idx_randselect(bucketMass, bucketGrid, kernel)
 
-% Calculate weight
-weight = 0.05 ./ (bucket.prob(:) + 0.05);
+bucketProb = conv2(bucketMass, kernel, 'same');
+weight = 0.05 ./ (bucketProb(:) + 0.05);
+% weight = 1 ./ (bucketMass(:) + 0.5).^2;
+% weight = ones(prod(bucketGrid),1);
 
-% Select index
-idx = 0:numel(bucket.mass)-1;
+idx = 0:numel(bucketMass)-1;
 select = idx( sum( bsxfun(@ge, rand(1), cumsum(weight./sum(weight)))) + 1 );
-i = floor(select / bucket.grid(2))+1;
-j = mod(select, bucket.grid(2))+1;
+i = floor(select / bucketGrid(2))+1;
+j = mod(select, bucketGrid(2))+1;
 
 end

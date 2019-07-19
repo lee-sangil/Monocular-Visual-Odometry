@@ -7,15 +7,13 @@ step = obj.step - 1;
 
 % Get uv-pixel point to paint over the image
 features = obj.features;
+nFeature = obj.nFeature;
 
-max_len = max(max([obj.features(:).life]), 2);
-uv = {obj.features(:).uv};
-uv = cellfun(@(x) fill_nan(x, max_len), uv, 'un', 0);
-
-uvArr = zeros(2, length(uv), max_len);
-for i = 1:max_len
-	uvIdx = cellfun(@(x) column(x, i), uv, 'un', 0);
-	uvArr(:,:,i) = cell2mat(uvIdx);
+uv1 = zeros(2, nFeature);
+uv2 = zeros(2, nFeature);
+for i = 1:nFeature
+	uv1(:,i) = obj.features(i).uv1;
+	uv2(:,i) = obj.features(i).uv2;
 end
 
 % Get initialized 3D points, p_0, and observed 3D point (p_k) of each step in the
@@ -28,7 +26,7 @@ p_life = [obj.features(:).life];
 
 [idx, ~] = seek_index(obj, obj.nFeature, [obj.features(:).is_3D_reconstructed]);
 for i = idx
-	p_k_0(:,i) = obj.TocRec{step-1} * p_k(:,i);
+	p_k_0(:,i) = obj.TocRec{step-1} \ p_k(:,i);
 end
 
 % Get inlier pixel coordinates
@@ -36,16 +34,11 @@ arrIdx = 1:length(features);
 [inlierIdx, ~] = seek_index(obj, obj.nFeature3DReconstructed, [obj.features(:).is_3D_reconstructed]);
 outlierIdx = arrIdx(~ismember(arrIdx, inlierIdx));
 
-Xin = zeros(2*(max_len-1), length(inlierIdx));
-Yin = zeros(size(Xin));
-Xout = zeros(2*(max_len-1), length(outlierIdx));
-Yout = zeros(size(Xout));
-for i = 1:max_len-1
-	Xin(2*i-1:2*i, :) = [uvArr(1,inlierIdx,i+1); uvArr(1,inlierIdx,i)];
-	Yin(2*i-1:2*i, :) = [uvArr(2,inlierIdx,i+1); uvArr(2,inlierIdx,i)];
-	Xout(2*i-1:2*i, :) = [uvArr(1,outlierIdx,i+1); uvArr(1,outlierIdx,i)];
-	Yout(2*i-1:2*i, :) = [uvArr(2,outlierIdx,i+1); uvArr(2,outlierIdx,i)];
-end
+% inlier pixel coordinates
+uv1_inlier = uv1(:, inlierIdx);
+uv2_inlier = uv2(:, inlierIdx);
+uv1_outlier = uv1(:, outlierIdx);
+uv2_outlier = uv2(:, outlierIdx);
 
 %% Initialize figure 1: subs1, subs2
 if ~plot_initialized
@@ -65,22 +58,22 @@ if ~plot_initialized
 		line([0 obj.params.imSize(1)], [y y], 'linestyle', ':', 'Color', [.5 .5 .5]);
 	end
 	
-	h_inlier = scatter( uvArr(1,inlierIdx,1), uvArr(2,inlierIdx,1), 'ro' );
-	h_outlier = scatter( uvArr(1,outlierIdx,1), uvArr(2,outlierIdx,1), 'bo' );
+	h_inlier = scatter( uv2_inlier(1,:), uv2_inlier(2,:), 'ro' );
+	h_outlier = scatter( uv2_outlier(1,:), uv2_outlier(2,:), 'bo' );
 	
-	line_inlier = line( Xin, Yin, 'Color', 'y');
-	line_outlier = line( Xout, Yout, 'Color', 'b');
+	line_inlier = plot( sfig1, [uv1_inlier(1,:); uv2_inlier(1,:)], [uv1_inlier(2,:); uv2_inlier(2,:)], 'Color', 'y');
+	line_outlier = plot( sfig1, [uv1_outlier(1,:); uv2_outlier(1,:)], [uv1_outlier(2,:); uv2_outlier(2,:)], 'Color', 'b');
 	
 	%
 	sfig2 = subplot(122);
-	h_point_0 = scatter3(sfig2, p_0(1,:), p_0(3,:), -p_0(2,:), 5, 'filled', 'MarkerFaceColor', [.7 .7 .7], 'MarkerFaceAlpha', .3);hold on
+	h_point_0 = scatter3(sfig2, p_0(1,:), p_0(3,:), -p_0(2,:), 5, 'filled', 'MarkerFaceColor', [.5 .5 .5], 'MarkerFaceAlpha', .5);hold on
 	h_point = scatter3( p_k_0(1,:), p_k_0(2,:), p_k_0(3,:), 7, 'filled');
 	h_traj = plot(obj.PocRec(1,1:step), obj.PocRec(3,1:step), 'r-', 'LineWidth', 2);
 	h_curr = scatter(obj.PocRec(1,step), obj.PocRec(3,step), 'ro', 'LineWidth', 2);
 	axis square equal;grid on;
 	
-	xlim(sfig2, [obj.PocRec(1,step)-5 obj.PocRec(1,step)+5]);
-	ylim(sfig2, [obj.PocRec(3,step)-3 obj.PocRec(3,step)+7]);
+	xlim(sfig2, [obj.PocRec(1,step)-100 obj.PocRec(1,step)+100]);
+	ylim(sfig2, [obj.PocRec(3,step)-60 obj.PocRec(3,step)+140]);
 	set(sfig2, 'View', [0 90]);
 	colormap(sfig2, cool);
 	caxis([0 10]);
@@ -95,22 +88,21 @@ else
 	% FIGURE 1: sub1 - image and features, sub2 - xz-trajectory
 	set(h_image, 'CData', obj.cur_image);
 	
-	set(h_inlier, 'XData', uvArr(1,inlierIdx,1), 'YData', uvArr(2,inlierIdx,1));
-	set(h_outlier, 'XData', uvArr(1,outlierIdx,1), 'YData', uvArr(2,outlierIdx,1));
-	
+	set(h_inlier, 'XData', uv2_inlier(1,:), 'YData', uv2_inlier(2,:));
+	set(h_outlier, 'XData', uv2_outlier(1,:), 'YData', uv2_outlier(2,:));
+
 	delete(line_inlier);
 	delete(line_outlier);
-	
-	line_inlier = line( sfig1, Xin, Yin, 'Color', 'y');
-	line_outlier = line( sfig1, Xout, Yout, 'Color', 'b');
+	line_inlier = plot( sfig1, [uv1_inlier(1,:); uv2_inlier(1,:)], [uv1_inlier(2,:); uv2_inlier(2,:)], 'Color', 'y');
+	line_outlier = plot( sfig1, [uv1_outlier(1,:); uv2_outlier(1,:)], [uv1_outlier(2,:); uv2_outlier(2,:)], 'Color', 'b');
 	
 	set(h_point_0, 'XData', p_0(1,:), 'YData', p_0(3,:), 'ZData', -p_0(2,:));
 	set(h_point, 'XData', p_k_0(1,inlierIdx), 'YData', p_k_0(3,inlierIdx), 'ZData', -p_k_0(2,inlierIdx),'CData', p_life(inlierIdx));
 	set(h_traj, 'XData', obj.PocRec(1,1:step), 'YData', obj.PocRec(3,1:step));
 	set(h_curr, 'XData', obj.PocRec(1,step), 'YData', obj.PocRec(3,step));
 		
-	xlim(sfig2, [obj.PocRec(1,step)-5 obj.PocRec(1,step)+5]);
-	ylim(sfig2, [obj.PocRec(3,step)-3 obj.PocRec(3,step)+7]);
+	xlim(sfig2, [obj.PocRec(1,step)-130 obj.PocRec(1,step)+130]);
+	ylim(sfig2, [obj.PocRec(3,step)-80 obj.PocRec(3,step)+150]);
 	
 end
 
