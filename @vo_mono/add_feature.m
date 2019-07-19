@@ -27,7 +27,7 @@ while true
 		return;
 	end
 
-	[des, locs] = descriptor(obj.cur_image, 'ROI', ROI, 'FilterSize', filterSize);
+	[des, locs] = descriptor(obj.cur_image, 'ROI', ROI);
 	if isempty(locs)
 		return;
 	end

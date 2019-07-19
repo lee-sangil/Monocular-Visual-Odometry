@@ -21,7 +21,7 @@ if ~isempty(idx)
 	ransacCoef.iterMax = 1e3;
 	ransacCoef.minPtNum = 1;
 	ransacCoef.thInlrRatio = 0.99;
-	ransacCoef.thDist = 2;
+	ransacCoef.thDist = 1;
 	ransacCoef.thDistOut = 5;
 	ransacCoef.funcFindF = @(x1, x2) obj.calculate_scale(x1, x2);
 	ransacCoef.funcDist = @(hyp, x1, x2) obj.calculate_scale_error(hyp, x1, x2);

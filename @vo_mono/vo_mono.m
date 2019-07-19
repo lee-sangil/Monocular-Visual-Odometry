@@ -43,8 +43,8 @@ classdef vo_mono < handle
 			obj.identifier = 'mono';
 			
 			% image
-			obj.params.imSize = get_im_size(pkg);
-			obj.params.K = get_intrinsic(pkg);
+			obj.params.imSize = pkg.imSize;
+			obj.params.K = pkg.K;
 			obj.params.thInlier = 10;
 			obj.scale_initialized = false;
 			
@@ -52,14 +52,14 @@ classdef vo_mono < handle
 			obj.bucket.grid = [ 32, 8 ]; % [width, height]
 			obj.bucket.mass = zeros(obj.bucket.grid);
 			obj.bucket.size = [floor(obj.params.imSize(1)/obj.bucket.grid(1)), floor(obj.params.imSize(2)/obj.bucket.grid(2))];
-			obj.bucket.max_features = 100; % floor(sqrt(prod(imSize)));
+			obj.bucket.max_features = 150; % floor(sqrt(prod(imSize)));
 			
 			% Create a tracker object.
 			obj.tracker = vision.PointTracker('MaxBidirectionalError', 1);
 			obj.tracker_initialized = false;
 			
 			% Descriptor
-			obj.params.descriptor = @feature_harris;
+			obj.params.descriptor = @feature_surf;
 
 			% variables
 			obj.nFeature = 0;
