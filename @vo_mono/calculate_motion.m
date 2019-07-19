@@ -39,9 +39,9 @@ else
 	% Save solution
 	step = obj.step;
 	
-	obj.TRec{step} = [R t; 0 0 0 1];
-	obj.TocRec{step} = obj.TRec{step} * obj.TocRec{step-1};
-	obj.PocRec(:,step) = obj.TocRec{step} \ [0 0 0 1]';
+	obj.TRec{step} = [R' -R'*t; 0 0 0 1];
+	obj.TocRec{step} = obj.TocRec{step-1} * obj.TRec{step};
+	obj.PocRec(:,step) = obj.TocRec{step} * [0 0 0 1]';
 
 	flag = true;
 end

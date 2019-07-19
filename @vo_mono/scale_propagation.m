@@ -14,7 +14,7 @@ if obj.scale_initialized
 		% Get initialized 3D point
 		P1_ini = zeros(4, nPoint);
 		for i = 1:nPoint
-			P1_ini(:,i) = obj.TocRec{obj.step-1} * obj.features(idx(i)).point_init;
+			P1_ini(:,i) = obj.TocRec{obj.step-1} \ obj.features(idx(i)).point_init;
 		end
 		
 		% Get expected 3D point by transforming the coordinates of the
@@ -79,7 +79,7 @@ for i = idx
 	% Initialize 3D point of each features when it is initialized for
 	% the first time
 	if ~obj.features(i).is_3D_init
-		obj.features(i).point_init = obj.TocRec{obj.step-1} \ obj.features(i).point;
+		obj.features(i).point_init = obj.TocRec{obj.step-1} * obj.features(i).point;
 		obj.features(i).is_3D_init = true;
 	end
 end

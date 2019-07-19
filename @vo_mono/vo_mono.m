@@ -85,7 +85,7 @@ classdef vo_mono < handle
 			% RANSAC parameter
 			ransacCoef_calc_essential.iterMax = 1e4;
 			ransacCoef_calc_essential.minPtNum = 8;
-			ransacCoef_calc_essential.thInlrRatio = 0.99;
+			ransacCoef_calc_essential.thInlrRatio = 0.9;
 			ransacCoef_calc_essential.thDist = 1e-4;
 			ransacCoef_calc_essential.thDistOut = 1e-4;
 			ransacCoef_calc_essential.funcFindF = @obj.eight_point_essential_hypothesis;
@@ -93,9 +93,9 @@ classdef vo_mono < handle
 			
 			ransacCoef_scale_prop.iterMax = 1e3;
 			ransacCoef_scale_prop.minPtNum = obj.params.thInlier;
-			ransacCoef_scale_prop.thInlrRatio = 0.99;
+			ransacCoef_scale_prop.thInlrRatio = 0.9;
 			ransacCoef_scale_prop.thDist = 1; % standard deviation
-			ransacCoef_scale_prop.thDistOut = 3; % three times of standard deviation
+			ransacCoef_scale_prop.thDistOut = 10; % three times of standard deviation
 			ransacCoef_scale_prop.funcFindF = @obj.calculate_scale;
 			ransacCoef_scale_prop.funcDist = @obj.calculate_scale_error;
 			
