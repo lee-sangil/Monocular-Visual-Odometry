@@ -37,8 +37,8 @@ if obj.scale_initialized
 			var = (P1_exp(3,i) * scale / 2)^4 * obj.params.var_theta;
 			new_var = 1 / ( (1 / obj.features(idx(i)).point_var) + (1 / var) );
 			obj.features(idx(i)).point_prev_var = obj.features(idx(i)).point_var;
-% 			obj.features(idx(i)).point_init = new_var/var * P1_exp(:,i) * scale + new_var/obj.features(idx(i)).point_var * obj.features(idx(i)).point_init;
-% 			obj.features(idx(i)).point_init(4) = 1;
+			obj.features(idx(i)).point_init = new_var/var * obj.TocRec{obj.step-1} * P1_exp(:,i) * scale + new_var/obj.features(idx(i)).point_var * obj.features(idx(i)).point_init;
+			obj.features(idx(i)).point_init(4) = 1;
 			obj.features(idx(i)).point_var = new_var;
 		end
 		
@@ -54,6 +54,15 @@ if obj.scale_initialized
 		scale = norm(obj.TRec{obj.step-1}(1:3,4));
 	end
 	
+	figure(2);
+	p = obj.TocRec{obj.step-1} \ [obj.features(idx).point_init];
+	p_k = [obj.features(idx).point]*scale;
+	scatter3(p(1,:), p(2,:), p(3,:), 'ro');hold on;
+	scatter3(p_k(1,:), p_k(2,:), p_k(3,:), 'b.');hold off;
+	xlim([-30 30]);
+	ylim([-15 2]);
+	zlim([00 60]);
+	set(gca,'view',[370,-28]);
 end
 
 %% INITIALIZATION
