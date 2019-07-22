@@ -27,7 +27,7 @@ if obj.scale_initialized
 		% RANSAC
 % 		obj.params.ransacCoef_scale_prop.weight = [obj.features(idx).life] ./ sqrt([obj.features(idx).point_var]);
 		points = [obj.features(idx).point];
-		obj.params.ransacCoef_scale_prop.weight = atan(-points(3,:)+5)+pi/2;
+		obj.params.ransacCoef_scale_prop.weight = atan(-points(3,:)+3)+pi/2;
 		[scale, inlier, outlier] = ransac(P1_exp(1:3,:), P1_ini(1:3,:), obj.params.ransacCoef_scale_prop);
 		obj.nFeatureInlier = length(inlier);
 		

@@ -96,7 +96,7 @@ classdef vo_mono < handle
 			ransacCoef_scale_prop.minPtNum = obj.params.thInlier;
 			ransacCoef_scale_prop.thInlrRatio = 0.9;
 			ransacCoef_scale_prop.thDist = 0.5; % standard deviation
-			ransacCoef_scale_prop.thDistOut = 10; % three times of standard deviation
+			ransacCoef_scale_prop.thDistOut = inf; % three times of standard deviation
 			ransacCoef_scale_prop.funcFindF = @obj.calculate_scale;
 			ransacCoef_scale_prop.funcDist = @obj.calculate_scale_error;
 			
