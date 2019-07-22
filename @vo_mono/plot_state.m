@@ -2,14 +2,18 @@ function obj = plot_state(obj, plot_initialized)
 
 persistent sfig1 sfig2 h_image h_inlier h_outlier line_inlier line_outlier h_traj h_curr h_point h_point_0 p_0
 
+if ~plot_initialized
+	p_0 = [];
+end
+
 % Compensate a parameter "step", cause obj.step grows at the last stage of vo.run()
 step = obj.step - 1;
 
 % Get uv-pixel point to paint over the image
 features = obj.features;
 
-x_window = [-50 50];
-y_window = [-30 70];
+x_window = [-60 60];
+y_window = [-50 70];
 
 max_len = max(max([obj.features(:).life]), 2);
 uv = {obj.features(:).uv};
@@ -76,9 +80,9 @@ if ~plot_initialized
 	
 	%
 	sfig2 = subplot(122);
-	h_point_0 = scatter3(sfig2, p_0(1,:), p_0(3,:), -p_0(2,:), 5, 'filled', 'MarkerFaceColor', [.7 .7 .7], 'MarkerFaceAlpha', .3);hold on
+	h_point_0 = scatter3(sfig2, p_0(1,:), p_0(3,:), -p_0(2,:), 5, 'filled', 'MarkerFaceColor', [.7 .7 .7], 'MarkerFaceAlpha', .3);hold on;
 	h_point = scatter3( p_k_0(1,:), p_k_0(2,:), p_k_0(3,:), 7, 'filled');
-	h_traj = plot(obj.PocRec(1,1:step), obj.PocRec(3,1:step), 'r-', 'LineWidth', 2);
+	h_traj = plot(obj.PocRec(1,1:step), obj.PocRec(3,1:step), 'r-', 'LineWidth', 2);hold on;
 	h_curr = scatter(obj.PocRec(1,step), obj.PocRec(3,step), 'ro', 'LineWidth', 2);
 	axis square equal;grid on;
 	

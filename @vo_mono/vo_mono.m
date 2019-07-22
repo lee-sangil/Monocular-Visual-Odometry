@@ -19,7 +19,8 @@ classdef vo_mono < handle
 		nFeatureInlier
 		new_feature_id
 		
-		essential
+		R_vec
+		t_vec
 		TRec
 		TocRec
 		PocRec
@@ -60,7 +61,7 @@ classdef vo_mono < handle
 			obj.bucket.mass = zeros(obj.bucket.grid);
 			obj.bucket.prob = zeros(obj.bucket.grid);
 			obj.bucket.size = [floor(obj.params.imSize(1)/obj.bucket.grid(1)), floor(obj.params.imSize(2)/obj.bucket.grid(2))];
-			obj.bucket.max_features = 300;
+			obj.bucket.max_features = 500;
 			
 			% Variables
 			obj.nFeature = 0;
@@ -148,9 +149,9 @@ classdef vo_mono < handle
 		
 		% RANSAC
 		E = eight_point_essential_hypothesis( obj, x1, x2 )
-		dist = essential_model_error( obj, E, x1, x2, weight )
+		dist = essential_model_error( obj, E, x1, x2 )
 		scale = calculate_scale( obj, P1, P1_ref )
-		dist = calculate_scale_error( obj, scale, P1, P1_ref, weight )
+		dist = calculate_scale_error( obj, scale, P1, P1_ref )
 		
 		% ETC
 		obj = update_bucket( obj )

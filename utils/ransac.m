@@ -28,12 +28,7 @@ thDist = ransacCoef.thDist;
 thDistOut = ransacCoef.thDistOut;
 funcFindF = ransacCoef.funcFindF;
 funcDist_ = ransacCoef.funcDist;
-if isfield(ransacCoef, 'weight')
-	w = ransacCoef.weight;
-	funcDist = @(f,x,y)funcDist_(f,x,y,w);
-else
-	funcDist = @(f,x,y)funcDist_(f,x,y);
-end
+funcDist = @(f,x,y)funcDist_(f,x,y);
 
 ptNum = size(x,2);
 
@@ -44,7 +39,12 @@ inlierIdx = [];
 it = 1;
 while it < min(iterMax, iterNum)
 	% 1. fit using  random points
-	sampleIdx = randperm(ptNum, minPtNum);
+	if isfield(ransacCoef, 'weight')
+		w = ransacCoef.weight;
+		sampleIdx = randweightedpick(w, minPtNum);
+	else
+		sampleIdx = randperm(ptNum, minPtNum);
+	end
 	f1 = funcFindF(x(:,sampleIdx), y(:,sampleIdx));
 	
 	if iscell(f1)

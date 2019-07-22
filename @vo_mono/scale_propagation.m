@@ -25,7 +25,9 @@ if obj.scale_initialized
 		end
 		
 		% RANSAC
-		obj.params.ransacCoef_scale_prop.weight = [obj.features(idx).life] ./ sqrt([obj.features(idx).point_var]);
+% 		obj.params.ransacCoef_scale_prop.weight = [obj.features(idx).life] ./ sqrt([obj.features(idx).point_var]);
+		points = [obj.features(idx).point];
+		obj.params.ransacCoef_scale_prop.weight = atan(-points(3,:)+5)+pi/2;
 		[scale, inlier, outlier] = ransac(P1_exp(1:3,:), P1_ini(1:3,:), obj.params.ransacCoef_scale_prop);
 		obj.nFeatureInlier = length(inlier);
 		
@@ -35,8 +37,8 @@ if obj.scale_initialized
 			var = (P1_exp(3,i) * scale / 2)^4 * obj.params.var_theta;
 			new_var = 1 / ( (1 / obj.features(idx(i)).point_var) + (1 / var) );
 			obj.features(idx(i)).point_prev_var = obj.features(idx(i)).point_var;
-			obj.features(idx(i)).point_init = new_var/var * P1_exp(:,i) * scale + new_var/obj.features(idx(i)).point_var * obj.features(idx(i)).point_init;
-			obj.features(idx(i)).point_init(4) = 1;
+% 			obj.features(idx(i)).point_init = new_var/var * P1_exp(:,i) * scale + new_var/obj.features(idx(i)).point_var * obj.features(idx(i)).point_init;
+% 			obj.features(idx(i)).point_init(4) = 1;
 			obj.features(idx(i)).point_var = new_var;
 		end
 		
@@ -61,8 +63,7 @@ idx = seek_index(obj, obj.nFeature3DReconstructed, [obj.features(:).is_3D_recons
 % Initialze scale, in the case of the first time
 if ~obj.scale_initialized
 	
-	scale = .1;
-% 	scale = 10 / ( [0 0 1 0] * min([obj.features(idx).point],[],2) );
+	scale = 1;
 	obj.nFeatureInlier = length(idx);
 	obj.scale_initialized = true;
 	
@@ -75,7 +76,7 @@ t = scale * t;
 % Update features which 3D point is intialized currently
 for i = idx
 	obj.features(i).point(1:3,:) = scale * obj.features(i).point(1:3,:);
-
+	
 	% Initialize 3D point of each features when it is initialized for
 	% the first time
 	if ~obj.features(i).is_3D_init
@@ -83,8 +84,5 @@ for i = idx
 		obj.features(i).is_3D_init = true;
 	end
 end
-
-% disp(scale);
-% disp( norm(obj.TRec{obj.step-1}(1:3,4)) );
 
 end
