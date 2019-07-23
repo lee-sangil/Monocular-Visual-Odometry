@@ -146,6 +146,7 @@ classdef vo_mono < handle
 		flag = calculate_motion( obj )
 		[R, t] = verify_solutions( obj, R_vec, t_vec )
 		[R, t] = scale_propagation( obj, R, t )
+		[X_prev, X_curr, lambda_prev, lambda_curr] = contructDepth( obj, x_prev, x_curr, R, t )
 		
 		% RANSAC
 		E = eight_point_essential_hypothesis( obj, x1, x2 )

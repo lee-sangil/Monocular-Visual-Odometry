@@ -27,27 +27,13 @@ for i = 1:length(R_vec)
 	R1 = R_vec{i};
 	t1 = t_vec{i};
 	
-	m_ = cell(nFeature2DInliered, 1);
-	t_ = zeros(3*nFeature2DInliered, 1);
-	for j = 1:nFeature2DInliered
-		m_{j} = skew(x_curr(:,j))*R1*x_prev(:,j);
-		t_(3*(j-1)+1:3*j) = skew(x_curr(:,j))*t1;
-	end
-	M = blkdiag(m_{:});
-	M(:, nFeature2DInliered+1) = t_;
-	
-	[~,~,V] = svd(M.'*M);
-	lambda_prev = V(1:end-1,end).'/(V(end,end));
-	
-	lambdax_curr = bsxfun(@plus, bsxfun(@times, lambda_prev, R1*x_prev), t1);
-	lambda_curr = lambdax_curr(3,:);
-	
+	[X_prev, X_curr, lambda_prev, lambda_curr] = obj.contructDepth(x_prev, x_curr, R1, t1);
 	inlier = find(lambda_prev > 0 & lambda_curr > 0);
 	
 	if length(inlier) > max_num
 		max_num = length(inlier);
 		max_inlier = inlier;
-		point_prev = [bsxfun(@times, lambda_prev(inlier), x_prev(:,inlier));ones(1,length(inlier))];
+		point_prev = [X_prev(:,inlier);ones(1,length(inlier))];
 		
 		R = R1;
 		t = t1;

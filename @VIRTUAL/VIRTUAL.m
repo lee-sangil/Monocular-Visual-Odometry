@@ -32,7 +32,7 @@ classdef VIRTUAL < handle
 			
 			obj.identifier = 'virtual';
 			obj.imInit = 1;
-			obj.imLength = 200;
+			obj.imLength = 300;
 			
 			obj.radialDistortion = [0 0 0];
 			obj.tangentialDistortion = [0 0];
