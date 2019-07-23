@@ -8,6 +8,7 @@ classdef VIRTUAL < handle
 		
 		features
 		points
+		points_id
 		pose
 		
 		K
@@ -38,7 +39,7 @@ classdef VIRTUAL < handle
 		end
 				
 		% GET functions		
-		[feature, point] = get_current_feature(obj)
+		[feature, point, id] = get_current_feature(obj)
 		eof = end_of_file(obj)
 		
 		% SET function

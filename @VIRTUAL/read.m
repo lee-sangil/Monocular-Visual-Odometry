@@ -2,7 +2,7 @@ function obj = read(obj)
 
 DEBUG = true;
 
-imSize = [480 1280];
+imSize = [640 1280];
 K = [500 0 imSize(2)/2;
 	0 500 imSize(1)/2;
 	0 0 1];
@@ -10,6 +10,7 @@ K = [500 0 imSize(2)/2;
 %% Construct landmark points and pose
 n = 2000;
 X0 = 400*(-0.5+rand(3,n));
+ID = 1:n;
 
 Toc = cell(1,obj.imLength);
 Poc = zeros(4,obj.imLength);
@@ -19,6 +20,7 @@ cameraZ0 = [0;0;1];
 
 features = cell(1, obj.imLength);
 points = cell(1, obj.imLength);
+points_id = cell(1, obj.imLength);
 	
 for i = 2:50
 	w_ = [0.1*(-0.5+rand) 1 0.1*(-0.5+rand)]';
@@ -86,6 +88,7 @@ for i = 1:obj.imLength
 	valid = forwardCamera & insideImageSensor;
 	features{i} = uv(1:2,valid);
 	points{i} = X(1:3,valid);
+	points_id{i} = ID(valid);
 	
 	if DEBUG
 		set(hs, 'XData', X0(1,valid), 'YData', X0(2,valid), 'ZData', X0(3,valid));
@@ -97,9 +100,10 @@ for i = 1:obj.imLength
 end
 
 %%
-obj.imSize = imSize;
+obj.imSize = fliplr(imSize);
 obj.features = features;
 obj.points = points;
+obj.points_id = points_id;
 obj.pose = Poc;
 
 obj.K = K;
