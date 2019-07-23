@@ -3,6 +3,7 @@ classdef vo_mono < handle
 		
 		identifier
 		
+		undist_image
 		cur_image
         prev_image
         
@@ -61,7 +62,7 @@ classdef vo_mono < handle
 			obj.bucket.mass = zeros(obj.bucket.grid);
 			obj.bucket.prob = zeros(obj.bucket.grid);
 			obj.bucket.size = [floor(obj.params.imSize(1)/obj.bucket.grid(1)), floor(obj.params.imSize(2)/obj.bucket.grid(2))];
-			obj.bucket.max_features = 100;
+			obj.bucket.max_features = 500;
 			
 			% Variables
 			obj.nFeature = 0;
