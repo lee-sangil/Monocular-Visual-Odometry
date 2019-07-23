@@ -1,4 +1,7 @@
 classdef Environment < handle
+	properties (Access = public)
+		runMethod
+	end
 	properties (Access = private)
 		
 		isInitialized = true
@@ -102,7 +105,7 @@ classdef Environment < handle
 					
 					% VO run
 					tic;
-					obj.vo.run(obj.pkg);
+					obj.runMethod(obj.pkg);
 					timePassed = toc;
 					
 					% Show image and features

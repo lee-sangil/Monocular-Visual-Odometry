@@ -61,7 +61,7 @@ classdef vo_mono < handle
 			obj.bucket.mass = zeros(obj.bucket.grid);
 			obj.bucket.prob = zeros(obj.bucket.grid);
 			obj.bucket.size = [floor(obj.params.imSize(1)/obj.bucket.grid(1)), floor(obj.params.imSize(2)/obj.bucket.grid(2))];
-			obj.bucket.max_features = 500;
+			obj.bucket.max_features = 100;
 			
 			% Variables
 			obj.nFeature = 0;
@@ -156,5 +156,13 @@ classdef vo_mono < handle
 		% ETC
 		obj = update_bucket( obj )
 		[idx, length] = seek_index( obj, max_length, condition )
+		
+		% Test for Virtual dataset
+		obj = virtual_run( obj, pkg )
+		flag = virtual_set_features( obj, features, points, id )
+		flag = virtual_update_features( obj, features, points, id )
+		obj = virtual_delete_dead_features( obj, features, points )
+		obj = virtual_add_features( obj, features, points, id )
+		obj = virtual_add_feature( obj, features, points, id )
 	end
 end

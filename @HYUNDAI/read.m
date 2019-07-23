@@ -57,9 +57,3 @@ obj.K = K;
 
 fprintf('# load: [%s]\n', BaseDir);
 fprintf('# imStep: %d...%d\n', obj.imInit, obj.imInit+obj.imLength-1)
-
-% obj.RgiTab = RgiTab;
-% obj.pgiTab = pgiTab;
-% obj.qgiTab = qgiTab;
-% obj.RgcTab = RgcTab;
-% obj.pgcTab = pgcTab;

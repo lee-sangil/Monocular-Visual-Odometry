@@ -72,7 +72,7 @@ idx = seek_index(obj, obj.nFeature3DReconstructed, [obj.features(:).is_3D_recons
 % Initialze scale, in the case of the first time
 if ~obj.scale_initialized
 	
-	scale = 1;
+	scale = .3;
 	obj.nFeatureInlier = length(idx);
 	obj.scale_initialized = true;
 	
