@@ -11,8 +11,14 @@ t_vec = obj.t_vec;
 % Verity 4 solutions
 [R_, t_] = obj.verify_solutions(R_vec, t_vec);
 
-[R, t, flag] = obj.findPoseFrom3DPoints();
-[R, t] = obj.scale_propagation(R_, t_);
+[R, t, success, inlier] = obj.findPoseFrom3DPoints();
+if success == false
+	[R, t, ~, inlier, outlier] = obj.scale_propagation(R_, t_);
+	obj.update3DPoints(R, t, inlier, outlier);
+else
+	obj.update3DPoints(R, t, inlier);
+end
+obj.scale_initialized = true;
 
 if t(3) > 0
 	a = 1;

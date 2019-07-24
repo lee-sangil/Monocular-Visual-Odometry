@@ -1,5 +1,4 @@
-function [R, t, flag] = findPoseFrom3DPoints( obj )
-%% TRI-IMAGES SCALE COMPENSATION
+function [R, t, flag, inlier] = findPoseFrom3DPoints( obj )
 
 % Seek index of which feature is 3D reconstructed currently,
 % and 3D initialized previously
@@ -17,14 +16,21 @@ if nPoint > obj.params.thInlier
 	
 	imagePoints_ = zeros(2,nPoint);
 	for i = 1:nPoint
-		imagePoints_(:,idx(i)) = obj.features(idx(i)).uv(:,1);
+		imagePoints_(:,i) = obj.features(idx(i)).uv(:,1);
 	end
 	imagePoints = permute(imagePoints_,[3 2 1]);
-	[R, t, success, inliers] = cv.solvePnPRansac(objectPoints, imagePoints, obj.params.K);
+	[r_vec, t_vec, success, inlier] = cv.solvePnPRansac(objectPoints, imagePoints, obj.params.K);
+	R_ = expm(skew(r_vec));
+	T = [R_ t_vec; 0 0 0 1] * obj.TocRec{obj.step-1};
+	
+	R = T(1:3,1:3);
+	t = T(1:3,4);
 	flag = success;
+	inlier = transpose(inlier) + 1;
 else
 	R = [];
 	t = [];
+	inlier = [];
 	flag = false;
 end
 

@@ -146,9 +146,10 @@ classdef vo_mono < handle
 		flag = calculate_essential( obj )
 		flag = calculate_motion( obj )
 		[R, t] = verify_solutions( obj, R_vec, t_vec )
-		[R, t] = scale_propagation( obj, R, t )
-		[R, t, flag] = findPoseFrom3DPoints( obj )
+		[R, t, flag, inlier, outlier] = scale_propagation( obj, R, t )
+		[R, t, flag, inlier] = findPoseFrom3DPoints( obj )
 		[X_prev, X_curr, lambda_prev, lambda_curr] = contructDepth( obj, x_prev, x_curr, R, t )
+		obj = update3DPoints( obj, R, t, inlier, outlier )
 		
 		% RANSAC
 		E = eight_point_essential_hypothesis( obj, x1, x2 )

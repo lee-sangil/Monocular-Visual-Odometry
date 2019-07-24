@@ -2,21 +2,16 @@ function [R, t] = verify_solutions( obj, R_vec, t_vec )
 %% VERIFICATION
 % Load parameters from object
 K = obj.params.K;
-nFeature = obj.nFeature;
 nFeature2DInliered = obj.nFeature2DInliered;
 
 % Extract homogeneous 2D point which is inliered with essential constraint
-i_inliered = zeros(1, nFeature2DInliered);
-j = 1;
+idx = seek_index(obj, obj.nFeature2DInliered, [obj.features(:).is_2D_inliered]);
+
 uv_prev = zeros(2, nFeature2DInliered);
 uv_curr = zeros(2, nFeature2DInliered);
-for i = 1:nFeature
-	if obj.features(i).is_2D_inliered
-		uv_prev(:,j) = obj.features(i).uv(:,2);
-		uv_curr(:,j) = obj.features(i).uv(:,1);
-		i_inliered(j) = i;
-		j = j + 1;
-	end
+for i = 1:length(idx)
+	uv_prev(:,i) = obj.features(idx(i)).uv(:,2);
+	uv_curr(:,i) = obj.features(idx(i)).uv(:,1);
 end
 x_prev = K \ [uv_prev; ones(1, nFeature2DInliered)];
 x_curr = K \ [uv_curr; ones(1, nFeature2DInliered)];
@@ -47,7 +42,7 @@ if max_num < nFeature2DInliered*0.5
 	t = [];
 	
 else
-	idx = i_inliered(max_inlier);
+	idx = idx(max_inlier);
 	for i = 1:length(idx)
 		% Update 3D point of features with respect to the current image
 		% frame
