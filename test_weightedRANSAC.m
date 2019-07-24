@@ -14,14 +14,16 @@ ransacCoef.thDist = 0.2;
 ransacCoef.thDistOut = 0.2;
 ransacCoef.funcFindF = @(x,y) findLine(x,y);
 ransacCoef.funcDist = @(f,x,y) abs(f(1)*x+f(2)-y);
-ransacCoef.weight = ones(size(x));
-% ransacCoef.weight = x;
+% ransacCoef.weight = ones(size(x));
+ransacCoef.weight = x;
 
-for i = 1:100
+for i = 1:50
 	f = ransac(x,z, ransacCoef);
 	y = f(1)*x+f(2);
-	plot(x,y,'r');
+	p = plot(x,y,'r');
+	p.Color(4) = 0.2;
 end
+set(gcf, 'Color', [1 1 1]);
 
 end
 

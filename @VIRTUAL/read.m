@@ -111,7 +111,7 @@ for i = 1:obj.imLength
 	points{i} = X(1:3,valid);
 	points_id{i} = ID(valid);
 	
-	if DEBUG% && ~mod(i,round(obj.imLength/60))
+	if DEBUG && ~mod(i,round(obj.imLength/60))
 		set(hs, 'XData', X0(1,valid), 'YData', X0(2,valid), 'ZData', X0(3,valid));
 		hax = draw_camera(hax, Toc{i});
 		set(hp, 'XData', Poc(1,1:i), 'YData', Poc(2,1:i), 'ZData', Poc(3,1:i));

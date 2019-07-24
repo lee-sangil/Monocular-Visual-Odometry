@@ -45,6 +45,7 @@ while(true)
 	t_vec{3} = U(:,3);
 	t_vec{4} = -U(:,3);
 	
+	% Should be removed or modified later
 	if abs(t_vec{1}(3)) > 0.8
 		break;
 	end

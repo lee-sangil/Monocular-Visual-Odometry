@@ -147,6 +147,7 @@ classdef vo_mono < handle
 		flag = calculate_motion( obj )
 		[R, t] = verify_solutions( obj, R_vec, t_vec )
 		[R, t] = scale_propagation( obj, R, t )
+		[R, t, flag] = findPoseFrom3DPoints( obj )
 		[X_prev, X_curr, lambda_prev, lambda_curr] = contructDepth( obj, x_prev, x_curr, R, t )
 		
 		% RANSAC
@@ -165,6 +166,6 @@ classdef vo_mono < handle
 		flag = virtual_update_features( obj, features, points, id )
 		obj = virtual_delete_dead_features( obj, features, points )
 		obj = virtual_add_features( obj, features, points, id )
-		obj = virtual_add_feature( obj, features, points, id )
+		flag = virtual_add_feature( obj, features, points, id )
 	end
 end

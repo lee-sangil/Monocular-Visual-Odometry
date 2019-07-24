@@ -1,4 +1,4 @@
-function obj = virtual_add_feature( obj, features_, points_, id_ )
+function flag = virtual_add_feature( obj, features_, points_, id_ )
 
 % Load bucket parameters
 bkSize = obj.bucket.size;
@@ -28,11 +28,12 @@ valid_roi = features_(1,:) >= ROI(1) & features_(1,:) <= ROI(1)+ROI(3) & feature
 locs = features_(:,valid_roi)';
 ids = id_(valid_roi);
 
+flag = false;
+
 if isempty(locs)
 	return;
 end
 
-flag = false;
 for l = 1:size(locs,1)
 	for f = 1:length(idx)
 		dist(f) = norm(locs(l,:).' - obj.features(idx(f)).uv(:,1));
