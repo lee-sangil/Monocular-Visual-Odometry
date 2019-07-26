@@ -82,7 +82,6 @@ obj.features(new).is_3D_reconstructed = false; % triangulation completion
 obj.features(new).is_3D_init = false; % scale-compensated
 obj.features(new).point_init = nan(4,1); % scale-compensated 3-dim homogeneous point in the global coordinates
 obj.features(new).point_var = obj.params.var_point;
-obj.features(new).point_prev_var = obj.params.var_point;
 
 obj.new_feature_id = obj.new_feature_id + 1;
 obj.nFeature = obj.nFeature + 1;

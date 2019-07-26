@@ -8,46 +8,42 @@ end
 R_vec = obj.R_vec;
 t_vec = obj.t_vec;
 
-% Verity 4 solutions
-[R_, t_] = obj.verify_solutions(R_vec, t_vec);
-
-[R, t, success, inlier] = obj.findPoseFrom3DPoints();
+[R, t, success, inlier, outlier] = obj.findPoseFrom3DPoints();
 if success == false
-	[R, t, ~, inlier, outlier] = obj.scale_propagation(R_, t_);
-	obj.update3DPoints(R, t, inlier, outlier);
+	% Verity 4 solutions
+	[R_, t_, success] = obj.verify_solutions(R_vec, t_vec);
 	
-	%% STORE
-	if obj.nFeature3DReconstructed < obj.params.thInlier
-		warning('there are a few 3D POINT INLIERS');
+	if success == false
 		flag = false;
-	else
-		% Save solution
-		step = obj.step;
-		
-		obj.TRec{step} = [R' -R'*t; 0 0 0 1];
-		obj.TocRec{step} = obj.TocRec{step-1} * obj.TRec{step};
-		obj.PocRec(:,step) = obj.TocRec{step} * [0 0 0 1]';
-		
-		flag = true;
+		return;
 	end
+	
+	% Update 3D points
+	[R, t, success, inlier, outlier] = obj.scale_propagation(R_, t_);
+	
+	if success == false
+		flag = false;
+		return;
+	end
+	
+	[T, Toc, Poc] = obj.update3DPoints(R, t, inlier, outlier, 'w/oPnP');
 else
-	obj.update3DPoints(R, t, inlier);
-	
-	%% STORE
-	if obj.nFeature3DReconstructed < obj.params.thInlier
-		warning('there are a few 3D POINT INLIERS');
-		flag = false;
-	else
-		% Save solution
-		step = obj.step;
-		
-		obj.PocRec(:,step) = obj.TocRec{step} * [0 0 0 1]';
-		
-		flag = true;
-	end
+	% Update 3D points
+	[T, Toc, Poc] = obj.update3DPoints(R, t, inlier, outlier, 'w/PnP');
 end
 obj.scale_initialized = true;
 
-if t(3) > 0
-	a = 1;
+%% Store
+if obj.nFeature3DReconstructed < obj.params.thInlier
+	warning('there are a few 3D POINT INLIERS');
+	flag = false;
+else
+	% Save solution
+	step = obj.step;
+	
+	obj.TRec{step} = T;
+	obj.TocRec{step} = Toc;
+	obj.PocRec(:,step) = Poc;
+	
+	flag = true;
 end

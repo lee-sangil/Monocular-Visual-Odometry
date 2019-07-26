@@ -1,4 +1,4 @@
-function [R, t] = verify_solutions( obj, R_vec, t_vec )
+function [R, t, success] = verify_solutions( obj, R_vec, t_vec )
 %% VERIFICATION
 % Load parameters from object
 K = obj.params.K;
@@ -40,7 +40,7 @@ end
 if max_num < nFeature2DInliered*0.5
 	R = [];
 	t = [];
-	
+	success = false;
 else
 	idx = idx(max_inlier);
 	for i = 1:length(idx)
@@ -49,5 +49,5 @@ else
 		obj.features(idx(i)).is_3D_reconstructed = true;
 	end
 	obj.nFeature3DReconstructed = length(idx);
-	
+	success = true;
 end

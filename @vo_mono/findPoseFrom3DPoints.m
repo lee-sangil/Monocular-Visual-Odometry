@@ -1,9 +1,8 @@
-function [R, t, flag, inlier] = findPoseFrom3DPoints( obj )
+function [R, t, flag, inlier, outlier] = findPoseFrom3DPoints( obj )
 
 % Seek index of which feature is 3D reconstructed currently,
 % and 3D initialized previously
-idx = find([obj.features(:).is_3D_reconstructed] == true & ...
-	[obj.features(:).is_3D_init] == true & ...
+idx = find([obj.features(:).is_3D_init] == true & ...
 	[obj.features(:).life] > 10 );
 % 	[obj.features(:).point_var] < 0.1 & ... % Theoretically
 nPoint = length(idx);
@@ -23,10 +22,12 @@ if nPoint > obj.params.thInlier
 	t = t_vec;
 	flag = success;
 	inlier = transpose(inlier) + 1;
+	outlier = idx(~ismember(idx,inlier));
 else
 	R = [];
 	t = [];
 	inlier = [];
+	outlier = [];
 	flag = false;
 end
 
