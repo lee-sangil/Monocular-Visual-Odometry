@@ -15,7 +15,8 @@ ROI(4) = min(obj.params.imSize(2)-bkSafety, ROI(2)+ROI(4))-ROI(2);
 
 % Seek index of which feature is extracted specific bucket
 try
-	[idx, nInBucket] = seek_index(obj, obj.nFeatureMatched, all(bsxfun(@eq, reshape([obj.features(:).bucket], 2, []).', [i, j]), 2));
+	idx = find(all(bsxfun(@eq, reshape([obj.features(:).bucket], 2, []).', [i, j]), 2) == true);
+	nInBucket = length(idx);
 catch
 	idx = [];
 	nInBucket = 0;
@@ -43,18 +44,18 @@ while true
 	
 	keypoints = cv.goodFeaturesToTrack(crop_image, 'UseHarrisDetector', true);
 	keypoints = cellfun(@transpose, keypoints, 'un', 0);
-	locs = [keypoints{:}].'; % xy-coordinates
+	locs = [keypoints{:}].'; % uv-coordinates
 	
 	if isempty(locs)
 		return;
 	else
-		locs(:,1) = locs(:,1) + ROI(2) - 1;
-		locs(:,2) = locs(:,2) + ROI(1) - 1;
+		locs(:,1) = locs(:,1) + ROI(1) - 1;
+		locs(:,2) = locs(:,2) + ROI(2) - 1;
 	end
 	
 	for l = 1:size(locs,1)
 		for f = 1:length(idx)
-			dist(f) = norm(locs(l,[2 1]).' - obj.features(idx(f)).uv(:,1));
+			dist(f) = norm(locs(l,:).' - obj.features(idx(f)).uv(:,1));
 		end
 		if all(dist > 2)
 			break;
@@ -70,16 +71,16 @@ end
 % Add new feature to VO object
 new = obj.nFeature + 1;
 
-obj.features(new).id = obj.new_feature_id;
-obj.features(new).uv = double(locs(l,[2 1])).';
-obj.features(new).life = 1;
-obj.features(new).bucket = [i, j];
-obj.features(new).point = nan(4,1);
-obj.features(new).is_matched = false;
-obj.features(new).is_2D_inliered = false;
-obj.features(new).is_3D_reconstructed = false;
-obj.features(new).is_3D_init = false;
-obj.features(new).point_init = nan(4,1);
+obj.features(new).id = obj.new_feature_id; % unique id of the feature
+obj.features(new).uv = double(locs(l,:)).'; % uv point in pixel coordinates
+obj.features(new).life = 1; % the number of frames in where the feature is observed
+obj.features(new).bucket = [i, j]; % the location of bucket where the feature belong to
+obj.features(new).point = nan(4,1); % 3-dim homogeneous point in the local coordinates
+obj.features(new).is_matched = false; % matched between both frame
+obj.features(new).is_2D_inliered = false; % belong to major (or meaningful) movement
+obj.features(new).is_3D_reconstructed = false; % triangulation completion
+obj.features(new).is_3D_init = false; % scale-compensated
+obj.features(new).point_init = nan(4,1); % scale-compensated 3-dim homogeneous point in the global coordinates
 obj.features(new).point_var = obj.params.var_point;
 obj.features(new).point_prev_var = obj.params.var_point;
 

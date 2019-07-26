@@ -1,7 +1,8 @@
 function obj = delete_dead_features( obj )
 
 try
-	[idx, nIdx] = seek_index(obj, obj.nFeature, [obj.features(:).life] > 0);
+	idx = find([obj.features(:).life] > 0);
+	nIdx = length(idx);
 	obj.features = obj.features(idx);
 	obj.nFeature = nIdx;
 catch

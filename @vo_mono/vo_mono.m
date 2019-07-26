@@ -1,5 +1,5 @@
 classdef vo_mono < handle
-	properties (Access = private)
+	properties (GetAccess = public, SetAccess = private)
 		
 		identifier
 		
@@ -62,7 +62,7 @@ classdef vo_mono < handle
 			obj.bucket.mass = zeros(obj.bucket.grid);
 			obj.bucket.prob = zeros(obj.bucket.grid);
 			obj.bucket.size = [floor(obj.params.imSize(1)/obj.bucket.grid(1)), floor(obj.params.imSize(2)/obj.bucket.grid(2))];
-			obj.bucket.max_features = 500;
+			obj.bucket.max_features = 300;
 			
 			% Variables
 			obj.nFeature = 0;
@@ -108,34 +108,21 @@ classdef vo_mono < handle
 			obj.params.var_theta = (90 / 1241 / 2)^2;
 			obj.params.var_point = 1;
 		end
-		
-		% Add Listener
-% 		function lh = createListener(obj)
-% 			lh = addlistener(obj, 'RELOAD', @reload);
-% 		end
-		
-		% GET functions
-		identifier = get_identifier( obj )
-		nFeature = get_nFeature( obj )
-		nFeatureMatched = get_nFeatureMatched( obj )
-		nFeature2DInliered = get_nFeature2DInliered( obj )
-		nFeature3DReconstructed = get_nFeature3DReconstructed( obj )
-		nFeatureInlier = get_nFeatureInlier( obj )
+        
+		% Set image
+        obj = set_image( obj, image )
 		
 		% Script operations
 		obj = backup( obj )
 		obj = reload( obj )
 		obj = run( obj, pkg )
-		obj = update( obj )
 		obj = plot_state( obj, plot_initialized )
 		obj = text_write( obj, imStep )
 		obj = print_logs( obj, pkg, timePassed )
-		
-        % Set image
-        obj = set_image( obj, image )
         
 		% Feature operations
 		[points, validity] = klt_tracker( obj )
+		obj = update_bucket( obj )
 		flag = extract_features( obj )
 		flag = update_features( obj )
 		obj = delete_dead_features( obj )
@@ -156,10 +143,6 @@ classdef vo_mono < handle
 		dist = essential_model_error( obj, E, x1, x2 )
 		scale = calculate_scale( obj, P1, P1_ref )
 		dist = calculate_scale_error( obj, scale, P1, P1_ref )
-		
-		% ETC
-		obj = update_bucket( obj )
-		[idx, length] = seek_index( obj, max_length, condition )
 		
 		% Test for Virtual dataset
 		obj = virtual_run( obj, pkg )

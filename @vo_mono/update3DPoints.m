@@ -8,9 +8,9 @@ if nargin == 5
 		
 		% Seek index of which feature is 3D reconstructed currently,
 		% and 3D initialized previously
-		[idx, nPoint] = seek_index(obj, obj.nFeature3DReconstructed, ...
-			[obj.features(:).is_3D_reconstructed] & ...
-			[obj.features(:).is_3D_init]);
+		idx = find([obj.features(:).is_3D_reconstructed] == true & ...
+				[obj.features(:).is_3D_init] == true);
+		nPoint = length(idx);
 		
 		% Get expected 3D point by transforming the coordinates of the
 		% observed 3d point
@@ -47,7 +47,7 @@ if nargin == 5
 	end
 	
 	% Seek index of which feature is 3D reconstructed currently
-	idx = seek_index(obj, obj.nFeature3DReconstructed, [obj.features(:).is_3D_reconstructed]);
+	idx = find([obj.features(:).is_3D_reconstructed] == true);
 	
 	% Update features which 3D point is intialized currently
 	for i = idx
@@ -65,57 +65,66 @@ elseif nargin == 4
 	%% with-PnP
 	% Load parameters from object
 	K = obj.params.K;
-	nFeature2DInliered = obj.nFeature2DInliered;
 	
 	% Extract homogeneous 2D point which is inliered with essential constraint
-	idx = seek_index(obj, obj.nFeature2DInliered, [obj.features(:).is_2D_inliered]);
+	idx = find([obj.features(:).is_3D_reconstructed] == true & ...
+				[obj.features(:).is_3D_init] == true);
+	nPoint = length(idx);
 	
-	uv_prev = zeros(2, nFeature2DInliered);
-	uv_curr = zeros(2, nFeature2DInliered);
+	x_init_ = zeros(3, nPoint);
+	uv_curr = zeros(2, nPoint);
 	for i = 1:length(idx)
-		uv_prev(:,i) = obj.features(idx(i)).uv(:,2);
+		x_init_(:,i) = obj.features(idx(i)).point_init(1:3);
 		uv_curr(:,i) = obj.features(idx(i)).uv(:,1);
 	end
-	x_prev = K \ [uv_prev; ones(1, nFeature2DInliered)];
-	x_curr = K \ [uv_curr; ones(1, nFeature2DInliered)];
+	x_init = x_init_ ./ x_init_(3,:);
+	x_curr = K \ [uv_curr; ones(1, nPoint)];
 	
-	[X_prev, X_curr, lambda_prev, lambda_curr] = obj.contructDepth(x_prev, x_curr, R, t);
+	[X_init, X_curr, lambda_prev, lambda_curr] = obj.contructDepth(x_init, x_curr, R, t);
 	inliers = find(lambda_prev > 0 & lambda_curr > 0);
-	point_prev = [X_prev(:,inliers);ones(1,length(inliers))];
+	point_init = [X_init(:,inliers);ones(1,length(inliers))];
+	point_curr = [X_curr(:,inliers);ones(1,length(inliers))];
+	
+	obj.TocRec{obj.step} = [R' -R'*t; 0 0 0 1];
+	obj.TRec{obj.step} = obj.TocRec{obj.step-1} \ obj.TocRec{obj.step};
+	
+	scale = norm(obj.TRec{obj.step}(1:3,4));
+	point_prev = obj.TRec{obj.step} * point_curr;
 	
 	idx = idx(inliers);
 	for i = 1:length(idx)
 		% Update 3D point of features with respect to the current image
 		obj.features(idx(i)).point = point_prev(:,i);
 		obj.features(idx(i)).is_3D_reconstructed = true;
-	end
+	end	
 	obj.nFeature3DReconstructed = length(idx);
 	
-	idx = seek_index(obj, obj.nFeature3DReconstructed, ...
-			[obj.features(:).is_3D_reconstructed] & ...
-			[obj.features(:).is_3D_init]);
-		
+% 	idx = seek_index(obj, obj.nFeature3DReconstructed, ...
+% 			[obj.features(:).is_3D_reconstructed] & ...
+% 			[obj.features(:).is_3D_init]);
+	
 	% Update features
-	for i = inlier
-		% Update 3D point and covariance
-		var = (obj.features(idx(i)).point(3) / 2)^4 * obj.params.var_theta;
-		new_var = 1 / ( (1 / obj.features(idx(i)).point_var) + (1 / var) );
-		obj.features(idx(i)).point_prev_var = obj.features(idx(i)).point_var;
-		obj.features(idx(i)).point_init = new_var/var * obj.TocRec{obj.step-1} * obj.features(idx(i)).point + new_var/obj.features(idx(i)).point_var * obj.features(idx(i)).point_init;
-		obj.features(idx(i)).point_init(4) = 1;
-		obj.features(idx(i)).point_var = new_var;
-	end
+% 	for i = inlier
+% 		% Update 3D point and covariance
+% 		var = (obj.features(idx(i)).point(3) / 2)^4 * obj.params.var_theta;
+% 		new_var = 1 / ( (1 / obj.features(idx(i)).point_var) + (1 / var) );
+% 		obj.features(idx(i)).point_prev_var = obj.features(idx(i)).point_var;
+% 		obj.features(idx(i)).point_init = new_var/var * obj.TocRec{obj.step-1} * obj.features(idx(i)).point + new_var/obj.features(idx(i)).point_var * obj.features(idx(i)).point_init;
+% 		obj.features(idx(i)).point_init(4) = 1;
+% 		obj.features(idx(i)).point_var = new_var;
+% 	end
+% 	
+% 	% Seek index of which feature is 3D reconstructed currently
+% 	idx = seek_index(obj, obj.nFeature3DReconstructed, [obj.features(:).is_3D_reconstructed]);
+% 	
+% 	% Update features which 3D point is intialized currently
+% 	for i = idx
+% 		% Initialize 3D point of each features when it is initialized for
+% 		% the first time
+% 		if ~obj.features(i).is_3D_init
+% 			obj.features(i).point_init = obj.TocRec{obj.step-1} * obj.features(i).point;
+% 			obj.features(i).is_3D_init = true;
+% 		end
+% 	end
 	
-	% Seek index of which feature is 3D reconstructed currently
-	idx = seek_index(obj, obj.nFeature3DReconstructed, [obj.features(:).is_3D_reconstructed]);
-	
-	% Update features which 3D point is intialized currently
-	for i = idx
-		% Initialize 3D point of each features when it is initialized for
-		% the first time
-		if ~obj.features(i).is_3D_init
-			obj.features(i).point_init = obj.TocRec{obj.step-1} * obj.features(i).point;
-			obj.features(i).is_3D_init = true;
-		end
-	end
 end

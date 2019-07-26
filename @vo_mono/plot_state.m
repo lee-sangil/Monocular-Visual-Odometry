@@ -33,14 +33,14 @@ p0 = [obj.features(:).point_init];
 p_0 = [p_0 p0(:,~isnan(p0(1,:)))];
 p_life = [obj.features(:).life];
 
-[idx, ~] = seek_index(obj, obj.nFeature, [obj.features(:).is_3D_reconstructed]);
+idx = find([obj.features(:).is_3D_reconstructed] == true);
 for i = idx
 	p_k_0(:,i) = obj.TocRec{step-1} * p_k(:,i);
 end
 
 % Get inlier pixel coordinates
 arrIdx = 1:length(features);
-[inlierIdx, ~] = seek_index(obj, obj.nFeature3DReconstructed, [obj.features(:).is_3D_reconstructed]);
+inlierIdx = find([obj.features(:).is_3D_reconstructed] == true);
 outlierIdx = arrIdx(~ismember(arrIdx, inlierIdx));
 
 Xin = zeros(2*(max_len-1), length(inlierIdx));

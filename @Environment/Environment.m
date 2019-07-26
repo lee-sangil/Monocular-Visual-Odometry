@@ -123,7 +123,7 @@ classdef Environment < handle
 					totalTime = totalTime + timePassed;
 				end
 				
-				switch get_identifier(obj.vo)
+				switch obj.vo.identifier
 					case 'sparseflow'
 						figure();
 						obj.vo.plot_spacetime();

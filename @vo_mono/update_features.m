@@ -12,6 +12,7 @@ if obj.nFeature > 0
 			features(i).uv(:,2:features(i).life) = features(i).uv;
 			features(i).uv(:,1) = points(:,i);
 			features(i).is_matched = true;
+			
 			obj.nFeatureMatched = obj.nFeatureMatched + 1;
 		else
 			features(i).life = 0;

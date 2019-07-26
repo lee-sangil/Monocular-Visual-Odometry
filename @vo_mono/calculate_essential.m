@@ -9,7 +9,8 @@ if obj.step == 1
 end
 
 % Extract homogeneous 2D point which is matched with corresponding feature
-[idx, nInlier] = seek_index(obj, obj.nFeatureMatched, [obj.features(:).is_matched]);
+idx = find([obj.features(:).is_matched]==true);
+nInlier = length(idx);
 
 uv_prev = zeros(2, nInlier); % previous image plane
 uv_curr = zeros(2, nInlier); % current image plane
@@ -20,8 +21,8 @@ end
 x_prev = K \ [uv_prev; ones(1, nInlier)];
 x_curr = K \ [uv_curr; ones(1, nInlier)];
 
-if median(sum(abs(uv_prev(1:2,:) - uv_curr(1:2,:)),1)) < 1e-1
-	inlier = sum(abs(uv_prev(1:2,:) - uv_curr(1:2,:)),1) < 1e-1;
+if median(sum(abs(uv_prev(1:2,:) - uv_curr(1:2,:)),1)) < 5e-1
+	inlier = sum(abs(uv_prev(1:2,:) - uv_curr(1:2,:)),1) < 5e-1;
 	R_vec = {eye(3)};
 	t_vec = {zeros(3,1)};
 else

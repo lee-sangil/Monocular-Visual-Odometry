@@ -14,7 +14,7 @@ if obj.extract_features()
 		
 		% Extract rotational and translational from fundamental matrix
 		if obj.calculate_motion()
-
+			
 			% Update vo object
 			obj.backup();
 			obj.step = obj.step + 1;

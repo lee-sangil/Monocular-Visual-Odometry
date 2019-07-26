@@ -9,9 +9,9 @@ if obj.scale_initialized
 	
 	% Seek index of which feature is 3D reconstructed currently,
 	% and 3D initialized previously
-	[idx, nPoint] = seek_index(obj, obj.nFeature3DReconstructed, ...
-									[obj.features(:).is_3D_reconstructed] & ...
-									[obj.features(:).is_3D_init]);
+	idx = find([obj.features(:).is_3D_reconstructed] == true & ... % for expected 3D points
+				[obj.features(:).is_3D_init] == true); % for initialized 3D points
+	nPoint = length(idx);	
 	
 	% Use RANSAC to find suitable scale
 	if nPoint > obj.params.ransacCoef_scale_prop.minPtNum
@@ -53,7 +53,7 @@ if ~obj.scale_initialized
 	
 	scale = .3;
 	obj.nFeatureInlier = obj.nFeature3DReconstructed;
-	inlier = seek_index(obj, obj.nFeature3DReconstructed, [obj.features(:).is_3D_reconstructed]);
+	inlier = find([obj.features(:).is_3D_reconstructed] == true);
 	
 end
 

@@ -5,7 +5,7 @@ K = obj.params.K;
 nFeature2DInliered = obj.nFeature2DInliered;
 
 % Extract homogeneous 2D point which is inliered with essential constraint
-idx = seek_index(obj, obj.nFeature2DInliered, [obj.features(:).is_2D_inliered]);
+idx = find([obj.features(:).is_2D_inliered] == true);
 
 uv_prev = zeros(2, nFeature2DInliered);
 uv_curr = zeros(2, nFeature2DInliered);
@@ -22,7 +22,7 @@ for i = 1:length(R_vec)
 	R1 = R_vec{i};
 	t1 = t_vec{i};
 	
-	[X_prev, X_curr, lambda_prev, lambda_curr] = obj.contructDepth(x_prev, x_curr, R1, t1);
+	[X_prev, ~, lambda_prev, lambda_curr] = obj.contructDepth(x_prev, x_curr, R1, t1);
 	inlier = find(lambda_prev > 0 & lambda_curr > 0);
 	
 	if length(inlier) > max_num
@@ -44,8 +44,7 @@ if max_num < nFeature2DInliered*0.5
 else
 	idx = idx(max_inlier);
 	for i = 1:length(idx)
-		% Update 3D point of features with respect to the current image
-		% frame
+		% Update 3D point of features with respect to the current frame
 		obj.features(idx(i)).point = point_prev(:,i);
 		obj.features(idx(i)).is_3D_reconstructed = true;
 	end
