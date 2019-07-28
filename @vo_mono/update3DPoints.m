@@ -96,7 +96,8 @@ elseif strcmp(mode, 'w/PnP')
 	
 	%% Initialize 3D points in global coordinates
 	% Extract homogeneous 2D point which is inliered with essential constraint
-	idx2D = find([obj.features(:).is_2D_inliered] == true);
+	idx2D = find([obj.features(:).is_2D_inliered] == true & ...
+		[obj.features(:).is_3D_init] == false);
 	nPoint = length(idx2D);
 	
 	uv_prev = zeros(2, nPoint);

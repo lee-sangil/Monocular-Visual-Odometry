@@ -26,6 +26,22 @@ for i = 1:max_len
 	uvArr(:,:,i) = cell2mat(uvIdx);
 end
 
+% Get inlier pixel coordinates
+arrIdx = 1:length(features);
+inlierIdx = find([obj.features(:).is_3D_reconstructed] == true);
+outlierIdx = arrIdx(~ismember(arrIdx, inlierIdx));
+
+Xin = zeros(2*(max_len-1), length(inlierIdx));
+Yin = zeros(size(Xin));
+Xout = zeros(2*(max_len-1), length(outlierIdx));
+Yout = zeros(size(Xout));
+for i = 1:max_len-1
+	Xin(2*i-1:2*i, :) = [uvArr(1,inlierIdx,i+1); uvArr(1,inlierIdx,i)];
+	Yin(2*i-1:2*i, :) = [uvArr(2,inlierIdx,i+1); uvArr(2,inlierIdx,i)];
+	Xout(2*i-1:2*i, :) = [uvArr(1,outlierIdx,i+1); uvArr(1,outlierIdx,i)];
+	Yout(2*i-1:2*i, :) = [uvArr(2,outlierIdx,i+1); uvArr(2,outlierIdx,i)];
+end
+
 % Get initialized 3D points, p_0, and observed 3D point (p_k) of each step in the
 % initizlied coordinates, p_k_0
 p_k = [features(:).point];
@@ -45,21 +61,13 @@ for i = idx
 	p_k_0(:,i) = obj.TocRec{step-1} * p_k(:,i);
 end
 
-% Get inlier pixel coordinates
-arrIdx = 1:length(features);
-inlierIdx = find([obj.features(:).is_3D_reconstructed] == true);
-outlierIdx = arrIdx(~ismember(arrIdx, inlierIdx));
+% Transform camera coordinate to world coordinate
+worldToCam = [1 0 0 0; 0 0 1 0; 0 -1 0 0; 0 0 0 1];
 
-Xin = zeros(2*(max_len-1), length(inlierIdx));
-Yin = zeros(size(Xin));
-Xout = zeros(2*(max_len-1), length(outlierIdx));
-Yout = zeros(size(Xout));
-for i = 1:max_len-1
-	Xin(2*i-1:2*i, :) = [uvArr(1,inlierIdx,i+1); uvArr(1,inlierIdx,i)];
-	Yin(2*i-1:2*i, :) = [uvArr(2,inlierIdx,i+1); uvArr(2,inlierIdx,i)];
-	Xout(2*i-1:2*i, :) = [uvArr(1,outlierIdx,i+1); uvArr(1,outlierIdx,i)];
-	Yout(2*i-1:2*i, :) = [uvArr(2,outlierIdx,i+1); uvArr(2,outlierIdx,i)];
-end
+p_0_w = worldToCam * p_0;
+p_k_0_w = worldToCam * p_k_0;
+Pwc = worldToCam * obj.PocRec;
+Twc = worldToCam * obj.TocRec{step};
 
 %% Initialize figure 1: subs1, subs2
 if ~plot_initialized
@@ -87,14 +95,14 @@ if ~plot_initialized
 	
 	%
 	sfig2 = subplot(122);
-	h_point_0 = scatter3(sfig2, p_0(1,:), p_0(3,:), -p_0(2,:), 5, 'filled', 'MarkerFaceColor', [0 0 0], 'MarkerFaceAlpha', .5);hold on;
-	h_point = scatter3( p_k_0(1,:), p_k_0(2,:), p_k_0(3,:), 7, 'filled');
-	h_traj = plot(obj.PocRec(1,1:step), obj.PocRec(3,1:step), 'r-', 'LineWidth', 2);hold on;
-	h_curr = scatter(obj.PocRec(1,step), obj.PocRec(3,step), 'ro', 'LineWidth', 2);
+	h_point_0 = scatter3(sfig2, p_0_w(1,:), p_0_w(2,:), p_0_w(3,:), 5, 'filled', 'MarkerFaceColor', [0 0 0], 'MarkerFaceAlpha', .5);hold on;
+	h_point = scatter3( p_k_0_w(1,:), p_k_0_w(2,:), p_k_0_w(3,:), 7, 'filled');
+	h_traj = plot3(Pwc(1,1:step), Pwc(2,1:step), Pwc(3,1:step), 'r-', 'LineWidth', 2);hold on;
+	h_curr = draw_camera([], Twc, 'k', true, 50);
 	axis square equal;grid on;
 	
-	xlim(sfig2, obj.PocRec(1,step)+x_window);
-	ylim(sfig2, obj.PocRec(3,step)+y_window);
+	xlim(sfig2, Pwc(1,step)+x_window);
+	ylim(sfig2, Pwc(3,step)+y_window);
 	set(sfig2, 'View', [0 90]);
 	colormap(sfig2, cool);
 	caxis([0 10]);
@@ -118,13 +126,13 @@ else
 	line_inlier = line( sfig1, Xin, Yin, 'Color', 'y');
 	line_outlier = line( sfig1, Xout, Yout, 'Color', 'b');
 	
-	set(h_point_0, 'XData', p_0(1,:), 'YData', p_0(3,:), 'ZData', -p_0(2,:));
-	set(h_point, 'XData', p_k_0(1,inlierIdx), 'YData', p_k_0(3,inlierIdx), 'ZData', -p_k_0(2,inlierIdx),'CData', p_life(inlierIdx));
-	set(h_traj, 'XData', obj.PocRec(1,1:step), 'YData', obj.PocRec(3,1:step));
-	set(h_curr, 'XData', obj.PocRec(1,step), 'YData', obj.PocRec(3,step));
-		
-	xlim(sfig2, obj.PocRec(1,step)+x_window);
-	ylim(sfig2, obj.PocRec(3,step)+y_window);
+	set(h_point_0, 'XData', p_0_w(1,:), 'YData', p_0_w(2,:), 'ZData', p_0_w(3,:));
+	set(h_point, 'XData', p_k_0_w(1,inlierIdx), 'YData', p_k_0_w(2,inlierIdx), 'ZData', p_k_0_w(3,inlierIdx),'CData', p_life(inlierIdx));
+	set(h_traj, 'XData', Pwc(1,1:step), 'YData', Pwc(2,1:step), 'ZData', Pwc(3,1:step));
+	h_curr = draw_camera(h_curr, Twc);
+	
+	xlim(sfig2, Pwc(1,step)+x_window);
+	ylim(sfig2, Pwc(3,step)+y_window);
 	
 end
 
