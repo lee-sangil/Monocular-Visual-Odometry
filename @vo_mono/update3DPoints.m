@@ -92,12 +92,11 @@ elseif strcmp(mode, 'w/PnP')
 		% Update 3D point of features with respect to the current image
 		obj.features(idx3DInlier(i)).point = point_prev(:,i);
 		obj.features(idx3DInlier(i)).is_3D_reconstructed = true;
-	end	
+	end
 	
 	%% Initialize 3D points in global coordinates
 	% Extract homogeneous 2D point which is inliered with essential constraint
-	idx2D = find([obj.features(:).is_2D_inliered] == true & ...
-		[obj.features(:).is_3D_init] == false);
+	idx2D = find([obj.features(:).is_2D_inliered] == true);
 	nPoint = length(idx2D);
 	
 	uv_prev = zeros(2, nPoint);
@@ -116,14 +115,26 @@ elseif strcmp(mode, 'w/PnP')
 	point_prev = [X_prev(:,inliers);ones(1,length(inliers))];
 	point_curr = [X_curr(:,inliers);ones(1,length(inliers))];
 	
+	if length(inliers) < 0.8*nPoint
+		A = 1;
+	end
+	
 	idx2DInlier = idx2D(inliers);
 	for i = 1:length(idx2DInlier)
-		% Update 3D point of features with respect to the current image
-		obj.features(idx2DInlier(i)).point = point_prev(:,i);
-		obj.features(idx2DInlier(i)).is_3D_reconstructed = true;
-		
-		obj.features(idx2DInlier(i)).point_init = Toc*point_curr(:,i);
-		obj.features(idx2DInlier(i)).is_3D_init = true;
+		if obj.features(idx2DInlier(i)).is_3D_init == false
+			% Update 3D point of features with respect to the current image
+			obj.features(idx2DInlier(i)).point = point_prev(:,i);
+			obj.features(idx2DInlier(i)).is_3D_reconstructed = true;
+			
+			obj.features(idx2DInlier(i)).point_init = Toc*point_curr(:,i);
+			obj.features(idx2DInlier(i)).is_3D_init = true;
+		else
+% 			var = (point_curr(3,i) * scale / 2)^4 * obj.params.var_theta;
+% 			new_var = 1 / ( (1 / obj.features(idx3D(i)).point_var) + (1 / var) );
+% 			obj.features(idx3D(i)).point_init = new_var/var * Toc * point_curr(:,i) * scale + new_var/obj.features(idx3D(i)).point_var * obj.features(idx3D(i)).point_init;
+% 			obj.features(idx3D(i)).point_init(4) = 1;
+% 			obj.features(idx3D(i)).point_var = new_var;
+		end
 	end
 	
 	 idx = find([obj.features(:).is_3D_reconstructed] == true);

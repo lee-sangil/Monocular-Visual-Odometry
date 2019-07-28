@@ -51,7 +51,7 @@ end
 % Initialze scale, in the case of the first time
 if ~obj.scale_initialized
 	
-	scale = .3;
+	scale = obj.params.initScale;
 	obj.nFeatureInlier = obj.nFeature3DReconstructed;
 	inlier = find([obj.features(:).is_3D_reconstructed] == true);
 	

@@ -1,6 +1,6 @@
 function obj = read(obj)
 
-DEBUG = true;
+DEBUG = false;
 
 imSize = [640 1280];
 K = [500 0 imSize(2)/2;
@@ -130,4 +130,7 @@ obj.pose = Poc;
 obj.K = K;
 
 fprintf('# load landmarks\n');
-close(fig);
+
+if DEBUG
+	close(fig);
+end

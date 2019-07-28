@@ -1,6 +1,7 @@
-function obj = plot_state(obj, plot_initialized)
+function obj = plot_state(obj, plot_initialized, pkg)
 
 persistent sfig1 sfig2 h_image h_inlier h_outlier line_inlier line_outlier h_traj h_curr h_point h_point_0 p_0 p_0_id
+persistent h_gt
 
 if ~plot_initialized
 	p_0 = [];
@@ -13,8 +14,8 @@ step = obj.step - 1;
 % Get uv-pixel point to paint over the image
 features = obj.features;
 
-x_window = [-60 60];
-y_window = [-50 70];
+x_window = [-200 200] * obj.params.initScale;
+y_window = [-180 220] * obj.params.initScale;
 
 max_len = max(max([obj.features(:).life]), 2);
 uv = {obj.features(:).uv};
@@ -22,7 +23,7 @@ uv = cellfun(@(x) fill_nan(x, max_len), uv, 'un', 0);
 
 uvArr = zeros(2, length(uv), max_len);
 for i = 1:max_len
-	uvIdx = cellfun(@(x) column(x, i), uv, 'un', 0);
+	uvIdx = cellfun(@(x) x(:,i), uv, 'un', 0);
 	uvArr(:,:,i) = cell2mat(uvIdx);
 end
 
@@ -48,8 +49,8 @@ p_k = [features(:).point];
 p_k_0 = nan(size(p_k));
 p0 = [obj.features(:).point_init];
 p_id = [obj.features(:).id];
-p_0 = [p_0 p0(:,~isnan(p0(1,:)))];
-p_0_id = [p_0_id p_id(:,~isnan(p0(1,:)))];
+p_0 = [p0(:,~isnan(p0(1,:))) p_0];
+p_0_id = [p_id(:,~isnan(p0(1,:))) p_0_id];
 [~,unique_idx] = unique(p_0_id);
 p_0 = p_0(:,unique_idx);
 p_0_id = p_0_id(unique_idx);
@@ -68,6 +69,7 @@ p_0_w = worldToCam * p_0;
 p_k_0_w = worldToCam * p_k_0;
 Pwc = worldToCam * obj.PocRec;
 Twc = worldToCam * obj.TocRec{step};
+Pwc_true = worldToCam * pkg.pose;
 
 %% Initialize figure 1: subs1, subs2
 if ~plot_initialized
@@ -97,12 +99,13 @@ if ~plot_initialized
 	sfig2 = subplot(122);
 	h_point_0 = scatter3(sfig2, p_0_w(1,:), p_0_w(2,:), p_0_w(3,:), 5, 'filled', 'MarkerFaceColor', [0 0 0], 'MarkerFaceAlpha', .5);hold on;
 	h_point = scatter3( p_k_0_w(1,:), p_k_0_w(2,:), p_k_0_w(3,:), 7, 'filled');
-	h_traj = plot3(Pwc(1,1:step), Pwc(2,1:step), Pwc(3,1:step), 'r-', 'LineWidth', 2);hold on;
-	h_curr = draw_camera([], Twc, 'k', true, 50);
+	h_traj = plot3(Pwc(1,1:step), Pwc(2,1:step), Pwc(3,1:step), 'k-', 'LineWidth', 2);hold on;
+	h_gt = plot3(Pwc_true(1,1:step), Pwc_true(2,1:step), Pwc_true(3,1:step), 'r-', 'LineWidth', 2);hold on;
+	h_curr = draw_camera([], Twc, 'k', true, 150*obj.params.initScale);
 	axis square equal;grid on;
 	
 	xlim(sfig2, Pwc(1,step)+x_window);
-	ylim(sfig2, Pwc(3,step)+y_window);
+	ylim(sfig2, Pwc(2,step)+y_window);
 	set(sfig2, 'View', [0 90]);
 	colormap(sfig2, cool);
 	caxis([0 10]);
@@ -130,9 +133,10 @@ else
 	set(h_point, 'XData', p_k_0_w(1,inlierIdx), 'YData', p_k_0_w(2,inlierIdx), 'ZData', p_k_0_w(3,inlierIdx),'CData', p_life(inlierIdx));
 	set(h_traj, 'XData', Pwc(1,1:step), 'YData', Pwc(2,1:step), 'ZData', Pwc(3,1:step));
 	h_curr = draw_camera(h_curr, Twc);
+	set(h_gt, 'XData', Pwc_true(1,1:step), 'YData', Pwc_true(2,1:step), 'ZData', Pwc_true(3,1:step));
 	
 	xlim(sfig2, Pwc(1,step)+x_window);
-	ylim(sfig2, Pwc(3,step)+y_window);
+	ylim(sfig2, Pwc(2,step)+y_window);
 	
 end
 

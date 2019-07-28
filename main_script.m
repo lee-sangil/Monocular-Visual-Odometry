@@ -3,7 +3,6 @@ clear
 close all
 clearvars -global
 
-addpath(genpath('../5-point-algorithm-MATLAB-master/'));
 addpath(genpath('utils'));
 
 profile off

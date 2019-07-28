@@ -107,6 +107,10 @@ classdef vo_mono < handle
 			% Statistical model
 			obj.params.var_theta = (90 / 1241 / 2)^2;
 			obj.params.var_point = 1;
+			
+			% 3D reconstruction
+			obj.params.initScale = 1;
+			obj.params.reprojError = 2*obj.params.initScale;
 		end
         
 		% Set image
@@ -116,7 +120,7 @@ classdef vo_mono < handle
 		obj = backup( obj )
 		obj = reload( obj )
 		obj = run( obj, pkg )
-		obj = plot_state( obj, plot_initialized )
+		obj = plot_state( obj, plot_initialized, pkg )
 		obj = text_write( obj, imStep )
 		obj = print_logs( obj, pkg, timePassed )
         
