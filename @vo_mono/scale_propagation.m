@@ -32,7 +32,7 @@ if obj.scale_initialized
 		% RANSAC
 % 		obj.params.ransacCoef_scale_prop.weight = [obj.features(idx).life] ./ sqrt([obj.features(idx).point_var]);
 		points = [obj.features(idx).point];
-		obj.params.ransacCoef_scale_prop.weight = atan(-points(3,:)+3)+pi/2;
+		obj.params.ransacCoef_scale_prop.weight = atan(-points(3,:)/10+3)+pi/2;
 		[scale, inlier, outlier] = ransac(P1_exp(1:3,:), P1_ini(1:3,:), obj.params.ransacCoef_scale_prop);
 		obj.nFeatureInlier = length(inlier);
 		
@@ -40,7 +40,7 @@ if obj.scale_initialized
 	
 	% Use the previous scale, if the scale cannot be found
 	if nPoint <= obj.params.ransacCoef_scale_prop.minPtNum || length(inlier) < obj.params.thInlier || isempty(scale)
-		warning('there are a few SCALE FACTOR INLIERS')
+% 		warning('there are a few SCALE FACTOR INLIERS')
 		scale = norm(obj.TRec{obj.step-1}(1:3,4));
 		flag = false;
 	end

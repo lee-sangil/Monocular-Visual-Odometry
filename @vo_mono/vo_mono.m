@@ -31,12 +31,19 @@ classdef vo_mono < handle
 		
 		% Constant
 		params
+		
+		% Debug
+		pose
 	end
 	methods (Access = public)
 		% CONSTRUCTOR
 		function obj = vo_mono(pkg)
 			
 			obj.identifier = 'mono';
+			
+			if isprop(pkg, 'pose')
+				obj.pose = pkg.pose;
+			end
 			
             % Save features attibutes
             obj.params.saveDir = 'logs';
@@ -93,10 +100,10 @@ classdef vo_mono < handle
 			ransacCoef_calc_essential.funcFindF = @fivePoint;
 			ransacCoef_calc_essential.funcDist = @obj.essential_model_error;
 			
-			ransacCoef_scale_prop.iterMax = 1e3;
+			ransacCoef_scale_prop.iterMax = 1e4;
 			ransacCoef_scale_prop.minPtNum = obj.params.thInlier;
 			ransacCoef_scale_prop.thInlrRatio = 0.9;
-			ransacCoef_scale_prop.thDist = 0.5; % standard deviation
+			ransacCoef_scale_prop.thDist = 1; % standard deviation
 			ransacCoef_scale_prop.thDistOut = inf; % three times of standard deviation
 			ransacCoef_scale_prop.funcFindF = @obj.calculate_scale;
 			ransacCoef_scale_prop.funcDist = @obj.calculate_scale_error;
@@ -110,7 +117,7 @@ classdef vo_mono < handle
 			
 			% 3D reconstruction
 			obj.params.initScale = 1;
-			obj.params.reprojError = 1.5 * obj.params.initScale;
+			obj.params.reprojError = 2 * obj.params.initScale;
 		end
         
 		% Set image

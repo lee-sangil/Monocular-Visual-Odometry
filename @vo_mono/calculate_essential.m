@@ -66,7 +66,7 @@ end
 obj.nFeature2DInliered = length(idx);
 
 if obj.nFeature2DInliered < obj.params.thInlier
-	warning('there are a few 2D PIXEL INLIERS');
+	warning('there are a few inliers matching features in 2d.');
 	flag = false;
 else
 	obj.R_vec = R_vec;

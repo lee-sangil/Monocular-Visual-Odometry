@@ -1,4 +1,4 @@
-function obj = plot_state(obj, plot_initialized, pkg)
+function obj = plot_state(obj, plot_initialized, vo, pkg, param)
 
 persistent sfig1 sfig2 h_image h_inlier h_outlier line_inlier line_outlier h_traj h_curr h_point h_point_0 p_0 p_0_id
 persistent h_gt
@@ -8,17 +8,20 @@ if ~plot_initialized
 	p_0_id = [];
 end
 
+GTExist = isprop(pkg, 'pose');
+
 % Compensate a parameter "step", cause obj.step grows at the last stage of vo.run()
-step = obj.step - 1;
+step = vo.step - 1;
 
 % Get uv-pixel point to paint over the image
-features = obj.features;
+features = vo.features;
 
-x_window = [-200 200] * obj.params.initScale;
-y_window = [-180 220] * obj.params.initScale;
+x_window = [-200 200] * vo.params.initScale * param.plotScale;
+y_window = [-180 220] * vo.params.initScale * param.plotScale;
+z_window = [-200 200] * vo.params.initScale * param.plotScale;
 
-max_len = max(max([obj.features(:).life]), 2);
-uv = {obj.features(:).uv};
+max_len = max(max([vo.features(:).life]), 2);
+uv = {vo.features(:).uv};
 uv = cellfun(@(x) fill_nan(x, max_len), uv, 'un', 0);
 
 uvArr = zeros(2, length(uv), max_len);
@@ -29,7 +32,7 @@ end
 
 % Get inlier pixel coordinates
 arrIdx = 1:length(features);
-inlierIdx = find([obj.features(:).is_3D_reconstructed] == true);
+inlierIdx = find([vo.features(:).is_3D_reconstructed] == true);
 outlierIdx = arrIdx(~ismember(arrIdx, inlierIdx));
 
 Xin = zeros(2*(max_len-1), length(inlierIdx));
@@ -47,19 +50,19 @@ end
 % initizlied coordinates, p_k_0
 p_k = [features(:).point];
 p_k_0 = nan(size(p_k));
-p0 = [obj.features(:).point_init];
-p_id = [obj.features(:).id];
+p0 = [vo.features(:).point_init];
+p_id = [vo.features(:).id];
 p_0 = [p0(:,~isnan(p0(1,:))) p_0];
 p_0_id = [p_id(:,~isnan(p0(1,:))) p_0_id];
 [~,unique_idx] = unique(p_0_id);
 p_0 = p_0(:,unique_idx);
 p_0_id = p_0_id(unique_idx);
 
-p_life = [obj.features(:).life];
+p_life = [vo.features(:).life];
 
-idx = find([obj.features(:).is_3D_reconstructed] == true);
+idx = find([vo.features(:).is_3D_reconstructed] == true);
 for i = idx
-	p_k_0(:,i) = obj.TocRec{step-1} * p_k(:,i);
+	p_k_0(:,i) = vo.TocRec{step-1} * p_k(:,i);
 end
 
 % Transform camera coordinate to world coordinate
@@ -67,9 +70,12 @@ worldToCam = [1 0 0 0; 0 0 1 0; 0 -1 0 0; 0 0 0 1];
 
 p_0_w = worldToCam * p_0;
 p_k_0_w = worldToCam * p_k_0;
-Pwc = worldToCam * obj.PocRec;
-Twc = worldToCam * obj.TocRec{step};
-Pwc_true = worldToCam * pkg.pose;
+Pwc = worldToCam * vo.PocRec;
+Twc = worldToCam * vo.TocRec{step};
+
+if GTExist
+	Pwc_true = worldToCam * pkg.pose;
+end
 
 %% Initialize figure 1: subs1, subs2
 if ~plot_initialized
@@ -77,16 +83,16 @@ if ~plot_initialized
 	figure(1);
 	
 	sfig1 = subplot(1,2,1);
-	h_image = imshow(uint8(obj.cur_image)); hold on;
+	h_image = imshow(uint8(vo.cur_image)); hold on;
 	
-	for i = 1:obj.bucket.grid(1)-1
-		x = floor(i*obj.params.imSize(1)/obj.bucket.grid(1));
-		line([x x], [0 obj.params.imSize(2)], 'linestyle', ':', 'color', [.5 .5 .5]);
+	for i = 1:vo.bucket.grid(1)-1
+		x = floor(i*vo.params.imSize(1)/vo.bucket.grid(1));
+		line([x x], [0 vo.params.imSize(2)], 'linestyle', ':', 'color', [.5 .5 .5]);
 	end
 	
-	for j = 1:obj.bucket.grid(2)-1
-		y = floor(j*obj.params.imSize(2)/obj.bucket.grid(2));
-		line([0 obj.params.imSize(1)], [y y], 'linestyle', ':', 'Color', [.5 .5 .5]);
+	for j = 1:vo.bucket.grid(2)-1
+		y = floor(j*vo.params.imSize(2)/vo.bucket.grid(2));
+		line([0 vo.params.imSize(1)], [y y], 'linestyle', ':', 'Color', [.5 .5 .5]);
 	end
 	
 	h_inlier = scatter( uvArr(1,inlierIdx,1), uvArr(2,inlierIdx,1), 'ro' );
@@ -100,15 +106,21 @@ if ~plot_initialized
 	h_point_0 = scatter3(sfig2, p_0_w(1,:), p_0_w(2,:), p_0_w(3,:), 5, 'filled', 'MarkerFaceColor', [0 0 0], 'MarkerFaceAlpha', .5);hold on;
 	h_point = scatter3( p_k_0_w(1,:), p_k_0_w(2,:), p_k_0_w(3,:), 7, 'filled');
 	h_traj = plot3(Pwc(1,1:step), Pwc(2,1:step), Pwc(3,1:step), 'k-', 'LineWidth', 2);hold on;
-	h_gt = plot3(Pwc_true(1,1:step), Pwc_true(2,1:step), Pwc_true(3,1:step), 'r-', 'LineWidth', 2);hold on;
-	h_curr = draw_camera([], Twc, 'k', true, 150*obj.params.initScale);
+	h_curr = draw_camera([], Twc, 'k', true, 150 * vo.params.initScale * param.plotScale);
+	
+	if GTExist
+		h_gt = plot3(Pwc_true(1,1:step), Pwc_true(2,1:step), Pwc_true(3,1:step), 'r-', 'LineWidth', 2);hold on;
+	end
+	
 	axis square equal;grid on;
 	
-% 	xlim(sfig2, Pwc(1,step)+x_window);
-% 	ylim(sfig2, Pwc(2,step)+y_window);
-	xlim(sfig2, x_window);
-	ylim(sfig2, y_window);
-	set(sfig2, 'View', [0 90]);
+	xlim(sfig2, Pwc(1,step)+x_window);
+	ylim(sfig2, Pwc(2,step)+y_window);
+	zlim(sfig2, z_window);
+% 	xlim(sfig2, x_window);
+% 	ylim(sfig2, y_window);
+% 	set(sfig2, 'View', [0 90]);
+	set(sfig2, 'View', [-65 15]);
 	colormap(sfig2, cool);
 	caxis([0 10]);
 	
@@ -120,7 +132,7 @@ if ~plot_initialized
 	
 else
 	% FIGURE 1: sub1 - image and features, sub2 - xz-trajectory
-	set(h_image, 'CData', obj.cur_image);
+	set(h_image, 'CData', vo.cur_image);
 	
 	set(h_inlier, 'XData', uvArr(1,inlierIdx,1), 'YData', uvArr(2,inlierIdx,1));
 	set(h_outlier, 'XData', uvArr(1,outlierIdx,1), 'YData', uvArr(2,outlierIdx,1));
@@ -135,10 +147,13 @@ else
 	set(h_point, 'XData', p_k_0_w(1,inlierIdx), 'YData', p_k_0_w(2,inlierIdx), 'ZData', p_k_0_w(3,inlierIdx),'CData', p_life(inlierIdx));
 	set(h_traj, 'XData', Pwc(1,1:step), 'YData', Pwc(2,1:step), 'ZData', Pwc(3,1:step));
 	h_curr = draw_camera(h_curr, Twc);
-	set(h_gt, 'XData', Pwc_true(1,1:step), 'YData', Pwc_true(2,1:step), 'ZData', Pwc_true(3,1:step));
 	
-% 	xlim(sfig2, Pwc(1,step)+x_window);
-% 	ylim(sfig2, Pwc(2,step)+y_window);
+	if GTExist
+		set(h_gt, 'XData', Pwc_true(1,1:step), 'YData', Pwc_true(2,1:step), 'ZData', Pwc_true(3,1:step));
+	end
+	
+	xlim(sfig2, Pwc(1,step)+x_window);
+	ylim(sfig2, Pwc(2,step)+y_window);
 	
 end
 

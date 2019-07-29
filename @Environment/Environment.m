@@ -109,7 +109,7 @@ classdef Environment < handle
 					timePassed = toc;
 					
 					% Show image and features
-					obj.vo.plot_state(obj.plot_initialized, obj.pkg);
+					obj.plot_state(obj.plot_initialized, obj.vo, obj.pkg, obj.params);
 					obj.plot_initialized = true;
 					
 					% Record plot
@@ -164,6 +164,8 @@ classdef Environment < handle
 			end
 			
 		end
+		
+		obj = plot_state(obj, plot_initialized, vo, pkg, param)
 		
 	end
 end

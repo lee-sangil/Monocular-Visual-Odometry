@@ -67,37 +67,46 @@ elseif strcmp(mode, 'w/PnP')
 	nPoint = length(idx3D);
 	
 	x_init_ = zeros(3, nPoint);
-	uv_curr = zeros(2, nPoint);
 	for i = 1:length(idx3D)
 		x_init_(:,i) = obj.features(idx3D(i)).point_init(1:3);
-		uv_curr(:,i) = obj.features(idx3D(i)).uv(:,1);
 	end
-	x_init = x_init_ ./ x_init_(3,:);
-	x_curr = K \ [uv_curr; ones(1, nPoint)];
-	
-	[X_init, X_curr, lambda_init, lambda_curr] = obj.contructDepth(x_init, x_curr, R, t);
-	inliers = find(lambda_init > 0 & lambda_curr > 0);
-	point_init = [X_init(:,inliers);ones(1,length(inliers))];
-	point_curr = [X_curr(:,inliers);ones(1,length(inliers))];
 	
 	Toc = [R' -R'*t; 0 0 0 1];
 	T = obj.TocRec{obj.step-1} \ Toc;
 	Poc = Toc * [0 0 0 1]';
 	
+	Tco = [R t; 0 0 0 1];
+	point_curr = Tco * [x_init_; ones(1,length(x_init_))];
+	
 	%% Update 3D points in local coordinates
 	scale = norm(T(1:3,4));
 	point_prev = T * point_curr;
 	
-	idx3DInlier = idx3D(inliers);
-	for i = 1:length(idx3DInlier)
+% 	idx3D = idx3D(inliers);
+	for i = 1:length(idx3D)
 		% Update 3D point of features with respect to the current image
-		obj.features(idx3DInlier(i)).point = point_prev(:,i);
-		obj.features(idx3DInlier(i)).is_3D_reconstructed = true;
+		obj.features(idx3D(i)).point = point_prev(:,i);
+		obj.features(idx3D(i)).is_3D_reconstructed = true;
 	end
 	
 	%% Initialize 3D points in global coordinates
 	% Extract homogeneous 2D point which is inliered with essential constraint
 	idx2D = find([obj.features(:).is_2D_inliered] == true);
+	
+	if success_E
+		Rinv = R_E;
+		tinv = t_E * scale;
+% 		idx2D = idx2D(inlier);
+		
+		for i = outlier
+			% Update life
+			obj.features(idx2D(i)).life = 0;
+		end
+	else
+		Rinv = T(1:3,1:3).';
+		tinv = -T(1:3,1:3).'*T(1:3,4);
+	end
+	
 	nPoint = length(idx2D);
 	
 	uv_prev = zeros(2, nPoint);
@@ -109,22 +118,10 @@ elseif strcmp(mode, 'w/PnP')
 	x_prev = K \ [uv_prev; ones(1, nPoint)];
 	x_curr = K \ [uv_curr; ones(1, nPoint)];
 	
-	if success_E
-		Rinv = R_E;
-		tinv = t_E * scale;
-	else
-		Rinv = T(1:3,1:3).';
-		tinv = -T(1:3,1:3).'*T(1:3,4);
-	end
-	
 	[X_prev, X_curr, lambda_prev, lambda_curr] = obj.contructDepth(x_prev, x_curr, Rinv, tinv);
 	inliers = find(lambda_prev > 0 & lambda_curr > 0);
 	point_prev = [X_prev(:,inliers);ones(1,length(inliers))];
 	point_curr = [X_curr(:,inliers);ones(1,length(inliers))];
-	
-% 	if length(inliers) < 0.8*nPoint
-% 		A = 1;
-% 	end
 	
 	idx2DInlier = idx2D(inliers);
 	for i = 1:length(idx2DInlier)
@@ -136,7 +133,8 @@ elseif strcmp(mode, 'w/PnP')
 			obj.features(idx2DInlier(i)).point_init = Toc*point_curr(:,i);
 			obj.features(idx2DInlier(i)).is_3D_init = true;
 		else
-			var = (point_curr(3,i) * scale / 2)^4 * obj.params.var_theta;
+% 			var = 2 * point_curr(3,i) / scale * obj.params.var_theta;
+			var = (point_curr(3,i) / scale / 2)^4 * obj.params.var_theta;
 			new_var = 1 / ( (1 / obj.features(idx2DInlier(i)).point_var) + (1 / var) );
 			obj.features(idx2DInlier(i)).point_init = new_var/var * Toc * point_curr(:,i) * scale + new_var/obj.features(idx2DInlier(i)).point_var * obj.features(idx2DInlier(i)).point_init;
 			obj.features(idx2DInlier(i)).point_init(4) = 1;
