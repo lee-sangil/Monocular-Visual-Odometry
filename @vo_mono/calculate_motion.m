@@ -8,28 +8,33 @@ end
 R_vec = obj.R_vec;
 t_vec = obj.t_vec;
 
-[R, t, success, inlier, outlier] = obj.findPoseFrom3DPoints();
-if success == false
+[R, t, success1, inlier, outlier] = obj.findPoseFrom3DPoints();
+if success1 == false
 	% Verity 4 solutions
-	[R_, t_, success] = obj.verify_solutions(R_vec, t_vec);
+	[R_, t_, success2] = obj.verify_solutions(R_vec, t_vec);
 	
-	if success == false
+	if success2 == false
 		flag = false;
 		return;
 	end
 	
 	% Update 3D points
-	[R, t, success, inlier, outlier] = obj.scale_propagation(R_, t_);
+	[R, t, success3, inlier, outlier] = obj.scale_propagation(R_, t_);
 	
-	if success == false
+	if success3 == false
 		flag = false;
 		return;
 	end
 	
 	[T, Toc, Poc] = obj.update3DPoints(R, t, inlier, outlier, 'w/oPnP');
 else
+	[R_, t_, ~] = obj.verify_solutions(R_vec, t_vec);
+		
 	% Update 3D points
-	[T, Toc, Poc] = obj.update3DPoints(R, t, inlier, outlier, 'w/PnP');
+	[R_, t_, success3, inlier, outlier] = obj.scale_propagation(R_, t_);
+	
+	% Update 3D points
+	[T, Toc, Poc] = obj.update3DPoints(R, t, inlier, outlier, 'w/PnP', R_, t_, success3);
 end
 obj.scale_initialized = true;
 

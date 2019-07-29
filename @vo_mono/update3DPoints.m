@@ -1,6 +1,7 @@
-function [T, Toc, Poc] = update3DPoints( obj, R, t, inlier, outlier, mode )
+function [T, Toc, Poc] = update3DPoints( obj, R, t, inlier, outlier, mode, R_E, t_E, success_E )
 
 if strcmp(mode, 'w/oPnP')
+	
 	%% without-PnP
 	scale = norm(t);
 	
@@ -108,16 +109,22 @@ elseif strcmp(mode, 'w/PnP')
 	x_prev = K \ [uv_prev; ones(1, nPoint)];
 	x_curr = K \ [uv_curr; ones(1, nPoint)];
 	
-	Rinv = T(1:3,1:3).';
-	tinv = -T(1:3,1:3).'*T(1:3,4);
+	if success_E
+		Rinv = R_E;
+		tinv = t_E * scale;
+	else
+		Rinv = T(1:3,1:3).';
+		tinv = -T(1:3,1:3).'*T(1:3,4);
+	end
+	
 	[X_prev, X_curr, lambda_prev, lambda_curr] = obj.contructDepth(x_prev, x_curr, Rinv, tinv);
 	inliers = find(lambda_prev > 0 & lambda_curr > 0);
 	point_prev = [X_prev(:,inliers);ones(1,length(inliers))];
 	point_curr = [X_curr(:,inliers);ones(1,length(inliers))];
 	
-	if length(inliers) < 0.8*nPoint
-		A = 1;
-	end
+% 	if length(inliers) < 0.8*nPoint
+% 		A = 1;
+% 	end
 	
 	idx2DInlier = idx2D(inliers);
 	for i = 1:length(idx2DInlier)
@@ -129,11 +136,11 @@ elseif strcmp(mode, 'w/PnP')
 			obj.features(idx2DInlier(i)).point_init = Toc*point_curr(:,i);
 			obj.features(idx2DInlier(i)).is_3D_init = true;
 		else
-% 			var = (point_curr(3,i) * scale / 2)^4 * obj.params.var_theta;
-% 			new_var = 1 / ( (1 / obj.features(idx3D(i)).point_var) + (1 / var) );
-% 			obj.features(idx3D(i)).point_init = new_var/var * Toc * point_curr(:,i) * scale + new_var/obj.features(idx3D(i)).point_var * obj.features(idx3D(i)).point_init;
-% 			obj.features(idx3D(i)).point_init(4) = 1;
-% 			obj.features(idx3D(i)).point_var = new_var;
+			var = (point_curr(3,i) * scale / 2)^4 * obj.params.var_theta;
+			new_var = 1 / ( (1 / obj.features(idx2DInlier(i)).point_var) + (1 / var) );
+			obj.features(idx2DInlier(i)).point_init = new_var/var * Toc * point_curr(:,i) * scale + new_var/obj.features(idx2DInlier(i)).point_var * obj.features(idx2DInlier(i)).point_init;
+			obj.features(idx2DInlier(i)).point_init(4) = 1;
+			obj.features(idx2DInlier(i)).point_var = new_var;
 		end
 	end
 	

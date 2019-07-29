@@ -110,7 +110,7 @@ classdef vo_mono < handle
 			
 			% 3D reconstruction
 			obj.params.initScale = 1;
-			obj.params.reprojError = 2*obj.params.initScale;
+			obj.params.reprojError = 1.5 * obj.params.initScale;
 		end
         
 		% Set image
@@ -140,7 +140,7 @@ classdef vo_mono < handle
 		[R, t, flag, inlier, outlier] = scale_propagation( obj, R, t )
 		[R, t, flag, inlier, outlier] = findPoseFrom3DPoints( obj )
 		[X_prev, X_curr, lambda_prev, lambda_curr] = contructDepth( obj, x_prev, x_curr, R, t )
-		[T, Toc, Poc] = update3DPoints( obj, R, t, inlier, outlier, mode )
+		[T, Toc, Poc] = update3DPoints( obj, R, t, inlier, outlier, mode, R_E, t_E, success_E )
 		
 		% RANSAC
 		E = eight_point_essential_hypothesis( obj, x1, x2 )

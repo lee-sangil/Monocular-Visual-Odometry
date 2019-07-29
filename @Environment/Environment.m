@@ -33,7 +33,7 @@ classdef Environment < handle
 				end
 				
 				if ~isfield(params, 'filename')
-					filename = [params.filepath pkg.identifier '_' get_identifier(vo)];
+					filename = [params.filepath pkg.identifier '_' vo.identifier];
 				else
 					filename = [params.filepath params.filename];
 				end

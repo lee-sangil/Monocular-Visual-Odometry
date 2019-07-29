@@ -104,8 +104,10 @@ if ~plot_initialized
 	h_curr = draw_camera([], Twc, 'k', true, 150*obj.params.initScale);
 	axis square equal;grid on;
 	
-	xlim(sfig2, Pwc(1,step)+x_window);
-	ylim(sfig2, Pwc(2,step)+y_window);
+% 	xlim(sfig2, Pwc(1,step)+x_window);
+% 	ylim(sfig2, Pwc(2,step)+y_window);
+	xlim(sfig2, x_window);
+	ylim(sfig2, y_window);
 	set(sfig2, 'View', [0 90]);
 	colormap(sfig2, cool);
 	caxis([0 10]);
@@ -135,8 +137,8 @@ else
 	h_curr = draw_camera(h_curr, Twc);
 	set(h_gt, 'XData', Pwc_true(1,1:step), 'YData', Pwc_true(2,1:step), 'ZData', Pwc_true(3,1:step));
 	
-	xlim(sfig2, Pwc(1,step)+x_window);
-	ylim(sfig2, Pwc(2,step)+y_window);
+% 	xlim(sfig2, Pwc(1,step)+x_window);
+% 	ylim(sfig2, Pwc(2,step)+y_window);
 	
 end
 

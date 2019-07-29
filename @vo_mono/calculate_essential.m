@@ -21,12 +21,12 @@ end
 x_prev = K \ [uv_prev; ones(1, nInlier)];
 x_curr = K \ [uv_curr; ones(1, nInlier)];
 
-if median(sum(abs(uv_prev(1:2,:) - uv_curr(1:2,:)),1)) < 5e-1
-	inlier = sum(abs(uv_prev(1:2,:) - uv_curr(1:2,:)),1) < 5e-1;
-	R_vec = {eye(3)};
-	t_vec = {zeros(3,1)};
-else
-	while(true)
+% if median(sum(abs(uv_prev(1:2,:) - uv_curr(1:2,:)),1)) < 5e-1
+% 	inlier = sum(abs(uv_prev(1:2,:) - uv_curr(1:2,:)),1) < 5e-1;
+% 	R_vec = {eye(3)};
+% 	t_vec = {zeros(3,1)};
+% else
+% 	while(true)
 		% RANSAC
 		% 	obj.params.ransacCoef_calc_essential.weight = ones(length(idx),1);
 		obj.params.ransacCoef_calc_essential.weight = [obj.features(idx).life].';
@@ -51,12 +51,12 @@ else
 		t_vec{3} = U(:,3);
 		t_vec{4} = -U(:,3);
 		
-		% Should be removed or modified later
-		if abs(t_vec{1}(3)) > 0.8
-			break;
-		end
-	end
-end
+% 		% Should be removed or modified later
+% 		if abs(t_vec{1}(3)) > 0.8
+% 			break;
+% 		end
+% 	end
+% end
 
 %% STORE
 idx = idx(inlier);

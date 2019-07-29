@@ -21,7 +21,7 @@ read(pkg);
 vo = vo_mono(pkg);
 
 %% SCRIPT
-params.isRecord = false;
+params.isRecord = true;
 params.figRecord = [1];
 
 env = Environment(vo, pkg, params);
