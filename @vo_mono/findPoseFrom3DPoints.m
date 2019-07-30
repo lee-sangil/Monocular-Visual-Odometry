@@ -17,14 +17,16 @@ if nPoint > obj.params.thInlier
 		imagePoints_(:,i) = obj.features(idx(i)).uv(:,1);
 	end
 	imagePoints = permute(imagePoints_,[3 2 1]);
+	
 	[r_vec, t_vec, success, inlier] = cv.solvePnPRansac(objectPoints, imagePoints, obj.params.K, 'IterationsCount', 1e4, 'ReprojectionError', obj.params.reprojError);
 	if success == false
 		[r_vec, t_vec, success, inlier] = cv.solvePnPRansac(objectPoints, imagePoints, obj.params.K, 'IterationsCount', 1e4, 'ReprojectionError', obj.params.reprojError*2);
 	end
+	
 	R = expm(skew(r_vec));
 	t = t_vec;
 	flag = success;
-	inlier = transpose(inlier) + 1;
+	inlier = idx(transpose(inlier) + 1);
 	outlier = idx(~ismember(idx,inlier));
 else
 	R = [];

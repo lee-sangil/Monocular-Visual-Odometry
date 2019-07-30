@@ -56,7 +56,7 @@ else
 end
 
 if ~isempty(obj.pose)
-	if norm(obj.pose(:,obj.step)-obj.PocRec(:,obj.step)) > 2
+	if norm(obj.pose(:,obj.step)-obj.PocRec(:,obj.step)) > 3
 		a = 1;
 	end
 end

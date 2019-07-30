@@ -20,7 +20,7 @@ if strcmp(mode, 'w/oPnP')
 		
 		for i = outlier
 			% Update life
-			obj.features(idx3D(i)).life = 0;
+			obj.features(i).life = 0;
 		end
 		
 % 		figure(2);
@@ -95,13 +95,13 @@ elseif strcmp(mode, 'w/PnP')
 	
 	if success_E
 		Rinv = R_E;
-		tinv = t_E * scale;
+		tinv = t_E;
 % 		idx2D = idx2D(inlier);
 		
-		for i = outlier
-			% Update life
-			obj.features(idx2D(i)).life = 0;
-		end
+% 		for i = outlier
+% 			% Update life
+% 			obj.features(i).life = 0;
+% 		end
 	else
 		Rinv = T(1:3,1:3).';
 		tinv = -T(1:3,1:3).'*T(1:3,4);
@@ -134,7 +134,7 @@ elseif strcmp(mode, 'w/PnP')
 			obj.features(idx2DInlier(i)).is_3D_init = true;
 		else
 % 			var = 2 * point_curr(3,i) / scale * obj.params.var_theta;
-			var = (point_curr(3,i) / scale / 2)^4 * obj.params.var_theta;
+			var = (point_curr(3,i) / scale)^4 * obj.params.var_theta;
 			new_var = 1 / ( (1 / obj.features(idx2DInlier(i)).point_var) + (1 / var) );
 			obj.features(idx2DInlier(i)).point_init = new_var/var * Toc * point_curr(:,i) * scale + new_var/obj.features(idx2DInlier(i)).point_var * obj.features(idx2DInlier(i)).point_init;
 			obj.features(idx2DInlier(i)).point_init(4) = 1;
