@@ -108,19 +108,19 @@ classdef Environment < handle
 					obj.runMethod(obj.pkg);
 					timePassed = toc;
 					
-					% Show image and features
-					obj.plot_state(obj.plot_initialized, obj.vo, obj.pkg, obj.params);
-					obj.plot_initialized = true;
-					
-					% Record plot
-					if obj.params.isRecord
-						for j = obj.params.figRecord
-							writeVideo(obj.vidObj{j}, getframe(figure(j)));
+					if obj.vo.processed
+						% Show image and features
+						obj.plot_state(obj.plot_initialized, obj.vo, obj.pkg, obj.params);
+						obj.plot_initialized = true;
+						
+						% Record plot
+						if obj.params.isRecord
+							for j = obj.params.figRecord
+								writeVideo(obj.vidObj{j}, getframe(figure(j)));
+							end
 						end
+						
 					end
-					
-					obj.vo.print_logs(obj.pkg, timePassed);
-					totalTime = totalTime + timePassed;
 				end
 				
 				switch obj.vo.identifier
@@ -165,7 +165,7 @@ classdef Environment < handle
 			
 		end
 		
-		obj = plot_state(obj, plot_initialized, vo, pkg, param)
+		obj = plotOverview( obj, plot_initialized, vo, pkg, params )
 		
 	end
 end
