@@ -6,6 +6,7 @@ imSize = [640 1280];
 K = [500 0 imSize(2)/2;
 	0 500 imSize(1)/2;
 	0 0 1];
+imInit = max(1, obj.imInit);
 
 %% Construct landmark points and pose
 n = 2500;
@@ -122,10 +123,11 @@ end
 
 %%
 obj.imSize = fliplr(imSize);
+obj.imInit = imInit;
 obj.features = features;
 obj.points = points;
 obj.points_id = points_id;
-obj.pose = Poc;
+obj.pose = Toc{imInit}\Poc(:,imInit:end);
 
 obj.K = K;
 

@@ -9,9 +9,7 @@ if ~plot_initialized
 end
 
 GTExist = isprop(pkg, 'pose');
-
-% Compensate a parameter "step", cause obj.step grows at the last stage of vo.run()
-step = vo.step - 1;
+step = vo.step;
 
 % Get uv-pixel point to paint over the image
 features = vo.features;
@@ -83,7 +81,7 @@ if ~plot_initialized
 	figure(1);
 	
 	sfig1 = subplot(1,2,1);
-	h_image = imshow(uint8(vo.cur_image)); hold on;
+	h_image = imagesc(uint8(vo.cur_image)); colormap gray; axis off; hold on;
 	
 	for i = 1:vo.bucket.grid(1)-1
 		x = floor(i*vo.params.imSize(1)/vo.bucket.grid(1));
@@ -112,21 +110,21 @@ if ~plot_initialized
 		h_gt = plot3(Pwc_true(1,1:step), Pwc_true(2,1:step), Pwc_true(3,1:step), 'r-', 'LineWidth', 2);hold on;
 	end
 	
-	axis square equal;grid on;
+	axis square equal off;grid on;
 	
 	xlim(sfig2, Pwc(1,step)+x_window);
 	ylim(sfig2, Pwc(2,step)+y_window);
 	zlim(sfig2, z_window);
 % 	xlim(sfig2, x_window);
 % 	ylim(sfig2, y_window);
-% 	set(sfig2, 'View', [0 90]);
-	set(sfig2, 'View', [-65 15]);
+	set(sfig2, 'View', [0 90]);
+% 	set(sfig2, 'View', [-65 15]);
 	colormap(sfig2, cool);
 	caxis([0 10]);
 	
-	set(gcf, 'Position', [7 510 1280 480]);
-	set(sfig1, 'Position', [0.05 0.05 0.5 0.9]);
-	set(sfig2, 'Position', [0.64 0.11 0.3 0.8]);
+	set(gcf, 'Position', [7 510 1380 480]);
+	set(sfig1, 'Position', [0.02 0.05 0.6 0.9]);
+	set(sfig2, 'Position', [0.62 0.05 0.4 0.9]);
 	set(sfig2, 'XMinorGrid', 'on');
 	set(sfig2, 'YMinorGrid', 'on');
 	

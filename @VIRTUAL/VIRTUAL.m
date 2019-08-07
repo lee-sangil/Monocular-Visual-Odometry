@@ -1,5 +1,5 @@
 classdef VIRTUAL < handle
-	properties (Access = public)
+	properties (GetAccess = public, SetAccess = private)
 		type
 		identifier
 		
@@ -31,7 +31,7 @@ classdef VIRTUAL < handle
 			obj.eof = false;
 			
 			obj.identifier = 'virtual';
-			obj.imInit = 1;
+			obj.imInit = 150;
 			obj.imLength = 300;
 			
 			obj.radialDistortion = [0 0 0];

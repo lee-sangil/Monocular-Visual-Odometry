@@ -27,7 +27,7 @@ classdef vo_mono < handle
 		PocRec
 		
 		% Iteration
-		step = 1
+		step = 0
 		
 		% Constant
 		params
@@ -69,7 +69,7 @@ classdef vo_mono < handle
 			obj.bucket.mass = zeros(obj.bucket.grid);
 			obj.bucket.prob = zeros(obj.bucket.grid);
 			obj.bucket.size = [floor(obj.params.imSize(1)/obj.bucket.grid(1)), floor(obj.params.imSize(2)/obj.bucket.grid(2))];
-			obj.bucket.max_features = 300;
+			obj.bucket.max_features = 600;
 			
 			% Variables
 			obj.nFeature = 0;
@@ -103,8 +103,8 @@ classdef vo_mono < handle
 			ransacCoef_scale_prop.iterMax = 1e4;
 			ransacCoef_scale_prop.minPtNum = obj.params.thInlier;
 			ransacCoef_scale_prop.thInlrRatio = 0.9;
-			ransacCoef_scale_prop.thDist = 1; % standard deviation
-			ransacCoef_scale_prop.thDistOut = inf; % three times of standard deviation
+			ransacCoef_scale_prop.thDist = .5; % standard deviation
+			ransacCoef_scale_prop.thDistOut = 5; % three times of standard deviation
 			ransacCoef_scale_prop.funcFindF = @obj.calculate_scale;
 			ransacCoef_scale_prop.funcDist = @obj.calculate_scale_error;
 			

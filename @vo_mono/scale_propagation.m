@@ -39,7 +39,7 @@ if obj.scale_initialized
 
 	% Use the previous scale, if the scale cannot be found
 	if nPoint <= obj.params.ransacCoef_scale_prop.minPtNum || length(inlier) < obj.params.thInlier || isempty(scale)
-		warning('there are a few SCALE FACTOR INLIERS')
+% 		warning('there are a few SCALE FACTOR INLIERS')
 		idx = find([obj.features(:).is_3D_init] == true);
 		nPoint = length(idx);
 		

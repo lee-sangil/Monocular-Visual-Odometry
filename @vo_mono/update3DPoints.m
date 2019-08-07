@@ -45,11 +45,11 @@ if strcmp(mode, 'w/oPnP')
 			obj.features(idx3D(i)).is_3D_init = true;
 		else
 			% Update 3D point and covariance
-			var = (P1_exp(3,i) * scale / 2)^4 * obj.params.var_theta;
-			new_var = 1 / ( (1 / obj.features(idx3D(i)).point_var) + (1 / var) );
-			obj.features(idx3D(i)).point_init = new_var/var * obj.TocRec{obj.step-1} * P1_exp(:,i) * scale + new_var/obj.features(idx3D(i)).point_var * obj.features(idx3D(i)).point_init;
-			obj.features(idx3D(i)).point_init(4) = 1;
-			obj.features(idx3D(i)).point_var = new_var;
+% 			var = (P1_exp(3,i) * scale / 2)^4 * obj.params.var_theta;
+% 			new_var = 1 / ( (1 / obj.features(idx3D(i)).point_var) + (1 / var) );
+% 			obj.features(idx3D(i)).point_init = new_var/var * obj.TocRec{obj.step-1} * P1_exp(:,i) * scale + new_var/obj.features(idx3D(i)).point_var * obj.features(idx3D(i)).point_init;
+% 			obj.features(idx3D(i)).point_init(4) = 1;
+% 			obj.features(idx3D(i)).point_var = new_var;
 		end
 	end
 	
@@ -134,11 +134,11 @@ elseif strcmp(mode, 'w/PnP')
 			obj.features(idx2DInlier(i)).is_3D_init = true;
 		else
 % 			var = 2 * point_curr(3,i) / scale * obj.params.var_theta;
-			var = (point_curr(3,i) / scale)^4 * obj.params.var_theta;
-			new_var = 1 / ( (1 / obj.features(idx2DInlier(i)).point_var) + (1 / var) );
-			obj.features(idx2DInlier(i)).point_init = new_var/var * Toc * point_curr(:,i) * scale + new_var/obj.features(idx2DInlier(i)).point_var * obj.features(idx2DInlier(i)).point_init;
-			obj.features(idx2DInlier(i)).point_init(4) = 1;
-			obj.features(idx2DInlier(i)).point_var = new_var;
+% 			var = (point_curr(3,i) / scale)^4 * obj.params.var_theta;
+% 			new_var = 1 / ( (1 / obj.features(idx2DInlier(i)).point_var) + (1 / var) );
+% 			obj.features(idx2DInlier(i)).point_init = new_var/var * Toc * point_curr(:,i) * scale + new_var/obj.features(idx2DInlier(i)).point_var * obj.features(idx2DInlier(i)).point_init;
+% 			obj.features(idx2DInlier(i)).point_init(4) = 1;
+% 			obj.features(idx2DInlier(i)).point_var = new_var;
 		end
 	end
 	

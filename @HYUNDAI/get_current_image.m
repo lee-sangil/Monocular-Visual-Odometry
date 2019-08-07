@@ -8,9 +8,9 @@ if obj.step < obj.imLength
 	
 	time = 0;
 	
-else
-	error('reach the end of file');
-end
+else 
+	error('reach the end of file'); 
+end 
 
 if obj.step == obj.imLength
 	obj.eof = true;

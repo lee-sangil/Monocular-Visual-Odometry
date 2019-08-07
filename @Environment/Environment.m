@@ -26,19 +26,21 @@ classdef Environment < handle
 					params.filepath = 'logs/';
 				end
 				
+				if ~isfield(params, 'filename')
+					filename = [pkg.identifier '_' vo.identifier];
+				else
+					filename = params.filename;
+				end
+				
+				params.filepath = [params.filepath char(datetime, 'yyMMdd-HHmmss/')];
+				
 				if ~exist(params.filepath, 'dir')
 					mkdir(params.filepath);
 				else
 					warning('The specified folder exist. Be care for OVERWRITING.\n');
 				end
 				
-				if ~isfield(params, 'filename')
-					filename = [params.filepath pkg.identifier '_' vo.identifier];
-				else
-					filename = [params.filepath params.filename];
-				end
-				
-				filename = [filename char(datetime, '-yyMMdd-hhmmss')];
+				filename = [params.filepath filename];
 				filename_ = cell(length(obj.params.figRecord));
 				for j = obj.params.figRecord
 					filename_{j} = [filename '-' num2str(j)];
@@ -67,6 +69,7 @@ classdef Environment < handle
 				end
 				
 				obj.params.filepath = params.filepath;
+				
 			end
 			
 			% Construct keyboard object
@@ -112,14 +115,14 @@ classdef Environment < handle
 					obj.plot_state(obj.plot_initialized, obj.vo, obj.pkg, obj.params);
 					obj.plot_initialized = true;
 					
-					% Record plot
+					% Record
 					if obj.params.isRecord
 						for j = obj.params.figRecord
 							writeVideo(obj.vidObj{j}, getframe(figure(j)));
 						end
+						obj.print_logs(timePassed);
 					end
 					
-					obj.vo.print_logs(obj.pkg, timePassed);
 					totalTime = totalTime + timePassed;
 				end
 				
@@ -155,17 +158,12 @@ classdef Environment < handle
 				end
 				
 				disp(['total processing time: ' num2str(totalTime) ' sec, ' 'average time: ' num2str(totalTime/obj.pkg.step) ' sec']);
-				
-				if obj.params.isRecord
-					fid = fopen([obj.params.filepath 'log.txt'], 'w');
-					fprintf(fid, 'total processing time: %f sec, average time: %f sec', totalTime, totalTime/obj.pkg.step);
-					fclose(fid);
-				end
 			end
 			
 		end
 		
 		obj = plot_state(obj, plot_initialized, vo, pkg, param)
-		
+		obj = print_logs(obj, timePassed)
+
 	end
 end

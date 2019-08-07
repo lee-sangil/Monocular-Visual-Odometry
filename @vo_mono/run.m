@@ -1,34 +1,20 @@
 function obj = run( obj, pkg )
 
+obj.step = obj.step + 1;
+
 % Get current image
 [~, image] = get_current_image(pkg);
 obj.set_image(image);
 	
 obj.refresh();
 
-% Extract and update features 
-if obj.extract_features()
+if obj.extract_features() && ... % Extract and update features
+		obj.calculate_essential() && ... % RANSAC for calculating essential/fundamental matrix
+		obj.calculate_motion() % Extract rotational and translational from fundamental matrix
+		
+	% Update vo object
+	obj.backup();
 	
-	% RANSAC for calculating essential/fundamental matrix
-	if obj.calculate_essential()
-		
-		% Extract rotational and translational from fundamental matrix
-		if obj.calculate_motion()
-			
-			% Update vo object
-			obj.backup();
-			obj.step = obj.step + 1;
-			
-		else
-			% Load features and tracker backed up
-			obj.reload();
-			
-		end
-	else
-		obj.reload();
-		
-	end
 else
 	obj.reload();
-	
 end
