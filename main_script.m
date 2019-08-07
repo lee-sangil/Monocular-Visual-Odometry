@@ -13,19 +13,20 @@ profile on
 % pkg.imInit = 1000;
 % pkg.imLength = 50;
 
-% pkg = KITTI(8);
-pkg = VIRTUAL();
+pkg = KITTI(8);
+% pkg = VIRTUAL();
 read(pkg);
 
 %% VO CLASS
 vo = vo_mono(pkg);
 
 %% SCRIPT
-params.isRecord = true;
+params.isRecord = false;
 params.figRecord = [1];
+params.plotScale = 1;
 
 env = Environment(vo, pkg, params);
-env.runMethod = @vo.virtual_run;
+env.runMethod = @vo.run;
 
 env.run();
 env.delete();

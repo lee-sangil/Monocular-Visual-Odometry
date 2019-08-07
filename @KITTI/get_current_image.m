@@ -1,4 +1,4 @@
-function [time, imgRect_left, imgRect_right] = get_current_image(obj)
+function [time, image_left, image_right] = get_current_image(obj)
 
 if obj.step < obj.imLength
 	obj.step = obj.step + 1;
@@ -8,12 +8,12 @@ if obj.step < obj.imLength
 	image_left = imread(left_filename);
 	image_right = imread(right_filename);
 	
-	if size(image_left, 3) ~= 1
-		image_left = rgb2gray(image_left);
-	end
-	if size(image_right, 3) ~= 1
-		image_right = rgb2gray(image_right);
-	end
+% 	if size(image_left, 3) ~= 1
+% 		image_left = rgb2gray(image_left);
+% 	end
+% 	if size(image_right, 3) ~= 1
+% 		image_right = rgb2gray(image_right);
+% 	end
 	
 % 	if isa(image_left, 'uint8')
 % 		image_left = single(image_left);
@@ -32,9 +32,9 @@ if obj.step < obj.imLength
 % % 	[map2x, map2y] = cv.initUndistortRectifyMap(obj.stereoParams.CameraParameters2.IntrinsicMatrix, distCoeffs2, size(image_left), 'R', S.R2, 'NewCameraMatrix', S.P2);
 % % 	imgRect_left = cv.remap(image_left', map1x, map1y);
 % % 	imgRect_right = cv.remap(image_right', map2x, map2y);
-	
-	imgRect_left = image_left;
-	imgRect_right = image_right;
+% 	
+% 	imgRect_left = image_left;
+% 	imgRect_right = image_right;
 	
 % 	disparityMap = disparity(imgRect_left, imgRect_right);
 % 	depth_left = 0.38757*721.54./disparityMap;

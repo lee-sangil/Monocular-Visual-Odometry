@@ -1,7 +1,8 @@
 classdef KITTI < handle
-	properties (Access = public)
+	properties (GetAccess = public, SetAccess = private)
 		identifier
 		type
+		rectified
 		
 		BaseDir
 		calibDir
