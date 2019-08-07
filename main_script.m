@@ -11,7 +11,7 @@ profile on
 %% PACKAGE CLASS
 pkg = HYUNDAI('D:\Libraries\Documents\OneDrive - SNU\Doing\# Project\현대엠엔소프트\데이터셋\2019_0603_sample\');
 pkg.imInit = 1000;
-pkg.imLength = 500;
+pkg.imLength = 1000;
 
 % pkg = KITTI(8);
 read(pkg);

@@ -17,15 +17,19 @@ function obj = plot_state( obj, plot_initialized, vo, pkg, params )
 persistent trajectory
 persistent pointcloud_cell_index pointcloud
 
+num_of_latest_states = params.num_of_latest_states;
+GTExist = isprop(pkg, 'pose');
+
 if ~plot_initialized
+	figure();
+	set(gcf, 'Position', [480 400 1200 480]);
 	pointcloud_cell_index = 1;
+	pointcloud{1, num_of_latest_states} = [];
 	trajectory = [];
 end
-GTExist = isprop(pkg, 'pose');
 
 curr_image = vo.curr_image;
 curr_state = vo.state;
-num_of_latest_states = params.num_of_latest_states;
 
 % Check camera pose
 if (~isempty(vo.pose))

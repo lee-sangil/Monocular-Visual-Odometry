@@ -5,6 +5,7 @@ obj.step = obj.step + 1;
 
 % Get current image
 [~, image] = get_current_image(pkg);
+[~, image] = get_current_image(pkg);
 obj.set_image(image);
 
 % Extract and update features 

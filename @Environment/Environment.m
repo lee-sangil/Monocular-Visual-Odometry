@@ -107,6 +107,7 @@ classdef Environment < handle
 					tic;
 					obj.runMethod(obj.pkg);
 					timePassed = toc;
+					totalTime = totalTime + timePassed;
 					
 					if obj.vo.processed
 						% Show image and features

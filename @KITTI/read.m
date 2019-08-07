@@ -5,8 +5,8 @@ calibDir = obj.calibDir;
 imInit = obj.imInit;
 imLength = obj.imLength;
 
-imLeftDir = [ BaseDir 'image_02/data/' ];
-imRightDir = [ BaseDir 'image_03/data/' ];
+imLeftDir = [ BaseDir 'image_00/data/' ];
+imRightDir = [ BaseDir 'image_01/data/' ];
 
 cd utils/devkit
 camCalib = loadCalibrationCamToCam( [ calibDir 'calib_cam_to_cam.txt' ] );
@@ -16,8 +16,17 @@ oxtsTab = loadOxtsliteData( BaseDir, imInit+1:imInit+imLength );
 pose = convertOxtsToPose( oxtsTab );
 cd ../..
 
-imSize = camCalib.S_rect{3};
-K = camCalib.K{3};
+if obj.rectified
+	imSize = camCalib.S_rect{1};
+	K = camCalib.P_rect{1}(1:3,1:3);
+else
+	imSize = camCalib.S{1};
+	K = camCalib.K{1};
+	D = camCalib.D{1};
+	obj.radialDistortion = D([1 2 5]);
+	obj.tangentialDistortion = D([3 4]);
+end
+
 % K = camCalib.P_rect{1}*[ camCalib.R_rect{1} zeros(3,1); zeros(1,3) 1 ];
 % K = K(1:3,1:3);
 
@@ -28,9 +37,9 @@ pci = IMU_to_cam_Calib(1:3,4);
 Ric = Rci';
 pic = -Ric * pci;
 
-IntrinsicMatrix1 = camCalib.K{3}';
+IntrinsicMatrix1 = camCalib.K{1}';
 IntrinsicMatrix1(3,1:2) = IntrinsicMatrix1(3,1:2) + 1;
-IntrinsicMatrix2 = camCalib.K{4}';
+IntrinsicMatrix2 = camCalib.K{2}';
 IntrinsicMatrix2(3,1:2) = IntrinsicMatrix2(3,1:2) + 1;
 
 cameraParams1 = cameraParameters('IntrinsicMatrix',IntrinsicMatrix1,'RadialDistortion',camCalib.D{1}([1 2 5]), 'TangentialDistortion', camCalib.D{1}([3 4]));
