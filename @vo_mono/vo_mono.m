@@ -78,6 +78,7 @@ classdef vo_mono < handle
 			obj.nFeature3DReconstructed = 0;
 			obj.nFeatureInlier = 0;
 			obj.params.thInlier = 5;
+			obj.params.min_px_dist = 5;
 			obj.new_feature_id = 1;
 			
 			% Initial position
@@ -116,8 +117,9 @@ classdef vo_mono < handle
 			obj.params.var_point = 1;
 			
 			% 3D reconstruction
+			obj.params.vehicle_height = 1.5; % in meter
 			obj.params.initScale = 1;
-			obj.params.reprojError = 2 * obj.params.initScale;
+			obj.params.reprojError = 1.5 * obj.params.initScale;
 		end
         
 		% Set image

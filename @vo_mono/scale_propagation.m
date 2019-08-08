@@ -90,7 +90,19 @@ end
 % Initialze scale, in the case of the first time
 if ~obj.scale_initialized
 	
-	scale = obj.params.initScale;
+	uv_curr = zeros(2, obj.nFeature); % current image plane
+	for i = 1:obj.nFeature
+		uv_curr(:,i) = obj.features(i).uv(:,1); % latest
+	end
+	XYZ = [obj.features(:).point];
+	
+	bottom = uv_curr(2,:) > obj.params.imSize(2)*0.5 & ...
+		uv_curr(2,:) > obj.params.imSize(2) - 0.7*uv_curr(1,:) & ...
+		uv_curr(2,:) > obj.params.imSize(2) + 0.7*(uv_curr(1,:) - obj.params.imSize(1)) & ...
+		~isnan(XYZ(3,:));
+	XYZ_bottom = XYZ(:,bottom);
+	scale = obj.params.vehicle_height / median(XYZ_bottom(2,:));
+% 	scale = obj.params.initScale;
 	t = scale * t;
 	
 	obj.nFeatureInlier = obj.nFeature3DReconstructed;

@@ -110,7 +110,8 @@ if ~plot_initialized
 		h_gt = plot3(Pwc_true(1,1:step), Pwc_true(2,1:step), Pwc_true(3,1:step), 'r-', 'LineWidth', 2);hold on;
 	end
 	
-	axis square equal off;grid on;
+	set(gca, 'XTickLabel', '');
+	axis square equal;grid on;
 	
 	xlim(sfig2, Pwc(1,step)+x_window);
 	ylim(sfig2, Pwc(2,step)+y_window);
@@ -155,86 +156,6 @@ else
 	
 end
 
-% %%
-% % FIGURE 2: weight for choosing buckets from feature density
-% weight = 0.05 ./ (obj.bucket.prob + 0.05);
-% figure(2);
-% subplot(2,3,[1 2]);
-% surf(weight/sum(weight(:)));
-% title('Weight for choosing buckets');
-% caxis([0 1/sqrt(prod(obj.bucket.grid))]);
-% view([90 90]);
-% xlim([1 obj.bucket.grid(2)]);
-% ylim([1 obj.bucket.grid(1)]);
-% 
-% % FIGURE 3: histogram of norm of motion vectors from klt tracker
-% subplot(2,3,4);
-% motion = uvArr(:,1:obj.nFeatureMatched,1) - uvArr(:,1:obj.nFeatureMatched,2);
-% histogram(sqrt(sum(motion.^2)), 20);
-% title('Norm of motion vectors');
-% grid on
-% 
-% % FIGURE 4: scale
-% subplot(2,3,5);
-% if step >= 2
-% 	TRec = [obj.TRec{2:step}];
-% 	scale = sqrt(sum(TRec(1:3, 4:4:end).^2, 1));
-% 	plot(2:step, scale, 'LineWidth', 1.5);
-% 	title('Scale propagation');
-% 	ylim([0 5]);
-% 	grid on
-% end
-% 
-% % FIGURE 5: histogram of error of features from essential evaluation
-% subplot(2,3,6);
-% if obj.nFeature2DInliered >= obj.params.thInlier
-% 	E = obj.essential;
-% 	x1 = (obj.params.K \ [uvArr(:,1:obj.nFeatureMatched,2); ones(1,obj.nFeatureMatched)]);
-% 	x2 = (obj.params.K \ [uvArr(:,1:obj.nFeatureMatched,1); ones(1,obj.nFeatureMatched)]);
-% 	Ex1 = E * x1;
-% 	Etx2 = E.' * x2;
-% 	
-% 	dist = diag(x2.'*E*x1).^2 ./ ( Ex1(1,:).^2 + Ex1(2,:).^2 + Etx2(1,:).^2 + Etx2(2,:).^2 ).';
-% 	histogram(dist, 40);
-% 	title('Error of essential constraint');
-% 	
-% 	grid on
-% end
-% 
-% % FIGURE 6: 3D graph of error of features from essential evaluation
-% subplot(2,3,3);
-% if obj.nFeature2DInliered >= obj.params.thInlier
-% 	E = obj.essential;
-% 	x1 = (obj.params.K \ [uvArr(:,1:obj.nFeatureMatched,2); ones(1,obj.nFeatureMatched)]);
-% 	x2 = (obj.params.K \ [uvArr(:,1:obj.nFeatureMatched,1); ones(1,obj.nFeatureMatched)]);
-% 	Ex1 = E * x1;
-% 	Etx2 = E.' * x2;
-% 	
-% 	dist = diag(x2.'*E*x1).^2 ./ ( Ex1(1,:).^2 + Ex1(2,:).^2 + Etx2(1,:).^2 + Etx2(2,:).^2 ).';
-% 	
-% 	uv = round(uvArr(1:2,1:obj.nFeatureMatched,2)).';
-% 	[uv, idx] = unique(uv, 'rows');
-% 	d = dist(idx);
-% 	
-% 	F = scatteredInterpolant(uv,d);
-% 	F.Method = 'natural';
-% 	
-% 	u_interp = 1:obj.params.imSize(1);
-% 	v_interp = 1:obj.params.imSize(2);
-% 	
-% 	[U_interp, V_interp] = meshgrid(u_interp, v_interp);
-% 	d_interp = F(U_interp, V_interp);
-% 	mesh(U_interp, V_interp, d_interp);
-% 	title('Error of essential constraint');
-% 	view([-360 -90]);
-% 	caxis([0 1e-4]);
-% 	axis tight
-% 	grid on
-% end
-% 
-% set(gcf, 'Position', [76 77 1107 420]);
-
-%%
 drawnow;
 
 end

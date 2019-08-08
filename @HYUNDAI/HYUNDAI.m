@@ -2,8 +2,6 @@ classdef HYUNDAI < handle
 	properties (Access = public)
 		type
 		
-		isRectified = true
-		
 		identifier
 		BaseDir
 		imgDir

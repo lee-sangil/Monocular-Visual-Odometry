@@ -72,11 +72,13 @@ end
 new = obj.nFeature + 1;
 
 obj.features(new).id = obj.new_feature_id; % unique id of the feature
+obj.features(new).frame_init = obj.step; % frame step when the feature is created
 obj.features(new).uv = double(locs(l,:)).'; % uv point in pixel coordinates
 obj.features(new).life = 1; % the number of frames in where the feature is observed
 obj.features(new).bucket = [i, j]; % the location of bucket where the feature belong to
 obj.features(new).point = nan(4,1); % 3-dim homogeneous point in the local coordinates
 obj.features(new).is_matched = false; % matched between both frame
+obj.features(new).is_wide = false; % verify whether features btw the initial and current are wide enough
 obj.features(new).is_2D_inliered = false; % belong to major (or meaningful) movement
 obj.features(new).is_3D_reconstructed = false; % triangulation completion
 obj.features(new).is_3D_init = false; % scale-compensated

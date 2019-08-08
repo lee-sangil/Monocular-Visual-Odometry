@@ -13,6 +13,9 @@ else
 		0 0 1];
 end
 
+obj.radialDistortion = [0 0 0];
+obj.tangentialDistortion = [0 0];
+
 if ismember('radialDistortion', fieldnames(YAML))
 	obj.radialDistortion = YAML.radialDistortion;
 else
