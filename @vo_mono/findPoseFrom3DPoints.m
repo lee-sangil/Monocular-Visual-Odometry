@@ -2,8 +2,7 @@ function [R, t, flag, inlier, outlier] = findPoseFrom3DPoints( obj )
 
 % Seek index of which feature is 3D reconstructed currently,
 % and 3D initialized previously
-idx = find([obj.features(:).is_3D_init] == true & ...
-	[obj.features(:).life] > 10 );
+idx = find([obj.features(:).is_3D_init] == true);
 % 	[obj.features(:).point_var] < 0.1 & ... % Theoretically
 nPoint = length(idx);
 

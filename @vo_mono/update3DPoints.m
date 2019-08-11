@@ -34,6 +34,10 @@ if strcmp(mode, 'w/oPnP')
 % 		set(gca,'view',[370,-28]);
 	end
 	
+	T = [R' -R'*t; 0 0 0 1];
+	Toc = obj.TocRec{obj.step-1} * T;
+	Poc = Toc * [0 0 0 1]';
+	
 	% Update features which 3D point is intialized currently
 	for i = 1:nPoint
 		obj.features(idx3D(i)).point(1:3,:) = scale * obj.features(idx3D(i)).point(1:3,:);
@@ -41,7 +45,7 @@ if strcmp(mode, 'w/oPnP')
 		% Initialize 3D point of each features when it is initialized for
 		% the first time
 		if ~obj.features(idx3D(i)).is_3D_init && obj.features(idx3D(i)).is_wide
-			obj.features(idx3D(i)).point_init = obj.TocRec{obj.step-1} * obj.features(idx3D(i)).point;
+			obj.features(idx3D(i)).point_init = Toc * obj.features(idx3D(i)).point;
 			obj.features(idx3D(i)).is_3D_init = true;
 		else
 			% Update 3D point and covariance
@@ -53,9 +57,6 @@ if strcmp(mode, 'w/oPnP')
 		end
 	end
 	
-	T = [R' -R'*t; 0 0 0 1];
-	Toc = obj.TocRec{obj.step-1} * T;
-	Poc = Toc * [0 0 0 1]';
 	obj.status = 'Estimate scale and reconstruct point w/o PnP';
 	
 elseif strcmp(mode, 'w/PnP')
@@ -130,7 +131,7 @@ elseif strcmp(mode, 'w/PnP')
 	for i = 1:length(idx2DInlier)
 		if obj.features(idx2DInlier(i)).is_3D_init == false  && obj.features(idx2DInlier(i)).is_wide
 			% Update 3D point of features with respect to the current image
-			obj.features(idx2DInlier(i)).point = point_prev(:,i);
+			obj.features(idx2DInlier(i)).point = point_curr(:,i);
 			obj.features(idx2DInlier(i)).is_3D_reconstructed = true;
 			
 			obj.features(idx2DInlier(i)).point_init = Toc*point_curr(:,i);

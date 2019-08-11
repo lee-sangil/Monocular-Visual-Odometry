@@ -22,13 +22,13 @@ for i = 1:length(R_vec)
 	R1 = R_vec{i};
 	t1 = t_vec{i};
 	
-	[X_prev, ~, lambda_prev, lambda_curr] = obj.contructDepth(x_prev, x_curr, R1, t1);
+	[~, X_curr, lambda_prev, lambda_curr] = obj.contructDepth(x_prev, x_curr, R1, t1);
 	inlier = find(lambda_prev > 0 & lambda_curr > 0);
 	
 	if length(inlier) > max_num
 		max_num = length(inlier);
 		max_inlier = inlier;
-		point_prev = [X_prev(:,inlier);ones(1,length(inlier))];
+		point_curr = [X_curr(:,inlier);ones(1,length(inlier))];
 		
 		R = R1;
 		t = t1;
@@ -45,7 +45,7 @@ else
 	idx = idx(max_inlier);
 	for i = 1:length(idx)
 		% Update 3D point of features with respect to the current frame
-		obj.features(idx(i)).point = point_prev(:,i);
+		obj.features(idx(i)).point = point_curr(:,i);
 		obj.features(idx(i)).is_3D_reconstructed = true;
 	end
 	obj.nFeature3DReconstructed = length(idx);

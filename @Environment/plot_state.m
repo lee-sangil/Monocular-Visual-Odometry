@@ -1,6 +1,6 @@
 function obj = plot_state(obj, plot_initialized, vo, pkg, param)
 
-persistent sfig1 sfig2 h_image h_inlier h_inlierpoint h_outlier line_inlier line_outlier h_traj h_curr h_point h_point_0 p_0 p_0_id
+persistent sfig1 sfig2 fig2 h_image h_inlier h_inlierpoint h_outlier line_inlier line_outlier h_traj h_curr h_point h_point_0 p_0 p_0_id
 persistent h_gt h_text
 persistent h_vel h_velpoint
 
@@ -137,7 +137,7 @@ if ~plot_initialized
 	figure(2);
 	h_vel = plot(0,0,'k','LineWidth', 2);hold on;
 	h_velpoint = plot(step, norm(vo.TRec{step}(1:3,4)), 'ko', 'LineWidth', 2);
-	
+	fig2 = gca;
 else
 	% FIGURE 1: sub1 - image and features, sub2 - xz-trajectory
 	set(h_image, 'CData', vo.cur_image);
@@ -168,12 +168,12 @@ else
 	
 	set(h_vel, 'XData', 1:step, 'YData', [get(h_vel, 'YData') norm(vo.TRec{step}(1:3,4))]);
 	set(h_velpoint, 'XData', step, 'YData', norm(vo.TRec{step}(1:3,4)));
-	xlim([max(1, step-9) max(10, step)]);
-	ylim_ = get(gca, 'YLim');
+	xlim(fig2, [max(1, step-9) max(10, step)]);
+	ylim_ = get(fig2, 'YLim');
 	if ylim_(2) < norm(vo.TRec{step}(1:3,4))
 		ylim_(2) = 2*ylim_(2);
 	end
-	ylim(ylim_);
+	ylim(fig2, ylim_);
 end
 
 drawnow;

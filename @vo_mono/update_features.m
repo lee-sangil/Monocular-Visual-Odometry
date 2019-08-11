@@ -15,6 +15,8 @@ if obj.nFeature > 0
 			
 			if norm(features(i).uv(:,1) - features(i).uv(:,end)) > obj.params.min_px_dist
 				features(i).is_wide = true;
+			else
+				features(i).is_wide = false;
 			end
 			
 			obj.nFeatureMatched = obj.nFeatureMatched + 1;

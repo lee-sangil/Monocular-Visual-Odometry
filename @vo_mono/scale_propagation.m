@@ -25,7 +25,7 @@ if obj.scale_initialized
 		% observed 3d point
 		P1_exp = zeros(4, nPoint);
 		for i = 1:nPoint
-			P1_exp(:,i) = obj.features(idx(i)).point;
+			P1_exp(:,i) = [R t; 0 0 0 1] \ obj.features(idx(i)).point;
 		end
 		
 		% RANSAC
@@ -45,7 +45,7 @@ if obj.scale_initialized
 		
 		% Use RANSAC to find suitable scale
 		if nPoint > obj.params.thInlier
-			objectPoints_ = [obj.features(idx).point];
+			objectPoints_ = [R t; 0 0 0 1] \ [obj.features(idx).point];
 			objectPoints = permute(objectPoints_(1:3,:),[3 2 1]);
 			
 			imagePoints_ = zeros(2,nPoint);
