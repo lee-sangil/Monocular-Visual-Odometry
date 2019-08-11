@@ -58,12 +58,17 @@ if obj.scale_initialized
 			if success == false
 				[r_vec, t_vec, success, inlier] = cv.solvePnPRansac(objectPoints, imagePoints, obj.params.K, 'IterationsCount', 1e4, 'ReprojectionError', obj.params.reprojError*2);
 			end
+
+			% approximately
+% 			R = expm(skew(r_vec/2));
+% 			t = t_vec/2;
 			
-			R = expm(skew(r_vec/2));
-			t = t_vec/2;
-% 			T = obj.TRec{obj.step-1} \ [R t; 0 0 0 1];
-% 			R = T(1:3,1:3);
-% 			t = T(1:3,4);
+			% explicitly
+			R = expm(skew(r_vec));
+			t = t_vec;
+			T = obj.TRec{obj.step-1} \ [R t; 0 0 0 1];
+			R = T(1:3,1:3);
+			t = T(1:3,4);
 			
 			flag = success;
 			inlier = idx(transpose(inlier) + 1);

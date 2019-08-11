@@ -57,11 +57,11 @@ while true
 		for f = 1:length(idx)
 			dist(f) = norm(locs(l,:).' - obj.features(idx(f)).uv(:,1));
 		end
-		if all(dist > 2)
+		if all(dist > obj.params.min_px_dist)
 			break;
 		end
 	end
-	if all(dist > 2)
+	if all(dist > obj.params.min_px_dist)
 		break;
 	end
 	

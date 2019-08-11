@@ -3,7 +3,7 @@ function obj = run( obj, pkg )
 obj.step = obj.step + 1;
 
 % Get current image
-[~, image] = get_current_image(pkg);
+[time, image] = get_current_image(pkg);
 obj.set_image(image);
 	
 obj.refresh();

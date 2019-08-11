@@ -1,6 +1,7 @@
 classdef vo_mono < handle
 	properties (GetAccess = public, SetAccess = private)
 		
+		status = ''
 		identifier
 		
 		undist_image
@@ -78,7 +79,7 @@ classdef vo_mono < handle
 			obj.nFeature3DReconstructed = 0;
 			obj.nFeatureInlier = 0;
 			obj.params.thInlier = 5;
-			obj.params.min_px_dist = 5;
+			obj.params.min_px_dist = 7;
 			obj.new_feature_id = 1;
 			
 			% Initial position
@@ -96,8 +97,8 @@ classdef vo_mono < handle
 			ransacCoef_calc_essential.iterMax = 1e4;
 			ransacCoef_calc_essential.minPtNum = 5;
 			ransacCoef_calc_essential.thInlrRatio = 0.9;
-			ransacCoef_calc_essential.thDist = 1e-7;
-			ransacCoef_calc_essential.thDistOut = 1e-7;
+			ransacCoef_calc_essential.thDist = 1e-9;
+			ransacCoef_calc_essential.thDistOut = 1e-9;
 			ransacCoef_calc_essential.funcFindF = @fivePoint;
 			ransacCoef_calc_essential.funcDist = @obj.essential_model_error;
 			
@@ -119,7 +120,7 @@ classdef vo_mono < handle
 			% 3D reconstruction
 			obj.params.vehicle_height = 1.5; % in meter
 			obj.params.initScale = 1;
-			obj.params.reprojError = 1.5 * obj.params.initScale;
+			obj.params.reprojError = 1.2;
 		end
         
 		% Set image

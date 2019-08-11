@@ -1,7 +1,8 @@
 function obj = plot_state(obj, plot_initialized, vo, pkg, param)
 
-persistent sfig1 sfig2 h_image h_inlier h_outlier line_inlier line_outlier h_traj h_curr h_point h_point_0 p_0 p_0_id
-persistent h_gt
+persistent sfig1 sfig2 h_image h_inlier h_inlierpoint h_outlier line_inlier line_outlier h_traj h_curr h_point h_point_0 p_0 p_0_id
+persistent h_gt h_text
+persistent h_vel h_velpoint
 
 if ~plot_initialized
 	p_0 = [];
@@ -30,19 +31,19 @@ end
 
 % Get inlier pixel coordinates
 arrIdx = 1:length(features);
-inlierIdx = find([vo.features(:).is_3D_reconstructed] == true);
+inlierIdx = find([vo.features(:).is_2D_inliered] == true);
 outlierIdx = arrIdx(~ismember(arrIdx, inlierIdx));
 
-Xin = zeros(2*(max_len-1), length(inlierIdx));
-Yin = zeros(size(Xin));
-Xout = zeros(2*(max_len-1), length(outlierIdx));
-Yout = zeros(size(Xout));
-for i = 1:max_len-1
-	Xin(2*i-1:2*i, :) = [uvArr(1,inlierIdx,i+1); uvArr(1,inlierIdx,i)];
-	Yin(2*i-1:2*i, :) = [uvArr(2,inlierIdx,i+1); uvArr(2,inlierIdx,i)];
-	Xout(2*i-1:2*i, :) = [uvArr(1,outlierIdx,i+1); uvArr(1,outlierIdx,i)];
-	Yout(2*i-1:2*i, :) = [uvArr(2,outlierIdx,i+1); uvArr(2,outlierIdx,i)];
-end
+% Xin = zeros(2*(max_len-1), length(inlierIdx));
+% Yin = zeros(size(Xin));
+% Xout = zeros(2*(max_len-1), length(outlierIdx));
+% Yout = zeros(size(Xout));
+% for i = 1:max_len-1
+% 	Xin(2*i-1:2*i, :) = [uvArr(1,inlierIdx,i+1); uvArr(1,inlierIdx,i)];
+% 	Yin(2*i-1:2*i, :) = [uvArr(2,inlierIdx,i+1); uvArr(2,inlierIdx,i)];
+% 	Xout(2*i-1:2*i, :) = [uvArr(1,outlierIdx,i+1); uvArr(1,outlierIdx,i)];
+% 	Yout(2*i-1:2*i, :) = [uvArr(2,outlierIdx,i+1); uvArr(2,outlierIdx,i)];
+% end
 
 % Get initialized 3D points, p_0, and observed 3D point (p_k) of each step in the
 % initizlied coordinates, p_k_0
@@ -93,11 +94,12 @@ if ~plot_initialized
 		line([0 vo.params.imSize(1)], [y y], 'linestyle', ':', 'Color', [.5 .5 .5]);
 	end
 	
-	h_inlier = scatter( uvArr(1,inlierIdx,1), uvArr(2,inlierIdx,1), 'ro' );
-	h_outlier = scatter( uvArr(1,outlierIdx,1), uvArr(2,outlierIdx,1), 'bo' );
+	h_inlier = scatter( uvArr(1,inlierIdx,1), uvArr(2,inlierIdx,1), 50, 'gs' );
+	h_inlierpoint = scatter( uvArr(1,inlierIdx,1), uvArr(2,inlierIdx,1), 20, 'g.' );
+% 	h_outlier = scatter( uvArr(1,outlierIdx,1), uvArr(2,outlierIdx,1), 50, 'bs' );
 	
-	line_inlier = line( Xin, Yin, 'Color', 'y');
-	line_outlier = line( Xout, Yout, 'Color', 'b');
+% 	line_inlier = line( Xin, Yin, 'Color', 'y');
+% 	line_outlier = line( Xout, Yout, 'Color', 'b');
 	
 	%
 	sfig2 = subplot(122);
@@ -118,6 +120,9 @@ if ~plot_initialized
 	zlim(sfig2, z_window);
 % 	xlim(sfig2, x_window);
 % 	ylim(sfig2, y_window);
+
+	h_text = text(0, 0, 100, vo.status, 'Color', 'red');
+
 	set(sfig2, 'View', [0 90]);
 % 	set(sfig2, 'View', [-65 15]);
 	colormap(sfig2, cool);
@@ -129,18 +134,23 @@ if ~plot_initialized
 	set(sfig2, 'XMinorGrid', 'on');
 	set(sfig2, 'YMinorGrid', 'on');
 	
+	figure(2);
+	h_vel = plot(0,0,'k','LineWidth', 2);hold on;
+	h_velpoint = plot(step, norm(vo.TRec{step}(1:3,4)), 'ko', 'LineWidth', 2);
+	
 else
 	% FIGURE 1: sub1 - image and features, sub2 - xz-trajectory
 	set(h_image, 'CData', vo.cur_image);
 	
 	set(h_inlier, 'XData', uvArr(1,inlierIdx,1), 'YData', uvArr(2,inlierIdx,1));
-	set(h_outlier, 'XData', uvArr(1,outlierIdx,1), 'YData', uvArr(2,outlierIdx,1));
+	set(h_inlierpoint, 'XData', uvArr(1,inlierIdx,1), 'YData', uvArr(2,inlierIdx,1));
+% 	set(h_outlier, 'XData', uvArr(1,outlierIdx,1), 'YData', uvArr(2,outlierIdx,1));
 	
-	delete(line_inlier);
-	delete(line_outlier);
-	
-	line_inlier = line( sfig1, Xin, Yin, 'Color', 'y');
-	line_outlier = line( sfig1, Xout, Yout, 'Color', 'b');
+% 	delete(line_inlier);
+% 	delete(line_outlier);
+% 	
+% 	line_inlier = line( sfig1, Xin, Yin, 'Color', 'y');
+% 	line_outlier = line( sfig1, Xout, Yout, 'Color', 'b');
 	
 	set(h_point_0, 'XData', p_0_w(1,:), 'YData', p_0_w(2,:), 'ZData', p_0_w(3,:));
 	set(h_point, 'XData', p_k_0_w(1,inlierIdx), 'YData', p_k_0_w(2,inlierIdx), 'ZData', p_k_0_w(3,inlierIdx),'CData', p_life(inlierIdx));
@@ -154,6 +164,16 @@ else
 	xlim(sfig2, Pwc(1,step)+x_window);
 	ylim(sfig2, Pwc(2,step)+y_window);
 	
+	set(h_text, 'Position', [Pwc(1,step)+x_window(1)+4, Pwc(2,step)+y_window(1)+5, 100], 'String', ['\bf' vo.status]);
+	
+	set(h_vel, 'XData', 1:step, 'YData', [get(h_vel, 'YData') norm(vo.TRec{step}(1:3,4))]);
+	set(h_velpoint, 'XData', step, 'YData', norm(vo.TRec{step}(1:3,4)));
+	xlim([max(1, step-9) max(10, step)]);
+	ylim_ = get(gca, 'YLim');
+	if ylim_(2) < norm(vo.TRec{step}(1:3,4))
+		ylim_(2) = 2*ylim_(2);
+	end
+	ylim(ylim_);
 end
 
 drawnow;
