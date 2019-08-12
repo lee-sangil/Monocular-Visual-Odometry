@@ -97,7 +97,7 @@ if ~plot_initialized
 	
 	%
 	sfig2 = subplot(122);
-	h_map = plot_google_map('Alpha', 0.5, 'Refresh', 1, 'MapType', 'roadmap', 'APIKey', 'AIzaSyDEV06JJHrrJxwxx-anHB-X9kFP_PZYm_Q');axis off;hold on;
+	h_map = plot_google_map('Alpha', 0.5, 'Refresh', 1, 'MapType', 'roadmap', 'APIKey', 'APIKey');axis off;hold on;
 	h_point_0 = scatter3(sfig2, p_0_w(1,:), p_0_w(2,:), p_0_w(3,:), 5, 'filled', 'MarkerFaceColor', [0 0 0], 'MarkerFaceAlpha', .5);
 	h_point = scatter3( p_k_0_w(1,:), p_k_0_w(2,:), p_k_0_w(3,:), 7, 'filled');
 	h_traj = plot3(Pwc(1,1:step), Pwc(2,1:step), Pwc(3,1:step), 'k-', 'LineWidth', 2);hold on;
