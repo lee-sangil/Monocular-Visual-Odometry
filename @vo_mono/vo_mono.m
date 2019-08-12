@@ -85,7 +85,7 @@ classdef vo_mono < handle
 			% Initial position
 			obj.TRec{1} = eye(4);
 			obj.TocRec{1} = eye(4);
-			obj.PocRec(:,1) = zeros(4,1);
+			obj.PocRec(:,1) = [0;0;0;1];
 			
 			% Gaussian kernel
 			std = 3;
@@ -97,8 +97,8 @@ classdef vo_mono < handle
 			ransacCoef_calc_essential.iterMax = 1e4;
 			ransacCoef_calc_essential.minPtNum = 5;
 			ransacCoef_calc_essential.thInlrRatio = 0.9;
-			ransacCoef_calc_essential.thDist = 1e-9;
-			ransacCoef_calc_essential.thDistOut = 1e-9;
+			ransacCoef_calc_essential.thDist = 1e-7;
+			ransacCoef_calc_essential.thDistOut = 1e-7;
 			ransacCoef_calc_essential.funcFindF = @fivePoint;
 			ransacCoef_calc_essential.funcDist = @obj.essential_model_error;
 			

@@ -17,6 +17,16 @@ if nPoint > obj.params.thInlier
 	end
 	imagePoints = permute(imagePoints_,[3 2 1]);
 	
+% 	Toc = obj.TocRec{obj.step-1};
+% 	Rco = Toc(1:3,1:3).';
+% 	tco = -Toc(1:3,1:3).'*Toc(1:3,4);
+% 	r_vec_prev = vec(logm(Rco));
+% 	t_vec_prev = tco;
+% 	
+% 	[r_vec, t_vec, success, inlier] = cv.solvePnPRansac(objectPoints, imagePoints, obj.params.K, 'Rvec', r_vec_prev, 'Tvec', t_vec_prev, 'IterationsCount', 1e4, 'ReprojectionError', obj.params.reprojError);
+% 	if success == false
+% 		[r_vec, t_vec, success, inlier] = cv.solvePnPRansac(objectPoints, imagePoints, obj.params.K, 'Rvec', r_vec_prev, 'Tvec', t_vec_prev, 'IterationsCount', 1e4, 'ReprojectionError', obj.params.reprojError*2);
+% 	end
 	[r_vec, t_vec, success, inlier] = cv.solvePnPRansac(objectPoints, imagePoints, obj.params.K, 'IterationsCount', 1e4, 'ReprojectionError', obj.params.reprojError);
 	if success == false
 		[r_vec, t_vec, success, inlier] = cv.solvePnPRansac(objectPoints, imagePoints, obj.params.K, 'IterationsCount', 1e4, 'ReprojectionError', obj.params.reprojError*2);

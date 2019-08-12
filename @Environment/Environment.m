@@ -2,7 +2,7 @@ classdef Environment < handle
 	properties (Access = public)
 		runMethod
 	end
-	properties (Access = private)
+	properties (GetAccess = public, SetAccess = private)
 		
 		isInitialized = true
 		plot_initialized = false
@@ -124,37 +124,6 @@ classdef Environment < handle
 					end
 					
 					totalTime = totalTime + timePassed;
-				end
-				
-				switch obj.vo.identifier
-					case 'sparseflow'
-						figure();
-						obj.vo.plot_spacetime();
-						
-						% SAVE
-						if obj.params.isRecord
-							save([obj.params.filepath obj.pkg.get_identifier '.mat']);
-							odometry = obj.vo.get_quaternion;
-							odometry = odometry(:,:,1);
-							save([obj.params.filepath 'QocRec.mat'], 'odometry');
-						end
-						
-					case 'rgbd'
-						if obj.params.isRecord
-							save([obj.params.filepath obj.pkg.get_identifier '.mat']);
-							TocRec = obj.vo.get_odometry;
-							for i = 1:length(TocRec)
-								mat = inv(TocRec{i});
-								q = convert_r2q(mat(1:3,1:3));
-								t = mat(1:3,4);
-								odometry(:,i) = [t;q];
-							end
-							save([obj.params.filepath 'QocRec.mat'], 'odometry');
-						end
-						
-					case 'stream'
-						figure();
-						obj.vo.print_depthHist();
 				end
 				
 				disp(['total processing time: ' num2str(totalTime) ' sec, ' 'average time: ' num2str(totalTime/obj.pkg.step) ' sec']);

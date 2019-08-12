@@ -55,6 +55,10 @@ else
 	flag = true;
 end
 
+if norm(T(1:3,4)) > 100
+	error('Stop!');
+end
+
 if ~isempty(obj.pose)
 	if norm(obj.pose(:,obj.step)-obj.PocRec(:,obj.step)) > 3
 		a = 1;

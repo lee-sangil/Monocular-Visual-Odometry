@@ -10,8 +10,8 @@ profile on
 
 %% PACKAGE CLASS
 pkg = HYUNDAI('D:\Libraries\Documents\OneDrive - SNU\Doing\# Project\현대엠엔소프트\데이터셋\2019_0603_sample\');
-pkg.imInit = 1000;
-pkg.imLength = 500;
+pkg.imInit = 900;
+pkg.imLength = 1500;
 
 % pkg = KITTI(8);
 % pkg = VIRTUAL();
@@ -21,9 +21,9 @@ read(pkg);
 vo = vo_mono(pkg);
 
 %% SCRIPT
-params.isRecord = true;
+params.isRecord = false;
 params.figRecord = [1 2];
-params.plotScale = .2;
+params.plotScale = 0.000002;
 
 env = Environment(vo, pkg, params);
 env.runMethod = @vo.run;
