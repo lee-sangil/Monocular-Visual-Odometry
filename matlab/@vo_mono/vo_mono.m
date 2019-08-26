@@ -134,7 +134,7 @@ classdef vo_mono < handle
 			% Gaussian kernel
 			std = 3;
 			sz = 3*std;
-			d = (repmat(-sz : sz, 2*sz+1,1).^2 + (repmat(-sz : sz, 2*sz+1,1).^2)').^0.5;
+			d = (repmat(-sz : sz, 2*sz+1,1).^2 + (repmat(-sz : sz, 2*sz+1,1).^2).').^0.5;
 			obj.params.kernel = normpdf(d, zeros(size(d)), std*ones(size(d)));
 			
 			% RANSAC parameter			

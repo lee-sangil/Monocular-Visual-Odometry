@@ -29,5 +29,7 @@ octave-workspace
 *.tif
 *.txt
 *.xlsx
+*.txt
 
-logs/*
+matlab/logs/*
+cpp/build/*
