@@ -1,7 +1,8 @@
 function obj = plot_state(obj, plot_initialized, vo, pkg, param)
 
-persistent sfig1 sfig2 fig2 h_image h_inlier h_inlierpoint h_outlier line_inlier line_outlier h_traj h_curr h_point h_point_0 p_0 p_0_id
-persistent h_gt h_text h_map
+persistent sfig1 sfig2 fig2 
+persistent h_image h_inlier h_inlierpoint h_traj h_curr h_point h_point_0 p_0 p_0_id
+persistent h_gt h_text
 persistent h_vel h_velpoint
 persistent worldToCam meterToDegree
 
@@ -11,9 +12,18 @@ if ~plot_initialized
 	
 	% Transform camera coordinate to world coordinate
 	inertialToCam = [1 0 0 0; 0 0 1 0; 0 -1 0 0; 0 0 0 1];
-	worldToInertial = [rotz(-52*pi/180) [126.952277;37.531870;0];0 0 0 1];
-	worldToCam = worldToInertial * inertialToCam;
-	meterToDegree = 1/111111 * diag([1/cos(37.531832 * pi/180) 1 1]); % x-longitude, y-latitude
+	
+	if param.loadAPIMap
+		% For google map loaded
+		worldToInertial = [rotz(-52*pi/180) [126.952277;37.531870;1e-4];0 0 0 1];
+		worldToCam = worldToInertial * inertialToCam;
+		meterToDegree = 1/111111 * diag([1/cos(37.531832 * pi/180) 1 1]); % x-longitude, y-latitude
+	else
+		% For naver map merged manually
+		worldToInertial = [rotz(-pi/2-44*pi/180) [8778;2787;15];0 0 0 1];
+		worldToCam = worldToInertial * diag([-1 1 1 1]) * inertialToCam;
+		meterToDegree = 3.2*eye(3);
+	end
 end
 
 GTExist = isprop(pkg, 'pose');
@@ -32,9 +42,7 @@ for i = 1:vo.nFeature
 end
 
 % Get inlier pixel coordinates
-arrIdx = 1:length(features);
 inlierIdx = find([vo.features(:).is_2D_inliered] == true);
-outlierIdx = arrIdx(~ismember(arrIdx, inlierIdx));
 
 % Get initialized 3D points, p_0, and observed 3D point (p_k) of each step in the
 % initizlied coordinates, p_k_0
@@ -90,14 +98,15 @@ if ~plot_initialized
 	
 	h_inlier = scatter( uvArr(1,inlierIdx), uvArr(2,inlierIdx), 50, 'gs' );
 	h_inlierpoint = scatter( uvArr(1,inlierIdx), uvArr(2,inlierIdx), 20, 'g.' );
-% 	h_outlier = scatter( uvArr(1,outlierIdx,1), uvArr(2,outlierIdx,1), 50, 'bs' );
-	
-% 	line_inlier = line( Xin, Yin, 'Color', 'y');
-% 	line_outlier = line( Xout, Yout, 'Color', 'b');
 	
 	%
 	sfig2 = subplot(122);
-	h_map = plot_google_map('Alpha', 0.5, 'Refresh', 1, 'MapType', 'roadmap', 'APIKey', 'AIzaSyDEV06JJHrrJxwxx-anHB-X9kFP_PZYm_Q');axis off;hold on;
+	if param.loadAPIMap
+		plot_google_map('Alpha', 0.5, 'MapType', 'roadmap', 'APIKey', 'AIzaSyDMshTvIswpiogAju2oujoTR_69o3891PA');axis off;hold on;
+	else
+		img = imread('yongsan.png');
+		h = imshow(img);hold on;
+	end
 	h_point_0 = scatter3(sfig2, p_0_w(1,:), p_0_w(2,:), p_0_w(3,:), 5, 'filled', 'MarkerFaceColor', [0 0 0], 'MarkerFaceAlpha', .5);
 	h_point = scatter3( p_k_0_w(1,:), p_k_0_w(2,:), p_k_0_w(3,:), 7, 'filled');
 	h_traj = plot3(Pwc(1,1:step), Pwc(2,1:step), Pwc(3,1:step), 'k-', 'LineWidth', 2);hold on;
@@ -113,8 +122,6 @@ if ~plot_initialized
 	xlim(sfig2, Pwc(1,step)+x_window);
 	ylim(sfig2, Pwc(2,step)+y_window);
 	zlim(sfig2, z_window);
-% 	xlim(sfig2, x_window);
-% 	ylim(sfig2, y_window);
 
 	h_text = text(0, 0, 100, vo.status, 'Color', 'red');
 
@@ -143,13 +150,6 @@ else
 	
 	set(h_inlier, 'XData', uvArr(1,inlierIdx), 'YData', uvArr(2,inlierIdx));
 	set(h_inlierpoint, 'XData', uvArr(1,inlierIdx), 'YData', uvArr(2,inlierIdx));
-% 	set(h_outlier, 'XData', uvArr(1,outlierIdx,1), 'YData', uvArr(2,outlierIdx,1));
-	
-% 	delete(line_inlier);
-% 	delete(line_outlier);
-% 	
-% 	line_inlier = line( sfig1, Xin, Yin, 'Color', 'y');
-% 	line_outlier = line( sfig1, Xout, Yout, 'Color', 'b');
 	
 	set(h_point_0, 'XData', p_0_w(1,:), 'YData', p_0_w(2,:), 'ZData', p_0_w(3,:));
 	set(h_point, 'XData', p_k_0_w(1,inlierIdx), 'YData', p_k_0_w(2,inlierIdx), 'ZData', p_k_0_w(3,inlierIdx),'CData', p_life(inlierIdx));
@@ -163,17 +163,11 @@ else
 	xlim(sfig2, Pwc(1,step)+x_window);
 	ylim(sfig2, Pwc(2,step)+y_window);
 	
-	refresh(figure(1));
 	set(h_text, 'Position', [Pwc(1,step)+x_window(1)+4, Pwc(2,step)+y_window(1)+5, 100], 'String', ['\bf' vo.status]);
 	
 	set(h_vel, 'XData', 1:step, 'YData', [get(h_vel, 'YData') norm(vo.TRec{step}(1:3,4))]);
 	set(h_velpoint, 'XData', step, 'YData', norm(vo.TRec{step}(1:3,4)));
 	xlim(fig2, [max(1, step-9) max(10, step)]);
-% 	ylim_ = get(fig2, 'YLim');
-% 	if ylim_(2) < norm(vo.TRec{step}(1:3,4))
-% 		ylim_(2) = 2*ylim_(2);
-% 	end
-% 	ylim(fig2, ylim_);
 end
 
 drawnow;

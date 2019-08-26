@@ -21,11 +21,13 @@ read(pkg);
 vo = vo_mono(pkg);
 
 %% SCRIPT
-params.isRecord = false;
-params.figRecord = [1 2];
-params.plotScale = 0.000002;
+param.isRecord = false;
+param.figRecord = [1];
+param.loadAPIMap = false;
+% param.plotScale = 0.000002; % google-map
+param.plotScale = 1; % naver-map
 
-env = Environment(vo, pkg, params);
+env = Environment(vo, pkg, param);
 env.runMethod = @vo.run;
 
 env.run();

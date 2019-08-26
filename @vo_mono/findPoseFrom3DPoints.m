@@ -23,13 +23,19 @@ if nPoint > obj.params.thInlier
 % 	r_vec_prev = vec(logm(Rco));
 % 	t_vec_prev = tco;
 % 	
-% 	[r_vec, t_vec, success, inlier] = cv.solvePnPRansac(objectPoints, imagePoints, obj.params.K, 'Rvec', r_vec_prev, 'Tvec', t_vec_prev, 'IterationsCount', 1e4, 'ReprojectionError', obj.params.reprojError);
+% 	[r_vec, t_vec, success, inlier] = cv.solvePnPRansac(objectPoints, imagePoints, obj.params.K, ...
+% 		'UseExtrinsicGuess', true, 'Rvec', r_vec_prev, 'Tvec', t_vec_prev, 'IterationsCount', 1e4, ...
+% 		'ReprojectionError', obj.params.reprojError, 'Method', 'AP3P');
 % 	if success == false
-% 		[r_vec, t_vec, success, inlier] = cv.solvePnPRansac(objectPoints, imagePoints, obj.params.K, 'Rvec', r_vec_prev, 'Tvec', t_vec_prev, 'IterationsCount', 1e4, 'ReprojectionError', obj.params.reprojError*2);
+% 		[r_vec, t_vec, success, inlier] = cv.solvePnPRansac(objectPoints, imagePoints, obj.params.K, ...
+% 			'UseExtrinsicGuess', true, 'Rvec', r_vec_prev, 'Tvec', t_vec_prev, 'IterationsCount', 1e4, ...
+% 			'ReprojectionError', obj.params.reprojError*2, 'Method', 'AP3P');
 % 	end
-	[r_vec, t_vec, success, inlier] = cv.solvePnPRansac(objectPoints, imagePoints, obj.params.K, 'IterationsCount', 1e4, 'ReprojectionError', obj.params.reprojError);
+	[r_vec, t_vec, success, inlier] = cv.solvePnPRansac(objectPoints, imagePoints, obj.params.K, ...
+		'IterationsCount', 1e4, 'ReprojectionError', obj.params.reprojError, 'Method', 'AP3P');
 	if success == false
-		[r_vec, t_vec, success, inlier] = cv.solvePnPRansac(objectPoints, imagePoints, obj.params.K, 'IterationsCount', 1e4, 'ReprojectionError', obj.params.reprojError*2);
+		[r_vec, t_vec, success, inlier] = cv.solvePnPRansac(objectPoints, imagePoints, obj.params.K, ...
+			'IterationsCount', 1e4, 'ReprojectionError', obj.params.reprojError*2, 'Method', 'AP3P');
 	end
 	
 	R = expm(skew(r_vec));
