@@ -18,13 +18,11 @@ for i = 1:nInlier
 	uv_prev(:,i) = obj.features(idx(i)).uv(:,2); % second-to-latest
 	uv_curr(:,i) = obj.features(idx(i)).uv(:,1); % latest
 end
-x_prev = K \ [uv_prev; ones(1, nInlier)];
-x_curr = K \ [uv_curr; ones(1, nInlier)];
 
 % RANSAC
-% 	obj.params.ransacCoef_calc_essential.weight = ones(length(idx),1);
-obj.params.ransacCoef_calc_essential.weight = [obj.features(idx).life].';
-[E, inlier, ~] = ransac(x_prev, x_curr, obj.params.ransacCoef_calc_essential);
+uv_prev_cell = mat2cell(uv_prev.', ones(1,size(uv_prev,2)));
+uv_curr_cell = mat2cell(uv_curr.', ones(1,size(uv_curr,2)));
+[E, inlier] = cv.findEssentialMat(uv_prev_cell, uv_curr_cell, 'Method', 'Ransac', 'CameraMatrix', K, 'Threshold', 1e-1);
 
 [U, ~, V] = svd(E);
 if det(U) <  0
@@ -46,7 +44,7 @@ t_vec{3} = U(:,3);
 t_vec{4} = -U(:,3);
 
 %% STORE
-idx = idx(inlier);
+idx = idx(inlier==1);
 for i = idx
 	obj.features(i).is_2D_inliered = true;
 end

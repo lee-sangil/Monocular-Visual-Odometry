@@ -82,6 +82,7 @@ end
 if ~plot_initialized
 	
 	figure(1);
+	set(gcf, 'Position', [7 510 1380 480]);
 	
 	sfig1 = subplot(1,2,1);
 	h_image = imagesc(uint8(vo.cur_image)); colormap gray; axis off; hold on;
@@ -102,7 +103,7 @@ if ~plot_initialized
 	%
 	sfig2 = subplot(122);
 	if param.loadAPIMap
-		plot_google_map('Alpha', 0.5, 'MapType', 'roadmap', 'APIKey', 'AIzaSyDMshTvIswpiogAju2oujoTR_69o3891PA');axis off;hold on;
+		plot_google_map('Alpha', 0.5, 'MapType', 'roadmap', 'APIKey', '');axis off;hold on;
 	else
 		img = imread('yongsan.png');
 		h = imshow(img);hold on;
@@ -130,18 +131,18 @@ if ~plot_initialized
 	colormap(sfig2, cool);
 	caxis([0 10]);
 	
-	set(gcf, 'Position', [7 510 1380 480]);
 	set(sfig1, 'Position', [0.02 0.05 0.6 0.9]);
 	set(sfig2, 'Position', [0.6 0.05 0.4 0.9]);
 	set(sfig2, 'XMinorGrid', 'on');
 	set(sfig2, 'YMinorGrid', 'on');
 	
 	figure(2);
+	set(gcf, 'Position', [1394 610 520 380]);
+	
 	h_vel = plot(0,0,'k','LineWidth', 2);hold on;
 	h_velpoint = plot(step, norm(vo.TRec{step}(1:3,4)), 'ko', 'LineWidth', 2);grid on;
 	ylim([0 4]);
 	fig2 = gca;
-	set(gcf, 'Position', [1394 610 520 380]);
 	
 	pause(2);
 else

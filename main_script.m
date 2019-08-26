@@ -13,15 +13,13 @@ pkg = HYUNDAI('D:\Libraries\Documents\OneDrive - SNU\Doing\# Project\Çö´ë¿¥¿£¼ÒÇ
 pkg.imInit = 900;
 pkg.imLength = 1500;
 
-% pkg = KITTI(8);
-% pkg = VIRTUAL();
 read(pkg);
 
 %% VO CLASS
 vo = vo_mono(pkg);
 
 %% SCRIPT
-param.isRecord = false;
+param.isRecord = true;
 param.figRecord = [1];
 param.loadAPIMap = false;
 % param.plotScale = 0.000002; % google-map

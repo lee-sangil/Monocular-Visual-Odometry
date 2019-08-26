@@ -93,15 +93,7 @@ classdef vo_mono < handle
 			d = (repmat(-sz : sz, 2*sz+1,1).^2 + (repmat(-sz : sz, 2*sz+1,1).^2)').^0.5;
 			obj.params.kernel = normpdf(d, zeros(size(d)), std*ones(size(d)));
 			
-			% RANSAC parameter
-			ransacCoef_calc_essential.iterMax = 1e4;
-			ransacCoef_calc_essential.minPtNum = 5;
-			ransacCoef_calc_essential.thInlrRatio = 0.9;
-			ransacCoef_calc_essential.thDist = 1e-7;
-			ransacCoef_calc_essential.thDistOut = 1e-7;
-			ransacCoef_calc_essential.funcFindF = @fivePoint;
-			ransacCoef_calc_essential.funcDist = @obj.essential_model_error;
-			
+			% RANSAC parameter			
 			ransacCoef_scale_prop.iterMax = 1e4;
 			ransacCoef_scale_prop.minPtNum = obj.params.thInlier;
 			ransacCoef_scale_prop.thInlrRatio = 0.9;
@@ -109,8 +101,6 @@ classdef vo_mono < handle
 			ransacCoef_scale_prop.thDistOut = 5; % three times of standard deviation
 			ransacCoef_scale_prop.funcFindF = @obj.calculate_scale;
 			ransacCoef_scale_prop.funcDist = @obj.calculate_scale_error;
-			
-			obj.params.ransacCoef_calc_essential = ransacCoef_calc_essential;
 			obj.params.ransacCoef_scale_prop = ransacCoef_scale_prop;
 			
 			% Statistical model
@@ -129,10 +119,8 @@ classdef vo_mono < handle
 		% Script operations
 		obj = backup( obj )
 		obj = reload( obj )
+		obj = refresh( obj )
 		obj = run( obj, pkg )
-		obj = plot_state( obj, plot_initialized, pkg )
-		obj = text_write( obj, imStep )
-		obj = print_logs( obj, pkg, timePassed )
         
 		% Feature operations
 		[points, validity] = klt_tracker( obj )
@@ -153,17 +141,7 @@ classdef vo_mono < handle
 		[T, Toc, Poc] = update3DPoints( obj, R, t, inlier, outlier, mode, R_E, t_E, success_E )
 		
 		% RANSAC
-		E = eight_point_essential_hypothesis( obj, x1, x2 )
-		dist = essential_model_error( obj, E, x1, x2 )
 		scale = calculate_scale( obj, P1, P1_ref )
 		dist = calculate_scale_error( obj, scale, P1, P1_ref )
-		
-		% Test for Virtual dataset
-		obj = virtual_run( obj, pkg )
-		flag = virtual_set_features( obj, features, points, id )
-		flag = virtual_update_features( obj, features, points, id )
-		obj = virtual_delete_dead_features( obj, features, points )
-		obj = virtual_add_features( obj, features, points, id )
-		flag = virtual_add_feature( obj, features, points, id )
 	end
 end
