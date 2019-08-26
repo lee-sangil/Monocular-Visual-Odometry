@@ -25,7 +25,7 @@ x_curr = K \ [uv_curr; ones(1, nInlier)];
 % 	obj.params.ransacCoef_calc_essential.weight = ones(length(idx),1);
 obj.params.ransacCoef_calc_essential.weight = [obj.features(idx).life].';
 [E, inlier, ~] = ransac(x_prev, x_curr, obj.params.ransacCoef_calc_essential);
-
+% cv.findEssentialMat()
 [U, ~, V] = svd(E);
 if det(U) <  0
 	U(:,3) = -U(:,3);

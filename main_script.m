@@ -23,9 +23,9 @@ vo = vo_mono(pkg);
 %% SCRIPT
 param.isRecord = false;
 param.figRecord = [1];
-param.loadAPIMap = false;
-% param.plotScale = 0.000002; % google-map
-param.plotScale = 1; % naver-map
+param.loadAPIMap = true;
+param.plotScale = 0.000002; % google-map
+% param.plotScale = 1; % naver-map
 
 env = Environment(vo, pkg, param);
 env.runMethod = @vo.run;
