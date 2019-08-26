@@ -4,34 +4,78 @@ classdef vo_mono < handle
 		status = ''
 		identifier
 		
-		undist_image
-		cur_image
-        prev_image
+		undist_image % cv::Mat
+		cur_image % cv::Mat
+        prev_image % cv::Mat
         
 		bucket
-		features
-		features_backup
+		% bucket - class
+		% 		safety - int
+		% 		grid - std::vector<int> [width, height]
+		% 		mass - Eigen::Matrix<grid(1), grid(2), double>
+		% 		prob - Eigen::Matrix<grid(1), grid(2), double>
+		% 		size - std::vector<int>
+		% 		max_features - int
 		
-		scale_initialized
+		features % class
+		features_backup % class
+		% features - class
+		% 		id - int
+		% 		frame_init - int
+		% 		uv - cv::Point<double>
+		% 		life - int
+		% 		bucket - std::vector<int> - ex) [i, j]
+		% 		point - Eigen::Vector4d
+		% 		is_matched - bool
+		% 		is_wide - bool
+		% 		is_2D_inliered - bool
+		% 		is_3D_reconstructed - bool
+		% 		is_3D_init - bool
+		% 		point_init Eigen::Vector4d
+		% 		point_var - double
 		
-		nFeature
-		nFeatureMatched
-		nFeature2DInliered
-		nFeature3DReconstructed
-		nFeatureInlier
-		new_feature_id
+		scale_initialized % binary
 		
-		R_vec
-		t_vec
-		TRec
-		TocRec
-		PocRec
+		nFeature % int
+		nFeatureMatched % int
+		nFeature2DInliered % int
+		nFeature3DReconstructed % int
+		nFeatureInlier % int
+		new_feature_id % int
+		
+		R_vec % std::vector<Eigen::Vector3d>
+		t_vec % std::vector<Eigen::Vector3d>
+		TRec % std::vector<Eigen::Matrix4d>
+		TocRec % std::vector<Eigen::Matirx4d>
+		PocRec % std::vector<Eigen::Vector4d>
 		
 		% Iteration
-		step = 0
+		step = 0 % int
 		
 		% Constant
-		params
+		params 
+		% params - structure
+		% 		imSize - std::vector<int>
+		% 		K - Eigen::Matrix3d
+		% 		radialDistortion - std::vector<double>
+		% 		tangentialDistortion - std::vector<double>
+		% 		ransacCoef_scale_prop - structure
+		% 				iterMax - int
+		% 				minPtNum - double
+		% 				thInlrRatio - double
+		% 				thDist - double
+		% 				thDistOut - double
+		% 				funcFindF = @obj.calculate_scale;
+		% 				funcDist = @obj.calculate_scale_error;
+		% 		
+		% 		% Statistical model
+		% 		var_theta - double
+		% 		var_point - int
+		% 		
+		% 		% 3D reconstruction
+		% 		vehicle_height - double
+		% 		initScale - double
+		% 		reprojError -double
 		
 		% Debug
 		pose
