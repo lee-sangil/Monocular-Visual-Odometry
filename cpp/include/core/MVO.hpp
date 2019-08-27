@@ -42,7 +42,6 @@ class MVO{
 	
 	public:
 
-	MVO();
 	MVO(Parameter params);
 	// Set image
 	void set_image(const cv::Mat image);
@@ -54,7 +53,7 @@ class MVO{
 	void run(const cv::Mat image);
 
 	// Feature operations
-	void klt_tracker(std::vector<cv::Point>& points, std::vector<bool>& validity);
+	void klt_tracker(std::vector<cv::Point2d>& points, std::vector<bool>& validity);
 	void update_bucket();
 	bool extract_features();
 	bool update_features();
@@ -65,13 +64,23 @@ class MVO{
 	// Calculations
 	bool calculate_essential();
 	bool calculate_motion();
-	bool verify_solutions(Eigen::Matrix3d& R, Eigen::Vector3d& t);
-	bool scale_propagation(Eigen::Matrix3d& R, Eigen::Vector3d& t, std::vector<bool> inlier, std::vector<bool> outlier);
-	bool findPoseFrom3DPoints(Eigen::Matrix3d& R, Eigen::Vector3d& t, std::vector<bool> inlier, std::vector<bool> outlier);
+	bool verify_solutions(std::vector<Eigen::Matrix3d>& R_vec, std::vector<Eigen::Vector3d>& t_vec,
+						  Eigen::Matrix3d& R, Eigen::Vector3d& t);
+	bool scale_propagation(Eigen::Matrix3d& R_, Eigen::Vector3d& t_,
+						   Eigen::Matrix3d& R, Eigen::Vector3d& t,
+						   std::vector<bool>& inlier, std::vector<bool>& outlier);
+	bool scale_propagation(Eigen::Matrix3d& R_, Eigen::Vector3d& t_,
+						   std::vector<bool>& inlier, std::vector<bool>& outlier);
+	bool findPoseFrom3DPoints(Eigen::Matrix3d& R, Eigen::Vector3d& t);
 	void contructDepth(const std::vector<cv::Point2d> x_prev, const std::vector<cv::Point2d> x_curr, const Eigen::Matrix3d R, const Eigen::Vector3d t, 
 						std::vector<Eigen::Vector4d>& X_prev, std::vector<Eigen::Vector4d>& X_curr, std::vector<double>& lambda_prev, std::vector<double>& lambda_curr);
-	void update3DPoints(const Eigen::Matrix3d R, const Eigen::Vector3d t, const std::vector<bool> inlier, const std::vector<bool> outlier);
-	void update3DPoints(const Eigen::Matrix3d R, const Eigen::Vector3d t, const std::vector<bool> inlier, const std::vector<bool> outlier, const Eigen::Matrix3d R_E, const Eigen::Vector3d t_E, const bool success_E);
+	void update3DPoints(const Eigen::Matrix3d& R, const Eigen::Vector3d& t,
+						const std::vector<bool>& inlier, const std::vector<bool>& outlier,
+						Eigen::Matrix4d& T, Eigen::Matrix4d& Toc, Eigen::Vector4d& Poc);
+	void update3DPoints(const Eigen::Matrix3d& R, const Eigen::Vector3d& t,
+						const std::vector<bool>& inlier, const std::vector<bool>& outlier,
+						const Eigen::Matrix3d& R_E, const Eigen::Vector3d& t_E, const bool& success_E,
+						Eigen::Matrix4d& T, Eigen::Matrix4d& Toc, Eigen::Vector4d& Poc);
 
 	// RANSAC
 	double calculate_scale(const std::vector<Eigen::Vector3d> P1, const std::vector<Eigen::Vector3d> P1_ref);
@@ -98,7 +107,7 @@ class MVO{
 	unsigned int nFeatureInlier;
 	unsigned int new_feature_id;
 
-	std::vector<Eigen::Vector3d> R_vec;
+	std::vector<Eigen::Matrix3d> R_vec;
 	std::vector<Eigen::Vector3d> t_vec;
 	std::vector<Eigen::Matrix4d> TRec;
 	std::vector<Eigen::Matrix4d> TocRec;

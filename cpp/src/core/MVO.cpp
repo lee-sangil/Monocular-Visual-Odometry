@@ -1,13 +1,11 @@
 #include "core/MVO.hpp"
+#include "numerics.hpp"
 
-unsigned int Feature::new_feature_id = 1;
+uint32_t Feature::new_feature_id = 1;
 
-MVO::MVO(){
-	this->step = 0;
-
-	this->bucket = Bucket();
-}
 MVO::MVO(Parameter params){
+    this->step = 0;
+
 	this->params.fx = params.fx;
 	this->params.fy = params.fy;
 	this->params.cx = params.cx;
@@ -31,6 +29,37 @@ MVO::MVO(Parameter params){
 	this->params.radialDistortion.push_back(params.k3);
 	this->params.tangentialDistortion.push_back(params.p1);
 	this->params.tangentialDistortion.push_back(params.p2);
+
+    // this->bucket = Bucket();
+}
+
+void MVO::refresh(){
+    this->nFeatureMatched = 0;
+    this->nFeature2DInliered = 0;
+    this->nFeature3DReconstructed = 0;
+    this->nFeatureInlier = 0;
+
+    for( uint32_t i = 0; i < this->nFeature; i++ ){
+        this->features[i].is_matched = false;
+        this->features[i].is_2D_inliered = false;
+        this->features[i].is_3D_reconstructed = false;
+    }
+}
+
+void MVO::backup(){
+    this->features_backup.clear();
+    this->features_backup.assign(this->features.begin(), this->features.end());
+}
+
+void MVO::reload(){
+    this->features.clear();
+    this->features.assign(this->features_backup.begin(), this->features_backup.end());
+
+    this->nFeature = this->features.size();
+
+    this->TRec[this->step] = Eigen::Matrix4d::Identity();
+    this->TocRec[this->step] = this->TocRec[this->step-1];
+    this->PocRec[this->step] = this->PocRec[this->step-1];
 }
 
 void MVO::set_image(const cv::Mat image){
@@ -38,6 +67,103 @@ void MVO::set_image(const cv::Mat image){
 	this->cur_image = image.clone(); 
 }
 
+void MVO::run(const cv::Mat image){
+    this->step++;
+
+    this->set_image(image);
+    this->refresh();
+
+    if( this->extract_features() & // Extract and update features
+	    this->calculate_essential() & // RANSAC for calculating essential/fundamental matrix
+		this->calculate_motion() ) // Extract rotational and translational from fundamental matrix
+        
+        this->backup();
+        
+    else
+        this->reload();
+}
+
+bool MVO::extract_features(){
+    // Update features using KLT tracker
+    if( this->update_features() ){
+        
+        // Delete features which is failed to track by KLT tracker
+        this->delete_dead_features();
+        
+        // Add features to the number of the lost features
+        this->add_features();
+        
+        return true;
+    }
+    else
+        return false;
+}
+
+bool MVO::update_features(){
+    
+    std::vector<Feature> features;
+    features.assign(this->features.begin(),this->features.end());
+
+    if( this->nFeature ){
+        // Track the points
+        std::vector<cv::Point2d> points;
+        std::vector<bool> validity;
+        this->klt_tracker(points, validity);
+        
+        for( uint32_t i = 0; i < this->nFeature; i++ ){
+            if( validity[i] & (features[i].life > 0) ){
+                features[i].life++;
+                features[i].uv.push_back(points[i]);
+                features[i].is_matched = true;
+                
+                if( cv::norm(features[i].uv.front() - features[i].uv.back()) > this->params.min_px_dist ){
+                    features[i].is_wide = true;
+                }else{
+                    features[i].is_wide = false;
+                }
+                this->nFeatureMatched++;
+
+            }else
+                features[i].life = 0;
+        }
+
+        if( this->nFeatureMatched < this->params.thInlier ){
+            std::cerr << "There are a few FEATURE MATCHES" << std::endl;
+            return false;
+        }else{
+            return true;
+            this->features.assign(features.begin(), features.end());
+        }
+    }else
+        return true;
+}
+
+void MVO::klt_tracker(std::vector<cv::Point2d>& fwd_pts, std::vector<bool>& validity){
+    std::vector<cv::Point2d> pts;
+    for( int i = 0; i < this->nFeature; i++ ){
+        pts.push_back(this->features[i].uv.back());
+    }
+    
+    // // Forward-backward error evaluation
+    // std::vector<cv::Point2d> bwd_pts;
+    // fwd_pts = cv::calcOpticalFlowPyrLK(this->prev_image, this->cur_image, pts);
+    // bwd_pts = cv::calcOpticalFlowPyrLK(this->cur_image, this->prev_image, fwd_pts);
+    // 
+    // // Calculate bi-directional error( = validity ): validity = ~border_invalid & error_valid
+    // for( int i = 0; i < this->nFeature; i++ ){
+    //     bool border_invalid = fwd_pts[i].x < 0 | fwd_pts[i].x > obj.params.imSize(1) | fwd_pts[i].y < 0 | fwd_pts[i].y > obj.params.imSize(2);
+    //     bool error_valid = std::sqrt(std::sum((pts[i] - bwd_pts[i]).^2, 1)) < min( sqrt(sum((pts - fwd_pts).^2, 1))/5, 1);
+    //     validity.push_back(!border_invalid & error_valid);
+    // }
+}
+
+void MVO::delete_dead_features(){
+
+}
+
+void MVO::add_features(){
+
+}
 
 // haram
 bool MVO::calculate_essential()
@@ -57,20 +183,20 @@ bool MVO::calculate_essential()
     // TODO: define of find function
 
     std::vector<int> idx;
-    for (unsigned int i = 0; i < features.size(); i++)
+    for (uint32_t i = 0; i < features.size(); i++)
     {
         if (features.at(i).is_matched)
             idx.push_back(i);
     }
 
-    unsigned int nInlier = idx.size();
+    uint32_t nInlier = idx.size();
 
     int point_count = 100;
     std::vector<cv::Point2d> points1(point_count);
     std::vector<cv::Point2d> points2(point_count);
 
     // initialize the points here ... */
-    for (unsigned int i = 0; i < nInlier; i++)
+    for (uint32_t i = 0; i < nInlier; i++)
     {
         points1[i] = features.at(idx.at(i)).uv.at(1); // second to latest
         points2[i] = features.at(idx.at(i)).uv.at(0); // latest
@@ -82,13 +208,13 @@ bool MVO::calculate_essential()
     Eigen::Matrix3d E_, U, V;
     E = findEssentialMat(points1, points2, focal, principle_point, cv::RANSAC, 0.999, 1.0, inlier);
     cv2eigen(E, E_);
-    JacobiSVD<MatrixXf> svd(E_, ComputeThinU | ComputeThinV);
+    Eigen::JacobiSVD<Eigen::MatrixXd> svd(E_, Eigen::ComputeThinU | Eigen::ComputeThinV);
     U = svd.matrixU();
     V = svd.matrixV();
 
-    if (U.determinant < 0)
+    if (U.determinant() < 0)
         U.block(0, 2, 3, 1) = -U.block(0, 2, 3, 1);
-    if (V.determinant < 0)
+    if (V.determinant() < 0)
         V.block(0, 2, 3, 1) = -V.block(0, 2, 3, 1);
     R_vec.at(0) = U * W * V.transpose();
     R_vec.at(1) = U * W * V.transpose();
@@ -99,18 +225,18 @@ bool MVO::calculate_essential()
     t_vec.at(2) = U.block(0, 2, 3, 1);
     t_vec.at(3) = -U.block(0, 2, 3, 1);
 
-    unsigned int inlier_cnt = 0;
-    for (unsigned int i = 0; i < inlier.size(); i++)
+    uint32_t inlier_cnt = 0;
+    for (uint32_t i = 0; i < inlier.size(); i++)
     {
-        if (inlier(i))
+        if (inlier.at(i))
         {
             features.at(i).is_2D_inliered = true;
             inlier_cnt++;
         }
     }
-    nFeature2Dinliered = inlier_cnt;
+    nFeature2DInliered = inlier_cnt;
 
-    if (nFeature2Dinliered < params.thInlier)
+    if (nFeature2DInliered < params.thInlier)
     {
         std::cerr << " There are a few inliers matching features in 2D." << std::endl;
         return false;
@@ -123,16 +249,18 @@ bool MVO::calculate_essential()
 
 bool MVO::calculate_motion()
 {
-    if (step == 1)
+    if (step == 0)
         return true;
 
-    Eigen::Matrix3d R,R_;
-    Eigen::Vector3d t,t_;
+    Eigen::Matrix3d R, R_;
+    Eigen::Vector3d t, t_;
+    Eigen::Matrix4d T, Toc;
+    Eigen::Vector4d Poc;
     
-    success1 = findPoseFrom3DPoints(R_,t_);
+    bool success1 = findPoseFrom3DPoints(R_, t_);
     if (!success1){
         // Verity 4 solutions
-        success2 = verify_solutions(R_vec, t_vec, R_, t_);
+        bool success2 = verify_solutions(R_vec, t_vec, R_, t_);
         
         if (!success2){
             std::cerr << "There are no meaningful R, t." << std::endl;
@@ -141,29 +269,24 @@ bool MVO::calculate_motion()
 
         // Update 3D points
         std::vector<bool> inlier, outlier;
-        success3 = scale_propagation(R_,t_, R, t, inlier, outlier);
+        bool success3 = scale_propagation(R_ ,t_, R, t, inlier, outlier);
 
         if (!success3){
             std::cerr << "There are few inliers matching scale." << std::endl;
             return false;
         }
 
-        Eigen::Matrix4d T, Toc;
-        Eigen::Vector4d Poc;
-        update3Dpoints(R, t, inlier, outlier, 'w/oPnP', T, Toc, Poc); // overloading function
+        update3DPoints(R, t, inlier, outlier, T, Toc, Poc); // overloading function
     } // if (!success1)
     else{
-        success2 = verify_solutions(R_vec, t_vec, R_, t_);
+        bool success2 = verify_solutions(R_vec, t_vec, R_, t_);
 
         // Update 3D points
         std::vector<bool> inlier, outlier;
-        success3 = scale_propagation(R_, t_, inlier, outlier);
+        bool success3 = scale_propagation(R_, t_, inlier, outlier);
 
         // Update 3D points
-        Eigen::Matrix4d T, Toc;
-        Eigen::Vector4d Poc;
-
-        update3Dpoints(R, t, inlier, outlier, 'w/PnP', R_, t_, success3, T, Toc, Poc); // overloading function
+        update3DPoints(R, t, inlier, outlier, R_, t_, success3, T, Toc, Poc); // overloading function
     } // if (!success1)
 
     scale_initialized = true;
@@ -174,15 +297,37 @@ bool MVO::calculate_motion()
     }
     else{
         // Save solution
-        TRec = T;
-        TocRec = Toc;
-        PocRec = Poc;
+        TRec.push_back(T);
+        TocRec.push_back(Toc);
+        PocRec.push_back(Poc);
 
         return true;
     }
 
-    if (T(1:3,4).norm() > 100){
+    if (T.block(0, 3, 3, 1).norm() > 100){
         std::cout << "the current position: " <<  Poc(1) << ", " << Poc(2) << ", " << Poc(3) << std::endl;
         std::cerr << "Stop!" << std::endl;
     }
+}
+
+bool MVO::verify_solutions(std::vector<Eigen::Matrix3d>& R_vec, std::vector<Eigen::Vector3d>& t_vec, Eigen::Matrix3d& R, Eigen::Vector3d& t){
+
+}
+bool MVO::scale_propagation(Eigen::Matrix3d& R_, Eigen::Vector3d& t_, Eigen::Matrix3d& R, Eigen::Vector3d& t, std::vector<bool>& inlier, std::vector<bool>& outlier){
+
+}
+bool MVO::scale_propagation(Eigen::Matrix3d& R_, Eigen::Vector3d& t_, std::vector<bool>& inlier, std::vector<bool>& outlier){
+
+}
+bool MVO::findPoseFrom3DPoints(Eigen::Matrix3d& R, Eigen::Vector3d& t){
+
+}
+void MVO::contructDepth(const std::vector<cv::Point2d> x_prev, const std::vector<cv::Point2d> x_curr, const Eigen::Matrix3d R, const Eigen::Vector3d t, std::vector<Eigen::Vector4d>& X_prev, std::vector<Eigen::Vector4d>& X_curr, std::vector<double>& lambda_prev, std::vector<double>& lambda_curr){
+
+}
+void MVO::update3DPoints(const Eigen::Matrix3d& R, const Eigen::Vector3d& t,const std::vector<bool>& inlier, const std::vector<bool>& outlier,Eigen::Matrix4d& T, Eigen::Matrix4d& Toc, Eigen::Vector4d& Poc){
+
+}
+void MVO::update3DPoints(const Eigen::Matrix3d& R, const Eigen::Vector3d& t,const std::vector<bool>& inlier, const std::vector<bool>& outlier,const Eigen::Matrix3d& R_E, const Eigen::Vector3d& t_E, const bool& success_E,Eigen::Matrix4d& T, Eigen::Matrix4d& Toc, Eigen::Vector4d& Poc){
+
 }

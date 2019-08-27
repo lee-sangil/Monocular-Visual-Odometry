@@ -1,3 +1,7 @@
+#ifndef __NUMERICS__HPP__
+#define __NUMERICS__HPP__
+
+#include <eigen3/Eigen/Core>
 
 inline Eigen::Matrix3d skew(const Eigen::Vector3d& v)
 {
@@ -16,3 +20,4 @@ inline Eigen::Vector3d vec(const Eigen::Matrix3d& M)
     return v;
 }
 
+#endif //__NUMERICS__HPP__

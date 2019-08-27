@@ -126,7 +126,7 @@ int main(int argc, char * argv[]){
 				chk::getImgTUMdataset(dirRgb, image);
 				cv::imshow("image", image);
 
-				vo->set_image(image);
+				vo->run(image);
 				
 				it_rgb++;
 				break;
