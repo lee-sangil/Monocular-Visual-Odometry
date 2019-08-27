@@ -1,10 +1,13 @@
 #include "core/MVO.hpp"
-#include "numerics.hpp"
+#include "core/utils.hpp"
+#include "core/numerics.hpp"
 
 uint32_t Feature::new_feature_id = 1;
 
 MVO::MVO(Parameter params){
     this->step = 0;
+    
+    this->nFeature = 0;
 
 	this->params.fx = params.fx;
 	this->params.fy = params.fy;
@@ -22,15 +25,63 @@ MVO::MVO(Parameter params){
 						0, params.fy, params.cy,
 						0, 0, 1;
 
-	this->params.imSize.push_back(params.width);
-	this->params.imSize.push_back(params.height);
+	this->params.imSize.width = params.width;
+	this->params.imSize.height = params.height;
 	this->params.radialDistortion.push_back(params.k1);
 	this->params.radialDistortion.push_back(params.k2);
 	this->params.radialDistortion.push_back(params.k3);
 	this->params.tangentialDistortion.push_back(params.p1);
 	this->params.tangentialDistortion.push_back(params.p2);
+    obj.scale_initialized = false;
 
-    // this->bucket = Bucket();
+    // Bucket
+    this->bucket = Bucket();
+    this->bucket.safety = 20;
+	this->bucket.max_features = 400;
+	this->bucket.grid = cv::Size(32,8);
+	this->bucket.size = cv::Size(this->params.imSize.width/this->bucket.grid.width, this->params.imSize.height/this->bucket.grid.height);
+	this->bucket.mass.setZero(this->bucket.grid.width,this->bucket.grid.height);
+	this->bucket.prob.setZero(this->bucket.grid.width,this->bucket.grid.height);
+
+    // Variables
+    obj.nFeature = 0;
+    obj.nFeatureMatched = 0;
+    obj.nFeature2DInliered = 0;
+    obj.nFeature3DReconstructed = 0;
+    obj.nFeatureInlier = 0;
+    obj.params.thInlier = 5;
+    obj.params.min_px_dist = 7;
+    obj.new_feature_id = 1;
+    
+    % Initial position
+    obj.TRec{1} = eye(4);
+    obj.TocRec{1} = eye(4);
+    obj.PocRec(:,1) = [0;0;0;1];
+    
+    % Gaussian kernel
+    std = 3;
+    sz = 3*std;
+    d = (repmat(-sz : sz, 2*sz+1,1).^2 + (repmat(-sz : sz, 2*sz+1,1).^2).').^0.5;
+    obj.params.kernel = normpdf(d, zeros(size(d)), std*ones(size(d)));
+    
+    % RANSAC parameter			
+    ransacCoef_scale_prop.iterMax = 1e4;
+    ransacCoef_scale_prop.minPtNum = obj.params.thInlier;
+    ransacCoef_scale_prop.thInlrRatio = 0.9;
+    ransacCoef_scale_prop.thDist = .5; % standard deviation
+    ransacCoef_scale_prop.thDistOut = 5; % three times of standard deviation
+    ransacCoef_scale_prop.funcFindF = @obj.calculate_scale;
+    ransacCoef_scale_prop.funcDist = @obj.calculate_scale_error;
+    obj.params.ransacCoef_scale_prop = ransacCoef_scale_prop;
+    
+    % Statistical model
+    obj.params.var_theta = (90 / 1241 / 2)^2;
+    obj.params.var_point = 1;
+    
+    % 3D reconstruction
+    obj.params.vehicle_height = 1.5; % in meter
+    obj.params.initScale = 1;
+    obj.params.reprojError = 1.2;
 }
 
 void MVO::refresh(){
@@ -140,29 +191,139 @@ bool MVO::update_features(){
 
 void MVO::klt_tracker(std::vector<cv::Point2d>& fwd_pts, std::vector<bool>& validity){
     std::vector<cv::Point2d> pts;
-    for( int i = 0; i < this->nFeature; i++ ){
+    for( uint32_t i = 0; i < this->nFeature; i++ ){
         pts.push_back(this->features[i].uv.back());
     }
     
-    // // Forward-backward error evaluation
-    // std::vector<cv::Point2d> bwd_pts;
-    // fwd_pts = cv::calcOpticalFlowPyrLK(this->prev_image, this->cur_image, pts);
-    // bwd_pts = cv::calcOpticalFlowPyrLK(this->cur_image, this->prev_image, fwd_pts);
-    // 
-    // // Calculate bi-directional error( = validity ): validity = ~border_invalid & error_valid
-    // for( int i = 0; i < this->nFeature; i++ ){
-    //     bool border_invalid = fwd_pts[i].x < 0 | fwd_pts[i].x > obj.params.imSize(1) | fwd_pts[i].y < 0 | fwd_pts[i].y > obj.params.imSize(2);
-    //     bool error_valid = std::sqrt(std::sum((pts[i] - bwd_pts[i]).^2, 1)) < min( sqrt(sum((pts - fwd_pts).^2, 1))/5, 1);
-    //     validity.push_back(!border_invalid & error_valid);
-    // }
+    // Forward-backward error evaluation
+    std::vector<cv::Point2d> bwd_pts;
+    std::vector<cv::Mat> prevPyr, currPyr;
+    cv::Mat status, err;
+    cv::buildOpticalFlowPyramid(this->prev_image, prevPyr, cv::Size(21,21), 3, true);
+    cv::buildOpticalFlowPyramid(this->cur_image, currPyr, cv::Size(21,21), 3, true);
+    cv::calcOpticalFlowPyrLK(prevPyr, currPyr, pts, fwd_pts, status, err);
+    cv::calcOpticalFlowPyrLK(currPyr, prevPyr, fwd_pts, bwd_pts, status, err);
+    
+    // Calculate bi-directional error( = validity ): validity = ~border_invalid & error_valid
+    for( uint32_t i = 0; i < this->nFeature; i++ ){
+        bool border_invalid = (fwd_pts[i].x < 0) | (fwd_pts[i].x > this->params.imSize.width) | (fwd_pts[i].y < 0) | (fwd_pts[i].y > this->params.imSize.height);
+        bool error_valid = cv::norm(pts[i] - bwd_pts[i]) < std::min( cv::norm(pts[i] - fwd_pts[i])/5.0, 1.0);
+        validity.push_back(!border_invalid & error_valid);
+    }
 }
 
 void MVO::delete_dead_features(){
-
+    for( uint32_t i = 0; i < this->nFeature; ){
+        if( this->features[i].life <= 0 ){
+            this->features.erase(this->features.begin()+i);
+        }else{
+            i++;
+        }
+    }
+    this->nFeature = this->features.size();
 }
 
 void MVO::add_features(){
+    this->update_bucket();
+    while( this->nFeature < this->bucket.max_features )
+        this->add_feature();
+}
 
+void MVO::update_bucket(){
+    this->bucket.mass.fill(0.0);
+    for( uint32_t i = 0; i < this->nFeature; i++ ){
+        cv::Point2d uv = this->features[i].uv.back();
+        uint32_t row_bucket = std::ceil(uv.x / this->params.imSize.width * this->bucket.grid.width);
+        uint32_t col_bucket = std::ceil(uv.y / this->params.imSize.height * this->bucket.grid.height);
+        this->features[i].bucket = cv::Size(row_bucket, col_bucket);
+        this->bucket.mass(row_bucket-1, col_bucket-1)++;
+    }
+}
+
+void MVO::add_feature(){
+    // Load bucket parameters
+    cv::Size bkSize = this->bucket.size;
+    uint32_t bkSafety = this->bucket.safety;
+
+    // Choose ROI based on the probabilistic approaches with the mass of bucket
+    uint32_t i, j;
+    lsi::idx_randselect(this->bucket.prob, i, j);
+    cv::Rect roi = cv::Rect((i-1)*bkSize.width+1, (j-1)*bkSize.height+1, bkSize.width, bkSize.height);
+    
+    roi.x = std::max(bkSafety, (uint32_t)roi.x);
+    roi.y = std::max(bkSafety, (uint32_t)roi.y);
+    roi.width = std::min(this->params.imSize.width-bkSafety, (uint32_t)roi.x + roi.width)-roi.x;
+    roi.height = std::min(this->params.imSize.height-bkSafety, (uint32_t)roi.y+roi.height)-roi.y;
+
+    // Seek index of which feature is extracted specific bucket
+    std::vector<uint32_t> idxBelongToBucket;
+    for( uint32_t it = 0; it < this->nFeature; it++ ){
+        if( ((uint32_t)this->features[it].bucket.x == i) & ((uint32_t)this->features[it].bucket.y == j)){
+            idxBelongToBucket.push_back(i);
+        }
+    }
+    uint32_t nInBucket = idxBelongToBucket.size();
+    
+    // Try to find a seperate feature
+    double filterSize = 5.0;
+
+    while( true ){
+
+        if( filterSize < 3.0 )
+            return;
+
+        cv::Mat crop_image = this->cur_image(roi);
+        std::vector<cv::Point2d> keypoints;
+        cv::goodFeaturesToTrack(crop_image, keypoints, 1000, 0.01, 2.0, 0, 3, true);
+        
+        if( keypoints.size() == 0 )
+            return;
+        else{
+            for( uint32_t l = 0; l < keypoints.size(); l++ ){
+                keypoints[l].x = keypoints[l].x + roi.x - 1;
+                keypoints[l].y = keypoints[l].y + roi.y - 1;
+            }
+        }
+
+        double dist;
+        for( uint32_t l = 1; l < keypoints.size(); l++ ){
+            bool success = true;
+            for( uint32_t f = 1; f < nInBucket; f++ ){
+                dist = cv::norm(keypoints[l] - this->features[idxBelongToBucket[f]].uv.back());
+                if( dist < this->params.min_px_dist ){
+                    success = false;
+                    break;
+                }
+            }
+            if( success ){
+                // Add new feature to VO object
+                uint32_t newIdx = this->nFeature + 1;
+
+                this->features[newIdx].id = this->new_feature_id; // unique id of the feature
+                this->features[newIdx].frame_init = this->step; // frame step when the feature is created
+                this->features[newIdx].uv.push_back(keypoints[l]); // uv point in pixel coordinates
+                this->features[newIdx].life = 1; // the number of frames in where the feature is observed
+                this->features[newIdx].bucket = cv::Point(i, j); // the location of bucket where the feature belong to
+                this->features[newIdx].point.setZero(4,1); // 3-dim homogeneous point in the local coordinates
+                this->features[newIdx].is_matched = false; // matched between both frame
+                this->features[newIdx].is_wide = false; // verify whether features btw the initial and current are wide enough
+                this->features[newIdx].is_2D_inliered = false; // belong to major (or meaningful) movement
+                this->features[newIdx].is_3D_reconstructed = false; // triangulation completion
+                this->features[newIdx].is_3D_init = false; // scale-compensated
+                this->features[newIdx].point_init.setZero(4,1); // scale-compensated 3-dim homogeneous point in the global coordinates
+                this->features[newIdx].point_var = this->params.var_point;
+
+                this->new_feature_id++;
+                this->nFeature++;
+
+                // Update bucket
+                // this->bucket.prob = conv2(obj.bucket.mass, obj.params.kernel, 'same');
+                this->bucket.mass(i, j)++;
+            }
+        }
+        
+        filterSize = filterSize - 2;
+    }
 }
 
 // haram
@@ -257,10 +418,10 @@ bool MVO::calculate_motion()
     Eigen::Matrix4d T, Toc;
     Eigen::Vector4d Poc;
     
-    bool success1 = findPoseFrom3DPoints(R_, t_);
+    bool success1 = this->findPoseFrom3DPoints(R_, t_);
     if (!success1){
         // Verity 4 solutions
-        bool success2 = verify_solutions(R_vec, t_vec, R_, t_);
+        bool success2 = this->verify_solutions(R_vec, t_vec, R_, t_);
         
         if (!success2){
             std::cerr << "There are no meaningful R, t." << std::endl;
@@ -269,24 +430,24 @@ bool MVO::calculate_motion()
 
         // Update 3D points
         std::vector<bool> inlier, outlier;
-        bool success3 = scale_propagation(R_ ,t_, R, t, inlier, outlier);
+        bool success3 = this->scale_propagation(R_ ,t_, R, t, inlier, outlier);
 
         if (!success3){
             std::cerr << "There are few inliers matching scale." << std::endl;
             return false;
         }
 
-        update3DPoints(R, t, inlier, outlier, T, Toc, Poc); // overloading function
+        this->update3DPoints(R, t, inlier, outlier, T, Toc, Poc); // overloading function
     } // if (!success1)
     else{
-        bool success2 = verify_solutions(R_vec, t_vec, R_, t_);
+        this->verify_solutions(R_vec, t_vec, R_, t_);
 
         // Update 3D points
         std::vector<bool> inlier, outlier;
-        bool success3 = scale_propagation(R_, t_, inlier, outlier);
+        bool success3 = this->scale_propagation(R_, t_, inlier, outlier);
 
         // Update 3D points
-        update3DPoints(R, t, inlier, outlier, R_, t_, success3, T, Toc, Poc); // overloading function
+        this->update3DPoints(R, t, inlier, outlier, R_, t_, success3, T, Toc, Poc); // overloading function
     } // if (!success1)
 
     scale_initialized = true;
@@ -311,16 +472,16 @@ bool MVO::calculate_motion()
 }
 
 bool MVO::verify_solutions(std::vector<Eigen::Matrix3d>& R_vec, std::vector<Eigen::Vector3d>& t_vec, Eigen::Matrix3d& R, Eigen::Vector3d& t){
-
+    return true;
 }
 bool MVO::scale_propagation(Eigen::Matrix3d& R_, Eigen::Vector3d& t_, Eigen::Matrix3d& R, Eigen::Vector3d& t, std::vector<bool>& inlier, std::vector<bool>& outlier){
-
+    return true;
 }
 bool MVO::scale_propagation(Eigen::Matrix3d& R_, Eigen::Vector3d& t_, std::vector<bool>& inlier, std::vector<bool>& outlier){
-
+    return true;
 }
 bool MVO::findPoseFrom3DPoints(Eigen::Matrix3d& R, Eigen::Vector3d& t){
-
+    return true;
 }
 void MVO::contructDepth(const std::vector<cv::Point2d> x_prev, const std::vector<cv::Point2d> x_curr, const Eigen::Matrix3d R, const Eigen::Vector3d t, std::vector<Eigen::Vector4d>& X_prev, std::vector<Eigen::Vector4d>& X_curr, std::vector<double>& lambda_prev, std::vector<double>& lambda_curr){
 

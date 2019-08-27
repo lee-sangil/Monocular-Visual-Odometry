@@ -34,19 +34,19 @@
 #include <boost/filesystem.hpp>
 
 typedef struct Bucket{
-	unsigned int safety = 20;
-	unsigned int max_features = 400;
-	std::vector<unsigned int> grid;
-	std::vector<unsigned int> size;
+	uint32_t safety = 20;
+	uint32_t max_features = 400;
+	cv::Size grid;
+	cv::Size size;
 	Eigen::MatrixXd mass;
 	Eigen::MatrixXd prob;
 }Bucket;
 
 typedef struct Feature{
-	static unsigned int new_feature_id;
-	unsigned int id;
-	unsigned int life;
-	unsigned int frame_init;
+	static uint32_t new_feature_id;
+	uint32_t id;
+	uint32_t life;
+	uint32_t frame_init;
 	std::vector< cv::Point2d > uv;
 	cv::Point bucket;
 	Eigen::Vector4d point;

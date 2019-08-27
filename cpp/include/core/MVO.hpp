@@ -23,11 +23,11 @@ class MVO{
 		Eigen::Matrix3d K;
 		std::vector<double> radialDistortion;
 		std::vector<double> tangentialDistortion;
-		std::vector<unsigned int> imSize;
+		cv::Size imSize;
 
 		RansacCoef ransacCoef_scale_prop;
 		
-		unsigned int thInlier = 5;
+		uint32_t thInlier = 5;
 		double min_px_dist = 7.0;
 
 		// Statistical model
@@ -88,7 +88,7 @@ class MVO{
 
 	private:
 
-	unsigned int step;
+	uint32_t step;
 	
 	cv::Mat undist_image;
 	cv::Mat cur_image;
@@ -100,12 +100,12 @@ class MVO{
 
 	bool scale_initialized;
 
-	unsigned int nFeature;
-	unsigned int nFeatureMatched;
-	unsigned int nFeature2DInliered;
-	unsigned int nFeature3DReconstructed;
-	unsigned int nFeatureInlier;
-	unsigned int new_feature_id;
+	uint32_t nFeature;
+	uint32_t nFeatureMatched;
+	uint32_t nFeature2DInliered;
+	uint32_t nFeature3DReconstructed;
+	uint32_t nFeatureInlier;
+	uint32_t new_feature_id;
 
 	std::vector<Eigen::Matrix3d> R_vec;
 	std::vector<Eigen::Vector3d> t_vec;
