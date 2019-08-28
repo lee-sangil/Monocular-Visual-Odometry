@@ -62,7 +62,91 @@ bool MVO::calculate_motion()
 }
 
 bool MVO::verify_solutions(std::vector<Eigen::Matrix3d>& R_vec, std::vector<Eigen::Vector3d>& t_vec, Eigen::Matrix3d& R, Eigen::Vector3d& t){
-    return true;
+    
+	bool success;
+	Eigen::Matrix3d K = this->params.K;
+
+	// Extract homogeneous 2D point which is inliered with essential constraint
+	std::vector<bool> idx_2DInlier;
+	for( int i = 0; i < this->nFeature; i++ ){
+		if( this->features[i].is_2D_inliered )
+			idx_2DInlier.push_back(i);
+	}
+
+	std::vector<cv::Point2f> uv_prev, uv_curr;
+	std::vector<Eigen::Vector3d> x_prev, x_curr;
+
+    int len;
+	cv::Point2f uv_prev_i, uv_curr_i;
+    for (uint32_t i = 0; i < idx_2DInlier.size(); i++){
+		len = this->features[idx_2DInlier[i]].uv.size();
+		uv_prev_i = this->features[idx_2DInlier[i]].uv[len-2];
+		uv_curr_i = this->features[idx_2DInlier[i]].uv.back();
+        uv_prev.push_back(uv_prev_i); // second to latest
+        uv_curr.push_back(uv_curr_i); // latest
+
+		/////////////////////// K로 나누기
+		Eigen::Vector3d x_prev_i, x_curr_i;
+		x_prev_i << uv_prev_i.x, uv_prev_i.y, 1;
+		x_curr_i << uv_curr_i.x, uv_curr_i.y, 1;
+		x_prev.push_back(x_prev_i);
+		x_curr.push_back(x_curr_i);
+    }
+
+	// Find reasonable rotation and translational vector
+	int max_num = 0;
+	std::vector<bool> max_inlier;
+	std::vector<Eigen::Vector4d> point_curr;
+	for( uint32_t i = 0; i < R_vec.size(); i++ ){
+		Eigen::Matrix3d R1 = R_vec[i];
+		Eigen::Matrix3d t1 = t_vec[i];
+		
+		std::vector<Eigen::Vector3d> X_prev, X_curr;
+		std::vector<double> lambda_prev, lambda_curr;
+		this->constructDepth(x_prev, x_curr, R1, t1, X_prev, X_curr,  lambda_prev, lambda_curr);
+
+		std::vector<bool> inlier;
+		int nInlier;
+		for( uint32_t i = 0; i < lambda_prev.size(); i++ ){
+			if( lambda_curr[i] > 0 && lambda_prev[i] > 0 ){
+				inlier.push_back(true);
+				nInlier++;
+			}else
+				inlier.push_back(false);
+		}
+
+		if( nInlier > max_num ){
+			max_num = nInlier;
+			max_inlier = inlier;
+
+			for( int i = 0; i < nInlier; i++ ){
+				if( inlier[i] ){
+					Eigen::Vector4d point_curr_i;
+					point_curr_i << X_curr[i], 1;
+					point_curr.push_back(point_curr_i);
+				}
+			}
+			
+			R = R1;
+			t = t1;
+		}
+	}
+
+	// Store 3D characteristics in features
+	if( max_num < this->nFeature2DInliered*0.5 )
+		success = false;
+	else{
+		for( int i = 0; i < this->nFeature2DInliered; i++ ){
+			if( max_inlier[idx_2DInlier[i]] ){
+				this->features[idx_2DInlier[i]].point = point_curr[i];
+				this->features[idx_2DInlier[i]].is_3D_reconstructed = true;
+			}
+			this->nFeature3DReconstructed++;
+		}
+		success = true;
+	}
+
+	return success;
 }
 bool MVO::findPoseFrom3DPoints(Eigen::Matrix3d &R, Eigen::Vector3d &t, std::vector<bool>& inlier, std::vector<bool>& outlier)
 {
