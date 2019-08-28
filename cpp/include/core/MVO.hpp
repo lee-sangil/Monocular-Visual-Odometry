@@ -83,9 +83,14 @@ class MVO{
 						Eigen::Matrix4d& T, Eigen::Matrix4d& Toc, Eigen::Vector4d& Poc);
 
 	// RANSAC
-	double calculate_scale(const std::vector<Eigen::Vector3d> P1, const std::vector<Eigen::Vector3d> P1_ref);
-	double calculate_scale_error(const double scale, const std::vector<Eigen::Vector3d> P1, const std::vector<Eigen::Vector3d> P1_ref);
-
+	static double ransac(const std::vector<cv::Point3d>& x, const std::vector<cv::Point3d>& y,
+				MVO::RansacCoef ransacCoef,
+				std::vector<int>& inlierIdx, std::vector<int>& outlierIdx);
+	static double calculate_scale(const std::vector<cv::Point3d>& pt1, const std::vector<cv::Point3d>& pt2);
+	static std::vector<double> calculate_scale_error(double scale, const std::vector<cv::Point3d>& pt1, const std::vector<cv::Point3d>& pt2);
+	static std::vector<int> randperm(unsigned int ptNum, int minPtNum);
+	static std::vector<int> randweightedpick(const std::vector<double>& h, int n = 1);
+	
 	private:
 
 	uint32_t step;
