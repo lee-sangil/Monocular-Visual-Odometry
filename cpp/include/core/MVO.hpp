@@ -74,8 +74,10 @@ class MVO{
 	bool scale_propagation(Eigen::Matrix3d& R, Eigen::Vector3d& t,
 						   std::vector<bool>& inlier, std::vector<bool>& outlier);
 	bool findPoseFrom3DPoints(Eigen::Matrix3d &R, Eigen::Vector3d &t, std::vector<bool>& inlier, std::vector<bool>& outlier);
-	void constructDepth(const std::vector<cv::Point2f> x_prev, const std::vector<cv::Point2f> x_curr, const Eigen::Matrix3d R, const Eigen::Vector3d t, 
-						std::vector<Eigen::Vector4d>& X_prev, std::vector<Eigen::Vector4d>& X_curr, std::vector<double>& lambda_prev, std::vector<double>& lambda_curr);
+	void constructDepth(const std::vector<Eigen::Vector3d> x_prev, const std::vector<Eigen::Vector3d> x_curr, 
+                        const Eigen::Matrix3d R, const Eigen::Vector3d t, 
+                        std::vector<Eigen::Vector3d> &X_prev, std::vector<Eigen::Vector3d> &X_curr, 
+                        std::vector<double> &lambda_prev, std::vector<double> &lambda_curr);
 	void update3DPoints(const Eigen::Matrix3d& R, const Eigen::Vector3d& t,
 						const std::vector<bool>& inlier, const std::vector<bool>& outlier,
 						Eigen::Matrix4d& T, Eigen::Matrix4d& Toc, Eigen::Vector4d& Poc);
