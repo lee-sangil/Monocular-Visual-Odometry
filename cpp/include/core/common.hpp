@@ -22,6 +22,7 @@
 #include <time.h>
 #include <vector>
 #include <valarray>
+#include <memory>
 
 #include <eigen3/Eigen/Dense>
 #include <eigen3/Eigen/src/Core/IO.h>
@@ -34,6 +35,7 @@
 #include <opencv2/opencv.hpp>
 #include <opencv2/features2d/features2d.hpp>
 #include <opencv2/video.hpp>
+#include <opencv2/imgproc.hpp>
 #include <boost/filesystem.hpp>
 
 typedef struct Bucket{

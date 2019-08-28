@@ -25,6 +25,7 @@ class MVO{
 		std::vector<double> radialDistortion;
 		std::vector<double> tangentialDistortion;
 		cv::Size imSize;
+		bool applyCLAHE = false;
 
 		RansacCoef ransacCoef_scale_prop;
 		
@@ -100,6 +101,7 @@ class MVO{
 	cv::Mat undist_image;
 	cv::Mat cur_image;
 	cv::Mat prev_image;
+	cv::Ptr<cv::CLAHE> cvClahe;
 
 	Bucket bucket;
 	std::vector<Feature> features;

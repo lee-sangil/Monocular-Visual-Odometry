@@ -7,6 +7,7 @@ uint32_t Feature::new_feature_id = 0;
 MVO::MVO(Parameter params){
     this->step = 0;
     this->scale_initialized = false;
+    this->cvClahe = cv::createCLAHE();
 
     // Variables
     this->nFeature = 0;
@@ -108,7 +109,10 @@ void MVO::reload(){
 
 void MVO::set_image(const cv::Mat image){
 	this->prev_image = this->cur_image.clone();
-	this->cur_image = image.clone(); 
+    if( this->params.applyCLAHE )
+        cvClahe->apply(image, this->cur_image);
+    else
+        this->cur_image = image.clone();    
 }
 
 void MVO::run(const cv::Mat image){
@@ -117,9 +121,9 @@ void MVO::run(const cv::Mat image){
     this->set_image(image);
     this->refresh();
 
-    if( this->extract_features() ) //& // Extract and update features
-	    // this->calculate_essential() & // RANSAC for calculating essential/fundamental matrix
-		// this->calculate_motion() ) // Extract rotational and translational from fundamental matrix
+    if( this->extract_features() & // Extract and update features
+	    this->calculate_essential())// & // RANSAC for calculating essential/fundamental matrix
+//		this->calculate_motion() ) // Extract rotational and translational from fundamental matrix
         
         this->backup();
         
@@ -289,10 +293,9 @@ void MVO::add_feature(){
         for( uint32_t l = 0; l < keypoints.size(); l++ ){
             success = true;
             minDist = 1e9; // enough-large number
-            std::cout << "dist: ";
             for( uint32_t f = 0; f < nInBucket; f++ ){
                 dist = cv::norm(keypoints[l] - this->features[idxBelongToBucket[f]].uv.back());
-                std::cout << dist << ' ';
+                
                 if( dist < minDist )
                     minDist = dist;
                 
@@ -301,8 +304,6 @@ void MVO::add_feature(){
                     break;
                 }
             }
-            std::cout << std::endl;
-            std::cout << "minDist: " << minDist << std::endl;
             if( success ){
                 if( minDist > maxMinDist){
                     maxMinDist = minDist;
@@ -310,7 +311,7 @@ void MVO::add_feature(){
                 }
             }
         }
-        std::cout << "============================ maxMinDist: " << maxMinDist << std::endl;
+        
         if( maxMinDist > 0.0 ){
             // Add new feature to VO object
             Feature newFeature;
@@ -351,46 +352,47 @@ void MVO::add_feature(){
 // haram
 bool MVO::calculate_essential()
 {
-    Eigen::Matrix3d K = params.K;
+    Eigen::Matrix3d K = this->params.K;
     // below define should go in constructor and class member variable
-    double focal = (K(1, 1) + K(2, 2)) / 2;
-    cv::Point2f principle_point(K(1, 3), K(2, 3));
+    double focal = (K(0, 0) + K(1, 1)) / 2;
+    cv::Point2f principle_point(K(0, 2), K(1, 2));
     Eigen::Matrix3d W;
     W << 0, -1, 0, 1, 0, 0, 0, 0, 1;
     //
 
-    if (step == 1)
+    if (this->step == 1)
         return true;
 
     // Extract homogeneous 2D point which is matched with corresponding feature
     // TODO: define of find function
 
     std::vector<int> idx;
-    for (uint32_t i = 0; i < features.size(); i++)
+    for (uint32_t i = 0; i < this->features.size(); i++)
     {
-        if (features.at(i).is_matched)
+        if (this->features[i].is_matched)
             idx.push_back(i);
     }
 
     uint32_t nInlier = idx.size();
 
-    int point_count = 100;
-    std::vector<cv::Point2f> points1(point_count);
-    std::vector<cv::Point2f> points2(point_count);
+    std::vector<cv::Point2f> points1;
+    std::vector<cv::Point2f> points2;
 
     // initialize the points here ... */
+    int len;
     for (uint32_t i = 0; i < nInlier; i++)
     {
-        points1[i] = features.at(idx.at(i)).uv.at(1); // second to latest
-        points2[i] = features.at(idx.at(i)).uv.at(0); // latest
+        len = this->features[idx[i]].uv.size();
+        points1.push_back(this->features[idx[i]].uv[len - 2]); // second to latest
+        points2.push_back(this->features[idx[i]].uv.back());                             // latest
     }
 
-    std::vector<bool> inlier;
-
+    cv::Mat inlier_mat;
     cv::Mat E;
     Eigen::Matrix3d E_, U, V;
-    E = findEssentialMat(points1, points2, focal, principle_point, cv::RANSAC, 0.999, 1.0, inlier);
-    cv2eigen(E, E_);
+    E = cv::findEssentialMat(points1, points2, focal, principle_point, cv::RANSAC, 0.999, 0.1, inlier_mat);
+    
+    cv::cv2eigen(E, E_);
     Eigen::JacobiSVD<Eigen::MatrixXd> svd(E_, Eigen::ComputeThinU | Eigen::ComputeThinV);
     U = svd.matrixU();
     V = svd.matrixV();
@@ -399,27 +401,30 @@ bool MVO::calculate_essential()
         U.block(0, 2, 3, 1) = -U.block(0, 2, 3, 1);
     if (V.determinant() < 0)
         V.block(0, 2, 3, 1) = -V.block(0, 2, 3, 1);
-    R_vec.at(0) = U * W * V.transpose();
-    R_vec.at(1) = U * W * V.transpose();
-    R_vec.at(2) = U * W.transpose() * V;
-    R_vec.at(3) = U * W.transpose() * V;
-    t_vec.at(0) = U.block(0, 2, 3, 1);
-    t_vec.at(1) = -U.block(0, 2, 3, 1);
-    t_vec.at(2) = U.block(0, 2, 3, 1);
-    t_vec.at(3) = -U.block(0, 2, 3, 1);
+
+    this->R_vec.clear();
+    this->t_vec.clear();
+    this->R_vec.push_back(U * W * V.transpose());
+    this->R_vec.push_back(U * W * V.transpose());
+    this->R_vec.push_back(U * W.transpose() * V);
+    this->R_vec.push_back(U * W.transpose() * V);
+    this->t_vec.push_back(U.block(0, 2, 3, 1));
+    this->t_vec.push_back(-U.block(0, 2, 3, 1));
+    this->t_vec.push_back(U.block(0, 2, 3, 1));
+    this->t_vec.push_back(-U.block(0, 2, 3, 1));
 
     uint32_t inlier_cnt = 0;
-    for (uint32_t i = 0; i < inlier.size(); i++)
+    for (int i = 0; i < inlier_mat.rows; i++)
     {
-        if (inlier.at(i))
+        if (inlier_mat.at<char>(i))
         {
-            features.at(i).is_2D_inliered = true;
+            this->features[i].is_2D_inliered = true;
             inlier_cnt++;
         }
     }
-    nFeature2DInliered = inlier_cnt;
+    this->nFeature2DInliered = inlier_cnt;
 
-    if (nFeature2DInliered < params.thInlier)
+    if (this->nFeature2DInliered < this->params.thInlier)
     {
         std::cerr << " There are a few inliers matching features in 2D." << std::endl;
         return false;
@@ -432,7 +437,7 @@ bool MVO::calculate_essential()
 
 bool MVO::calculate_motion()
 {
-    if (step == 0)
+    if (this->step == 1)
         return true;
 
     Eigen::Matrix3d R, R_;
