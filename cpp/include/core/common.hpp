@@ -39,8 +39,8 @@
 #include <boost/filesystem.hpp>
 
 typedef struct Bucket{
-	uint32_t safety = 20;
-	uint32_t max_features = 400;
+	int safety = 20;
+	int max_features = 400;
 	cv::Size grid;
 	cv::Size size;
 	Eigen::MatrixXd mass;

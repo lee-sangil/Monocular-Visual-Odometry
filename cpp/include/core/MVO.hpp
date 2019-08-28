@@ -18,7 +18,6 @@ class MVO{
 	struct Parameter{
 		double fx, fy, cx, cy;
 		double k1, k2, p1, p2, k3;
-		double width, height;
 		Eigen::Matrix3d K;
 		std::vector<double> radialDistortion;
 		std::vector<double> tangentialDistortion;
@@ -27,7 +26,7 @@ class MVO{
 
 		RansacCoef ransacCoef_scale_prop;
 		
-		uint32_t thInlier = 5;
+		int thInlier = 5;
 		double min_px_dist = 7.0;
 
 		// Statistical model
@@ -42,7 +41,9 @@ class MVO{
 	
 	public:
 
-	MVO(Parameter params);
+	MVO();
+	MVO(std::string yaml);
+	
 	// Set image
 	void set_image(const cv::Mat image);
 
@@ -94,7 +95,7 @@ class MVO{
 	
 	private:
 
-	uint32_t step;
+	int step;
 	
 	cv::Mat undist_image;
 	cv::Mat cur_image;
@@ -107,11 +108,11 @@ class MVO{
 
 	bool scale_initialized;
 
-	uint32_t nFeature;
-	uint32_t nFeatureMatched;
-	uint32_t nFeature2DInliered;
-	uint32_t nFeature3DReconstructed;
-	uint32_t nFeatureInlier;
+	int nFeature;
+	int nFeatureMatched;
+	int nFeature2DInliered;
+	int nFeature3DReconstructed;
+	int nFeatureInlier;
 
 	std::vector<Eigen::Matrix3d> R_vec;
 	std::vector<Eigen::Vector3d> t_vec;

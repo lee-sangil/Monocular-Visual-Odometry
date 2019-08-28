@@ -4,7 +4,7 @@
 
 uint32_t Feature::new_feature_id = 0;
 
-MVO::MVO(Parameter params){
+MVO::MVO(){
     this->step = 0;
     this->scale_initialized = false;
     this->cvClahe = cv::createCLAHE();
@@ -16,66 +16,73 @@ MVO::MVO(Parameter params){
     this->nFeature3DReconstructed = 0;
     this->nFeatureInlier = 0;
 
-    // Parameters
-	this->params.fx = params.fx;
-	this->params.fy = params.fy;
-	this->params.cx = params.cx;
-	this->params.cy = params.cy;
-	this->params.k1 = params.k1;
-	this->params.k2 = params.k2;
-	this->params.p1 = params.p1;
-	this->params.p2 = params.p2;
-	this->params.k3 = params.k3;
-	this->params.width = params.width;
-	this->params.height = params.height;
+    // Initial position
+    this->TRec.push_back(Eigen::Matrix4d::Identity());
+    this->TocRec.push_back(Eigen::Matrix4d::Identity());
+    this->PocRec.push_back(Eigen::Vector4d::Zero());
+    this->PocRec[0](3) = 1;
+}
 
-	this->params.K << params.fx, 0, params.cx,
-						0, params.fy, params.cy,
+MVO::MVO(std::string yaml):MVO(){
+
+    /**************************************************************************
+	 *  Read .yaml file
+	 **************************************************************************/
+    cv::FileStorage fSettings(yaml, cv::FileStorage::READ);
+	if (!fSettings.isOpened()){
+		std::cerr << "Failed to open: " << yaml << std::endl;
+		return;
+	}
+
+	this->params.fx =			    fSettings["Camera.fx"];
+	this->params.fy =			    fSettings["Camera.fy"];
+	this->params.cx =			    fSettings["Camera.cx"];
+	this->params.cy =			    fSettings["Camera.cy"];
+	this->params.k1 =			    fSettings["Camera.k1"];
+	this->params.k2 =			    fSettings["Camera.k2"];
+	this->params.p1 =			    fSettings["Camera.p1"];
+	this->params.p2 =			    fSettings["Camera.p2"];
+	this->params.k3 =			    fSettings["Camera.k3"];
+	this->params.imSize.width =	    fSettings["Camera.width"];
+	this->params.imSize.height =	fSettings["Camera.height"];
+
+    this->params.K << this->params.fx, 0, this->params.cx,
+						0, this->params.fy, this->params.cy,
 						0, 0, 1;
 
-	this->params.imSize.width = params.width;
-	this->params.imSize.height = params.height;
 	this->params.radialDistortion.push_back(params.k1);
 	this->params.radialDistortion.push_back(params.k2);
 	this->params.radialDistortion.push_back(params.k3);
 	this->params.tangentialDistortion.push_back(params.p1);
 	this->params.tangentialDistortion.push_back(params.p2);
 
-    this->params.thInlier = 5;
-    this->params.min_px_dist = 7;
+    this->params.thInlier =         fSettings["Feature.thInlier"];
+    this->params.min_px_dist =      fSettings["Feature.min_px_dist"];
 
-    // RANSAC parameter			
-    this->params.ransacCoef_scale_prop.iterMax = 1e4;
-    this->params.ransacCoef_scale_prop.minPtNum = 5;
-    this->params.ransacCoef_scale_prop.thInlrRatio = 0.9;
-    this->params.ransacCoef_scale_prop.thDist = .5; // standard deviation
-    this->params.ransacCoef_scale_prop.thDistOut = 5; // three times of standard deviation
-    // this->params.ransacCoef_scale_prop.funcFindF = @obj.calculate_scale;
-    // this->params.ransacCoef_scale_prop.funcDist = @obj.calculate_scale_error;
-    
-    // Statistical model
-    this->params.var_theta = (90 / 1241 / 2)^2;
-    this->params.var_point = 1;
+    // RANSAC parameter
+    this->params.ransacCoef_scale_prop.iterMax =        fSettings["RANSAC.iterMax"];
+    this->params.ransacCoef_scale_prop.minPtNum =       fSettings["RANSAC.nSample"];
+    this->params.ransacCoef_scale_prop.thInlrRatio =    fSettings["RANSAC.thInlrRatio"];
+    this->params.ransacCoef_scale_prop.thDist =         fSettings["RANSAC.thDist"]; // standard deviation
+    this->params.ransacCoef_scale_prop.thDistOut =      fSettings["RANSAC.thDistOut"]; // three times of standard deviation
     
     // 3D reconstruction
-    this->params.vehicle_height = 1.5; // in meter
+    this->params.vehicle_height =   fSettings["Scale.height"]; // in meter
+    this->params.reprojError =      fSettings["Scale.error"];
     this->params.initScale = 1;
-    this->params.reprojError = 1.2;
 
     // Bucket
     this->bucket = Bucket();
-    this->bucket.safety = 20;
-	this->bucket.max_features = 400;
-	this->bucket.grid = cv::Size(32,8);
+    this->bucket.safety =           fSettings["Bucket.safety"];
+	this->bucket.max_features =     fSettings["Feature.num"];
+    int bucketGridRows =            fSettings["Bucket.rows"];
+    int bucketGridCols =            fSettings["Bucket.cols"];
+
+	this->bucket.grid = cv::Size(bucketGridRows,bucketGridCols);
 	this->bucket.size = cv::Size(this->params.imSize.width/this->bucket.grid.width, this->params.imSize.height/this->bucket.grid.height);
 	this->bucket.mass.setZero(this->bucket.grid.width,this->bucket.grid.height);
 	this->bucket.prob.setZero(this->bucket.grid.width,this->bucket.grid.height);
     
-    // Initial position
-    this->TRec.push_back(Eigen::Matrix4d::Identity());
-    this->TocRec.push_back(Eigen::Matrix4d::Identity());
-    this->PocRec.push_back(Eigen::Vector4d::Zero());
-    this->PocRec[0](3) = 1;
 }
 
 void MVO::refresh(){
@@ -84,7 +91,7 @@ void MVO::refresh(){
     this->nFeature3DReconstructed = 0;
     this->nFeatureInlier = 0;
 
-    for( uint32_t i = 0; i < this->nFeature; i++ ){
+    for( int i = 0; i < this->nFeature; i++ ){
         this->features[i].is_matched = false;
         this->features[i].is_2D_inliered = false;
         this->features[i].is_3D_reconstructed = false;
@@ -157,7 +164,7 @@ bool MVO::update_features(){
         std::vector<bool> validity;
         this->klt_tracker(points, validity);
         
-        for( uint32_t i = 0; i < this->nFeature; i++ ){
+        for( int i = 0; i < this->nFeature; i++ ){
             if( validity[i] & (_features[i].life > 0) ){
                 _features[i].life++;
                 _features[i].uv.push_back(points[i]);
@@ -187,7 +194,7 @@ bool MVO::update_features(){
 
 void MVO::klt_tracker(std::vector<cv::Point2f>& fwd_pts, std::vector<bool>& validity){
     std::vector<cv::Point2f> pts;
-    for( uint32_t i = 0; i < this->nFeature; i++ ){
+    for( int i = 0; i < this->nFeature; i++ ){
         pts.push_back(this->features[i].uv.back());
     }
     
@@ -201,7 +208,7 @@ void MVO::klt_tracker(std::vector<cv::Point2f>& fwd_pts, std::vector<bool>& vali
     cv::calcOpticalFlowPyrLK(currPyr, prevPyr, fwd_pts, bwd_pts, status, err);
     
     // Calculate bi-directional error( = validity ): validity = ~border_invalid & error_valid
-    for( uint32_t i = 0; i < this->nFeature; i++ ){
+    for( int i = 0; i < this->nFeature; i++ ){
         bool border_invalid = (fwd_pts[i].x < 0) | (fwd_pts[i].x > this->params.imSize.width) | (fwd_pts[i].y < 0) | (fwd_pts[i].y > this->params.imSize.height);
         bool error_valid = cv::norm(pts[i] - bwd_pts[i]) < std::min( cv::norm(pts[i] - fwd_pts[i])/5.0, 2.0);
         validity.push_back(!border_invalid & error_valid);
@@ -227,7 +234,7 @@ void MVO::add_features(){
 
 void MVO::update_bucket(){
     this->bucket.mass.fill(0.0);
-    for( uint32_t i = 0; i < this->nFeature; i++ ){
+    for( int i = 0; i < this->nFeature; i++ ){
         cv::Point2f uv = this->features[i].uv.back();
         uint32_t row_bucket = std::ceil(uv.x / this->params.imSize.width * this->bucket.grid.width);
         uint32_t col_bucket = std::ceil(uv.y / this->params.imSize.height * this->bucket.grid.height);
@@ -253,7 +260,7 @@ void MVO::add_feature(){
 
     // Seek index of which feature is extracted specific bucket
     std::vector<uint32_t> idxBelongToBucket;
-    for( uint32_t l = 0; l < this->nFeature; l++ ){
+    for( int l = 0; l < this->nFeature; l++ ){
         for( int ii = std::max(i-1,0); ii < std::min(i+1,this->bucket.grid.width); ii++){
             for( int jj = std::max(j-1,0); jj < std::min(j+1,this->bucket.grid.height); jj++){
                 if( (this->features[l].bucket.x == ii) & (this->features[l].bucket.y == jj)){
@@ -569,7 +576,7 @@ bool MVO::scale_propagation(const Eigen::Matrix3d &R_, const Eigen::Vector3d &t_
 
         // Use the previous scale, if the scale cannot be found
         if (nPoint <= params.ransacCoef_scale_prop.minPtNum 
-            || inlier.size() < params.thInlier || scale == 0)
+            || inlier.size() < (std::size_t)params.thInlier || scale == 0)
         {
             std::cerr << "warning('there are a few SCALE FACTOR INLIERS')" << std::endl;
             idx.clear();
@@ -580,7 +587,7 @@ bool MVO::scale_propagation(const Eigen::Matrix3d &R_, const Eigen::Vector3d &t_
             nPoint = idx.size();
 
             // Use RANSAC to find wuitable scale
-            if (nPoint > params.thInlier)
+            if (nPoint > (uint32_t)params.thInlier)
             {
                 std::vector<cv::Point3d> objectPoints;
                 std::vector<cv::Point2d> imagePoints;
@@ -641,7 +648,7 @@ bool MVO::scale_propagation(const Eigen::Matrix3d &R_, const Eigen::Vector3d &t_
         cv::Point2d uv_curr;
         Eigen::Vector4d point_curr;
         std::vector<double> y_vals_road;
-        for (unsigned int i = 0; i < nFeature; i++){
+        for (int i = 0; i < nFeature; i++){
             uv_curr = features[i].uv.back(); //latest feature
             point_curr = features[i].point;
             if (uv_curr.y > params.imSize.height * 0.5 
@@ -721,7 +728,7 @@ bool MVO::scale_propagation(Eigen::Matrix3d &R, Eigen::Vector3d &t, std::vector<
 
         // Use the previous scale, if the scale cannot be found
         if (nPoint <= params.ransacCoef_scale_prop.minPtNum 
-            || inlier.size() < params.thInlier || scale == 0)
+            || inlier.size() < (std::size_t)params.thInlier || scale == 0)
         {
             std::cerr << "warning('there are a few SCALE FACTOR INLIERS')" << std::endl;
             idx.clear();
@@ -732,7 +739,7 @@ bool MVO::scale_propagation(Eigen::Matrix3d &R, Eigen::Vector3d &t, std::vector<
             nPoint = idx.size();
 
             // Use RANSAC to find wuitable scale
-            if (nPoint > params.thInlier)
+            if (nPoint > (uint32_t)params.thInlier)
             {
                 std::vector<cv::Point3d> objectPoints;
                 std::vector<cv::Point2d> imagePoints;
@@ -793,7 +800,7 @@ bool MVO::scale_propagation(Eigen::Matrix3d &R, Eigen::Vector3d &t, std::vector<
         cv::Point2d uv_curr;
         Eigen::Vector4d point_curr;
         std::vector<double> y_vals_road;
-        for (unsigned int i = 0; i < nFeature; i++){
+        for (int i = 0; i < nFeature; i++){
             uv_curr = features[i].uv.back(); //latest feature
             point_curr = features[i].point;
             if (uv_curr.y > params.imSize.height * 0.5 

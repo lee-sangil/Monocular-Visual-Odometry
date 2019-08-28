@@ -40,24 +40,6 @@ int main(int argc, char * argv[]){
 	}else{
 		fsname = inputFile + "/camera.yaml";
 	}
-
-	cv::FileStorage fSettings(fsname, cv::FileStorage::READ);
-	if (!fSettings.isOpened()){
-		std::cerr << "Failed to open: " << fsname << std::endl;
-		return 1;
-	}
-
-	double fx =			fSettings["Camera.fx"];
-	double fy =			fSettings["Camera.fy"];
-	double cx =			fSettings["Camera.cx"];
-	double cy =			fSettings["Camera.cy"];
-	double k1 =			fSettings["Camera.k1"];
-	double k2 =			fSettings["Camera.k2"];
-	double p1 =			fSettings["Camera.p1"];
-	double p2 =			fSettings["Camera.p2"];
-	double k3 =			fSettings["Camera.k3"];
-	double width =		fSettings["Camera.width"];
-	double height =		fSettings["Camera.height"];
 	
 	/**************************************************************************
 	 *  Read dataset
@@ -84,21 +66,7 @@ int main(int argc, char * argv[]){
 	/**************************************************************************
 	 *  Construct MVO object
 	 **************************************************************************/
-	MVO::Parameter params;
-
-	if( fx!=0 )			params.fx = fx;
-	if( fy!=0 )			params.fy = fy;
-	if( cx!=0 )			params.cx = cx;
-	if( cy!=0 )			params.cy = cy;
-	if( k1!=0 )			params.k1 = k1;
-	if( k2!=0 )			params.k2 = k2;
-	if( p1!=0 )			params.p1 = p1;
-	if( p2!=0 )			params.p2 = p2;
-	if( k3!=0 )			params.k3 = k3;
-	if( width!=0 )		params.width = width;
-	if( height!=0 )		params.height = height;
-
-	MVO * vo = new MVO(params);
+	MVO * vo = new MVO(fsname);
 
 	/**************************************************************************
 	 *  Run MVO object
