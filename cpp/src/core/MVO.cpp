@@ -466,7 +466,7 @@ bool MVO::calculate_motion()
     }
 
     if (T.block(0, 3, 3, 1).norm() > 100){
-        std::cout << "the current position: " <<  Poc(1) << ", " << Poc(2) << ", " << Poc(3) << std::endl;
+        // std::cout << "the current position: " <<  Poc(1) << ", " << Poc(2) << ", " << Poc(3) << std::endl;
         std::cerr << "Stop!" << std::endl;
     }
 }
@@ -491,4 +491,164 @@ void MVO::update3DPoints(const Eigen::Matrix3d& R, const Eigen::Vector3d& t,cons
 }
 void MVO::update3DPoints(const Eigen::Matrix3d& R, const Eigen::Vector3d& t,const std::vector<bool>& inlier, const std::vector<bool>& outlier,const Eigen::Matrix3d& R_E, const Eigen::Vector3d& t_E, const bool& success_E,Eigen::Matrix4d& T, Eigen::Matrix4d& Toc, Eigen::Vector4d& Poc){
 
+}
+	 
+double MVO::ransac(const std::vector<cv::Point3d>& x, const std::vector<cv::Point3d>& y,
+                    MVO::RansacCoef ransacCoef,
+                    std::vector<int>& inlierIdx, std::vector<int>& outlierIdx)
+{
+    unsigned int ptNum = x.size();
+
+    std::vector<int> sampleIdx;
+    std::vector<cv::Point3d> x_sample, y_sample;
+
+    int iterNUM = 1e8;
+    int max_inlier = 0;
+
+    int it = 0;
+
+    while (it < std::min(ransacCoef.iterMax, iterNUM))
+    {   
+        // 1. fit using random points
+        if (ransacCoef.weight.size() > 0)
+        {
+            sampleIdx = randweightedpick(ransacCoef.weight, ransacCoef.minPtNum);
+        }
+        else
+        {
+            sampleIdx = randperm(ptNum, ransacCoef.minPtNum);
+        }
+        int tempIdx = 0;
+        x_sample.clear();
+        y_sample.clear();
+        for (unsigned int i = 0; i < sampleIdx.size(); i++)
+        {
+            tempIdx = sampleIdx[i];
+            x_sample.push_back(x[tempIdx]);
+            y_sample.push_back(y[tempIdx]);
+        }
+        double f1 = calculate_scale(x_sample, y_sample);
+        std::vector<double> dist1 = calculate_scale_error(f1, x, y);
+        std::vector<int> in1;
+        for (unsigned int i = 0; i < dist1.size(); i++)
+        {
+            if (dist1[i] < ransacCoef.thDist)
+                in1.push_back(i);
+        }
+
+        if (in1.size() > max_inlier)
+        {
+            max_inlier = in1.size();
+            inlierIdx = in1;
+            double InlrRatio = (double)max_inlier / (double)ptNum + 1e-16;
+            iterNUM = static_cast<int>(std::floor(std::log(1-ransacCoef.thInlrRatio) / std::log(1 - std::pow(InlrRatio, ransacCoef.minPtNum))));
+        }
+        it++;
+    }
+
+    if (inlierIdx.size() == 0)
+    {
+        inlierIdx.clear();
+        outlierIdx.clear();
+        return 0;
+    }
+    else
+    {
+        x_sample.clear();
+        y_sample.clear();
+        int tempIdx = 0;
+        for (unsigned int i = 0; i < inlierIdx.size(); i++)
+        {
+            tempIdx = inlierIdx[i];
+            x_sample.push_back(x[tempIdx]);
+            y_sample.push_back(y[tempIdx]);
+        }
+        double f1 = calculate_scale(x_sample, y_sample);
+
+        std::vector<double> dist = calculate_scale_error(f1, x, y);
+
+        inlierIdx.clear();
+        outlierIdx.clear();
+        for (unsigned int i = 0; i < dist.size(); i++)
+        {
+            if (dist[i] < ransacCoef.thDist)
+                inlierIdx.push_back(i);
+            if (dist[i] > ransacCoef.thDistOut)
+                outlierIdx.push_back(i);
+        }
+
+        return f1;
+    }
+}
+
+std::vector<int> MVO::randperm(unsigned int ptNum, int minPtNum)
+{
+    std::vector<int> result;
+    for (int i = 0; i < ptNum; i++)
+        result.push_back(i);
+    std::random_shuffle( result.begin(), result.begin()+minPtNum );
+    return result;
+}
+
+
+std::vector<int> MVO::randweightedpick(const std::vector<double>& h, int n /*=1*/)
+{
+    /*
+    RANDWEIGHTEDPICK: Randomly pick n from size(h)>=n elements,
+    biased with linear weights as given in h, without replacement.
+    Works with infinity and zero weighting entries,
+    but always picks them sequentially in this case.
+
+    Author: Adam W. Gripton (a.gripton -AT- hw.ac.uk) 2012/03/21
+    */
+
+    int u = h.size();
+    int s_under;
+    double sum, rand_num;
+    std::vector<double> H = h;
+    std::vector<double> Hs, Hsc;
+    std::vector<int> result;
+
+    n = std::min(std::max(1, n), u);
+    std::vector<int> HI(u, 0);                     // vector with #u ints.
+    std::iota(HI.begin(), HI.end(), 1); // Fill with 1, ..., u.
+
+    for (unsigned int i = 0; i < n; i++)
+    {
+        // initial variables
+        Hs.clear();
+        Hsc.clear();
+        // random weight
+        sum = std::accumulate(H.begin(), H.end(), 0);
+        std::transform(H.begin(), H.end(), std::back_inserter(Hs),
+                       std::bind(std::multiplies <double>(), std::placeholders::_1, 1/sum)); // divdie elements in H with the value of sum
+        std::partial_sum(Hs.begin(), Hs.end(), std::back_inserter(Hsc), std::plus<double>());           // cummulative sum.
+
+        // generate rand num btw 0 to 1
+        rand_num = ((double)rand() / (RAND_MAX));
+        // increase s_under if Hsc is lower than rand_num
+        s_under = std::count_if(Hsc.begin(), Hsc.end(), [&](double elem){return elem < rand_num;});
+
+        result.push_back(HI[s_under]);
+        H.erase(H.begin() + s_under);
+        HI.erase(HI.begin() + s_under);
+    }
+    
+    return result;
+}
+
+
+double MVO::calculate_scale(const std::vector<cv::Point3d>& pt1, const std::vector<cv::Point3d>& pt2){
+    double sum = 0;
+    for (unsigned int i = 0; i < pt1.size(); i++){
+        sum += (pt1[i].x*pt2[i].x + pt1[i].y*pt2[i].y + pt1[i].z*pt2[i].z) / (pt1[i].x * pt1[i].x + pt1[i].y * pt1[i].y + pt1[i].z * pt1[i].z + 1e-10);
+    }
+    return sum/pt1.size();
+}
+
+std::vector<double> MVO::calculate_scale_error(double scale, const std::vector<cv::Point3d>& pt1, const std::vector<cv::Point3d>& pt2){
+    std::vector<double> dist;
+    for (unsigned int i = 0; i < pt1.size(); i++)
+        dist.push_back( cv::norm(pt2[i]-scale*pt1[i]) );
+    return dist;
 }
