@@ -501,8 +501,57 @@ bool MVO::calculate_motion()
 bool MVO::verify_solutions(std::vector<Eigen::Matrix3d>& R_vec, std::vector<Eigen::Vector3d>& t_vec, Eigen::Matrix3d& R, Eigen::Vector3d& t){
     return true;
 }
-bool MVO::findPoseFrom3DPoints(Eigen::Matrix3d& R, Eigen::Vector3d& t){
-    return true;
+bool MVO::findPoseFrom3DPoints(Eigen::Matrix3d &R, Eigen::Vector3d &t, std::vector<bool>& inlier, std::vector<bool>& outlier)
+{
+    // Seek index of which feature is 3D reconstructed currently,
+    // and 3D initialized previously
+    std::vector<int> idx;
+    for (unsigned int i = 0; i < features.size(); i++){
+        if (features[i].is_3D_init)
+            idx.push_back(i);
+    }
+    unsigned int nPoint = idx.size();
+
+    // Use RANSAC to find suitable scale
+    if (nPoint > params.thInlier)
+    {
+        std::vector<cv::Point3d> objectPoints;
+        std::vector<cv::Point2d> imagePoints;
+        Eigen::Vector3d Eigen_point;
+        for (unsigned int i = 0; i < nPoint; i++)
+        {
+            Eigen_point = (features[idx[i]].point_init).block(0, 0, 3, 1);
+            objectPoints.emplace_back(Eigen_point(0), Eigen_point(1), Eigen_point(2));
+            imagePoints.push_back(features[idx[i]].uv.back()); // return last element of uv
+        }
+        std::vector<double> r_vec, t_vec;
+        cv::Mat cv_K;
+        cv::eigen2cv(params.K, cv_K);
+        bool success = cv::solvePnPRansac(objectPoints, imagePoints, cv_K, cv::noArray(),
+                                          r_vec, t_vec, false, 1e4,
+                                          params.reprojError, 0.99, inlier, cv::SOLVEPNP_AP3P);
+        if (!success)
+        {
+            bool success = cv::solvePnPRansac(objectPoints, imagePoints, cv_K, cv::noArray(),
+                                              r_vec, t_vec, false, 1e4,
+                                              std::pow(params.reprojError, 2), 0.99, inlier, cv::SOLVEPNP_AP3P);
+        }
+
+        R = skew(Eigen::Vector3d(r_vec.data())).exp();
+        t = Eigen::Vector3d(t_vec.data());
+        outlier = inlier;
+        outlier.flip();
+        flag = success;
+    }
+    else
+    {
+        inlier.clear();
+        outlier.clear();
+        R = Eigen::Matrix3;
+        t = ;
+        flag = false;
+    }
+    return flag;
 }
 void MVO::constructDepth(const std::vector<cv::Point2f> x_prev, const std::vector<cv::Point2f> x_curr, const Eigen::Matrix3d R, const Eigen::Vector3d t, std::vector<Eigen::Vector4d>& X_prev, std::vector<Eigen::Vector4d>& X_curr, std::vector<double>& lambda_prev, std::vector<double>& lambda_curr){
 
