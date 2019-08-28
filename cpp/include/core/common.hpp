@@ -50,7 +50,7 @@ typedef struct Feature{
 	uint32_t id;
 	uint32_t life;
 	uint32_t frame_init;
-	std::vector< cv::Point2d > uv;
+	std::vector< cv::Point2f > uv;
 	cv::Point bucket;
 	Eigen::Vector4d point;
 	Eigen::Vector4d point_init;

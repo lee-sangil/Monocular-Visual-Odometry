@@ -8,7 +8,7 @@ double lsi::rand(){
     return std::rand() / (double)RAND_MAX;
 }
 
-void lsi::idx_randselect(Eigen::MatrixXd weight, uint32_t& idx_row, uint32_t& idx_col){
+void lsi::idx_randselect(Eigen::MatrixXd weight, int& idx_row, int& idx_col){
     // Calculate weight
 	Eigen::VectorXd weightVec(Eigen::Map<Eigen::VectorXd>(weight.data(), weight.rows()*weight.cols()));
 
@@ -25,7 +25,8 @@ void lsi::idx_randselect(Eigen::MatrixXd weight, uint32_t& idx_row, uint32_t& id
 		cumsum += weightVec(i);
 		if( rand < cumsum ){
 			idx_row = std::floor((double) i / weight.cols());
-    		idx_col = std::remainder((double)i, (double)weight.cols());
+    		idx_col = i % weight.cols();
+			return;
 		}
 	}
 }

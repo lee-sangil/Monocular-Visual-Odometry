@@ -52,9 +52,10 @@ class MVO{
 	void reload();
 	void refresh();
 	void run(const cv::Mat image);
+	void plot();
 
 	// Feature operations
-	void klt_tracker(std::vector<cv::Point2d>& points, std::vector<bool>& validity);
+	void klt_tracker(std::vector<cv::Point2f>& points, std::vector<bool>& validity);
 	void update_bucket();
 	bool extract_features();
 	bool update_features();
@@ -73,7 +74,7 @@ class MVO{
 	bool scale_propagation(Eigen::Matrix3d& R_, Eigen::Vector3d& t_,
 						   std::vector<bool>& inlier, std::vector<bool>& outlier);
 	bool findPoseFrom3DPoints(Eigen::Matrix3d& R, Eigen::Vector3d& t);
-	void contructDepth(const std::vector<cv::Point2d> x_prev, const std::vector<cv::Point2d> x_curr, const Eigen::Matrix3d R, const Eigen::Vector3d t, 
+	void contructDepth(const std::vector<cv::Point2f> x_prev, const std::vector<cv::Point2f> x_curr, const Eigen::Matrix3d R, const Eigen::Vector3d t, 
 						std::vector<Eigen::Vector4d>& X_prev, std::vector<Eigen::Vector4d>& X_curr, std::vector<double>& lambda_prev, std::vector<double>& lambda_curr);
 	void update3DPoints(const Eigen::Matrix3d& R, const Eigen::Vector3d& t,
 						const std::vector<bool>& inlier, const std::vector<bool>& outlier,
@@ -111,7 +112,6 @@ class MVO{
 	uint32_t nFeature2DInliered;
 	uint32_t nFeature3DReconstructed;
 	uint32_t nFeatureInlier;
-	uint32_t new_feature_id;
 
 	std::vector<Eigen::Matrix3d> R_vec;
 	std::vector<Eigen::Vector3d> t_vec;

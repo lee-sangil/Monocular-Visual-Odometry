@@ -2,6 +2,7 @@
 #include "core/parser.hpp"
 #include "core/imageProc.hpp"
 #include "core/MVO.hpp"
+#include "visualization/plot.hpp"
 
 int main(int argc, char * argv[]){
 	
@@ -42,7 +43,7 @@ int main(int argc, char * argv[]){
 
 	cv::FileStorage fSettings(fsname, cv::FileStorage::READ);
 	if (!fSettings.isOpened()){
-		std::cerr << "Failed to open " << fsname << std::endl;
+		std::cerr << "Failed to open: " << fsname << std::endl;
 		return 1;
 	}
 
@@ -124,16 +125,16 @@ int main(int argc, char * argv[]){
 				dirRgb.clear();
 				dirRgb.append(inputFile).append(rgbNameRaw[it_rgb]);
 				chk::getImgTUMdataset(dirRgb, image);
-				cv::imshow("image", image);
 
 				vo->run(image);
-				
+				vo->plot();
+
 				it_rgb++;
 				break;
 		}
 
 		//KeyBoard Process
-		switch (cv::waitKey(10)) {
+		switch (cv::waitKey(1)) {
 			case 'q':	// press q to quit
 			case 'Q':
 				bRun = false;
