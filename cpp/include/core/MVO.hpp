@@ -13,8 +13,6 @@ class MVO{
 		double thDist = 0.5;
 		double thDistOut = 5.0;
 		std::vector<double> weight;
-		// funcFindF = @obj.calculate_scale;
-		// funcDist = @obj.calculate_scale_error;
 	};
 
 	struct Parameter{
