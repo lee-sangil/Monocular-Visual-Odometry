@@ -13,8 +13,6 @@ class MVO{
 		double thDist = 0.5;
 		double thDistOut = 5.0;
 		std::vector<double> weight;
-		// funcFindF = @obj.calculate_scale;
-		// funcDist = @obj.calculate_scale_error;
 	};
 
 	struct Parameter{
@@ -69,10 +67,10 @@ class MVO{
 	bool calculate_motion();
 	bool verify_solutions(std::vector<Eigen::Matrix3d>& R_vec, std::vector<Eigen::Vector3d>& t_vec,
 						  Eigen::Matrix3d& R, Eigen::Vector3d& t);
-	bool scale_propagation(Eigen::Matrix3d& R_, Eigen::Vector3d& t_,
+	bool scale_propagation(const Eigen::Matrix3d& R_, const Eigen::Vector3d& t_,
 						   Eigen::Matrix3d& R, Eigen::Vector3d& t,
 						   std::vector<bool>& inlier, std::vector<bool>& outlier);
-	bool scale_propagation(Eigen::Matrix3d& R_, Eigen::Vector3d& t_,
+	bool scale_propagation(Eigen::Matrix3d& R, Eigen::Vector3d& t,
 						   std::vector<bool>& inlier, std::vector<bool>& outlier);
 	bool findPoseFrom3DPoints(Eigen::Matrix3d& R, Eigen::Vector3d& t);
 	void contructDepth(const std::vector<cv::Point2f> x_prev, const std::vector<cv::Point2f> x_curr, const Eigen::Matrix3d R, const Eigen::Vector3d t, 
@@ -88,7 +86,7 @@ class MVO{
 	// RANSAC
 	static double ransac(const std::vector<cv::Point3d>& x, const std::vector<cv::Point3d>& y,
 				MVO::RansacCoef ransacCoef,
-				std::vector<int>& inlierIdx, std::vector<int>& outlierIdx);
+				std::vector<bool>& inlier, std::vector<bool>& outlier);
 	static double calculate_scale(const std::vector<cv::Point3d>& pt1, const std::vector<cv::Point3d>& pt2);
 	static std::vector<double> calculate_scale_error(double scale, const std::vector<cv::Point3d>& pt1, const std::vector<cv::Point3d>& pt2);
 	static std::vector<int> randperm(unsigned int ptNum, int minPtNum);
