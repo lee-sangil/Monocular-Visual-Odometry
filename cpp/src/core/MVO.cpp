@@ -368,7 +368,7 @@ bool MVO::calculate_essential()
     std::vector<int> idx;
     for (uint32_t i = 0; i < features.size(); i++)
     {
-        if (features.at(i).is_matched)
+        if (features[i].is_matched)
             idx.push_back(i);
     }
 
@@ -399,21 +399,21 @@ bool MVO::calculate_essential()
         U.block(0, 2, 3, 1) = -U.block(0, 2, 3, 1);
     if (V.determinant() < 0)
         V.block(0, 2, 3, 1) = -V.block(0, 2, 3, 1);
-    R_vec.at(0) = U * W * V.transpose();
-    R_vec.at(1) = U * W * V.transpose();
-    R_vec.at(2) = U * W.transpose() * V;
-    R_vec.at(3) = U * W.transpose() * V;
-    t_vec.at(0) = U.block(0, 2, 3, 1);
-    t_vec.at(1) = -U.block(0, 2, 3, 1);
-    t_vec.at(2) = U.block(0, 2, 3, 1);
-    t_vec.at(3) = -U.block(0, 2, 3, 1);
+    R_vec[0] = U * W * V.transpose();
+    R_vec[1] = U * W * V.transpose();
+    R_vec[2] = U * W.transpose() * V;
+    R_vec[3] = U * W.transpose() * V;
+    t_vec[0] = U.block(0, 2, 3, 1);
+    t_vec[1] = -U.block(0, 2, 3, 1);
+    t_vec[2] = U.block(0, 2, 3, 1);
+    t_vec[3] = -U.block(0, 2, 3, 1);
 
     uint32_t inlier_cnt = 0;
     for (uint32_t i = 0; i < inlier.size(); i++)
     {
-        if (inlier.at(i))
+        if (inlier[i])
         {
-            features.at(i).is_2D_inliered = true;
+            features[i].is_2D_inliered = true;
             inlier_cnt++;
         }
     }
@@ -496,12 +496,6 @@ bool MVO::calculate_motion()
 bool MVO::verify_solutions(std::vector<Eigen::Matrix3d>& R_vec, std::vector<Eigen::Vector3d>& t_vec, Eigen::Matrix3d& R, Eigen::Vector3d& t){
     return true;
 }
-bool MVO::scale_propagation(Eigen::Matrix3d& R_, Eigen::Vector3d& t_, Eigen::Matrix3d& R, Eigen::Vector3d& t, std::vector<bool>& inlier, std::vector<bool>& outlier){
-    return true;
-}
-bool MVO::scale_propagation(Eigen::Matrix3d& R_, Eigen::Vector3d& t_, std::vector<bool>& inlier, std::vector<bool>& outlier){
-    return true;
-}
 bool MVO::findPoseFrom3DPoints(Eigen::Matrix3d& R, Eigen::Vector3d& t){
     return true;
 }
@@ -515,9 +509,309 @@ void MVO::update3DPoints(const Eigen::Matrix3d& R, const Eigen::Vector3d& t,cons
 
 }
 	 
-double MVO::ransac(const std::vector<cv::Point3d>& x, const std::vector<cv::Point3d>& y,
-                    MVO::RansacCoef ransacCoef,
-                    std::vector<int>& inlierIdx, std::vector<int>& outlierIdx)
+bool MVO::scale_propagation(const Eigen::Matrix3d &R_, const Eigen::Vector3d &t_, Eigen::Matrix3d &R, Eigen::Vector3d &t, std::vector<bool> &inlier, std::vector<bool> &outlier)
+{
+    inlier.clear();
+    outlier.clear();
+
+    double scale = 0;
+    bool flag;
+    Eigen::Matrix4d T_;
+    T_.setIdentity();
+    T_.block(0,0,3,3) = R_;
+    T_.block(0,3,3,1) = t_;
+
+    unsigned int nPoint;
+    if (scale_initialized)
+    {
+        // Seek index of which feature is 3D reconstructed currently,
+        // and 3D initialized previously
+        std::vector<int> idx;
+        for (unsigned int i = 0; i < features.size(); i++){
+            if( features[i].is_3D_reconstructed && features[i].is_3D_init)
+                idx.push_back(i);
+        }
+        nPoint = idx.size();
+
+        // Use RANSAC to find suitable scale
+        if ( nPoint > params.ransacCoef_scale_prop.minPtNum){
+            // std::vector<Eigen::Vector3d> P1_ini;
+            // std::vector<Eigen::Vector3d> P1_exp;
+            std::vector<cv::Point3d> P1_ini;
+            std::vector<cv::Point3d> P1_exp;
+            Eigen::Vector3d Eigen_point;
+            Eigen::Vector4d temp_point;
+            for (unsigned int i = 0; i < nPoint; i++){
+                temp_point = features[idx[i]].point;
+
+                // Get initialized 3D point
+                Eigen_point = ( TocRec[step-1].inverse() * features[idx[i]].point_init ).block(0,0,3,1);
+                P1_ini.emplace_back(Eigen_point(0), Eigen_point(1), Eigen_point(2));
+                
+                // Get expected 3D point by transforming the coordinates of the observed 3d point
+                Eigen_point = ( T_.inverse() * temp_point ).block(0,0,3,1);
+                P1_exp.emplace_back(Eigen_point(0), Eigen_point(1), Eigen_point(2));
+                
+                // RANSAC weight
+                params.ransacCoef_scale_prop.weight.push_back( std::atan( -temp_point(2)/10 + 3 ) + 3.141592 / 2 );
+            }
+
+            scale = ransac(P1_exp, P1_ini, params.ransacCoef_scale_prop, inlier, outlier);
+
+            nFeatureInlier = inlier.size();
+
+        }
+
+        // Use the previous scale, if the scale cannot be found
+        if (nPoint <= params.ransacCoef_scale_prop.minPtNum 
+            || inlier.size() < params.thInlier || scale == 0)
+        {
+            std::cerr << "warning('there are a few SCALE FACTOR INLIERS')" << std::endl;
+            idx.clear();
+            for (unsigned int i = 0; i < features.size(); i++){
+                if (features[i].is_3D_init)
+                    idx.push_back(i);
+            }
+            nPoint = idx.size();
+
+            // Use RANSAC to find wuitable scale
+            if (nPoint > params.thInlier)
+            {
+                std::vector<cv::Point3d> objectPoints;
+                std::vector<cv::Point2d> imagePoints;
+                Eigen::Vector3d Eigen_point;
+                for (unsigned int i = 0; i < nPoint; i++){
+                    Eigen_point = ( T_.inverse() * features[idx[i]].point ).block(0,0,3,1);
+                    objectPoints.emplace_back( Eigen_point(0), Eigen_point(1), Eigen_point(2) );
+                    imagePoints.push_back( features[idx[i]].uv.back() ); // return last element of uv
+                }
+                std::vector<double> r_vec, t_vec;
+                cv::Mat cv_K;
+                cv::eigen2cv(params.K, cv_K);
+                bool success = cv::solvePnPRansac( objectPoints, imagePoints, cv_K, cv::noArray(),
+                                                    r_vec,  t_vec, false, 1e4, 
+                                                    params.reprojError, 0.99, inlier);
+                if (!success){
+                    bool success = cv::solvePnPRansac( objectPoints, imagePoints,cv_K, cv::noArray(),
+                                                    r_vec,  t_vec, false, 1e4, 
+                                                    std::pow(params.reprojError,2), 0.99, inlier);
+                }
+
+                Eigen::Matrix4d temp_T;
+                temp_T.setIdentity();
+                temp_T.block(0,0,3,3) = skew(Eigen::Vector3d(r_vec.data())).exp();
+                temp_T.block(0,3,3,1) = Eigen::Vector3d(t_vec.data());
+                temp_T = TRec[step-1].inverse() * temp_T; 
+                R = temp_T.block(0,0,3,3);
+                t = temp_T.block(0,3,3,1);
+
+                flag = success;
+                outlier = inlier;
+                outlier.flip();
+                
+            }
+            else{
+                inlier.clear();
+                outlier.clear();
+
+                scale = (TRec[step-1].block(0,0,3,1)).norm();
+
+                // Update scale
+                t = scale * t_;
+                flag = false;
+            }
+        }
+        else{
+            // Update scale
+            t = scale * t_;
+            flag = true;
+
+        }
+
+    }
+
+    // Initialization
+    // initialze scale, in the case of the first time
+    if (!scale_initialized){
+        cv::Point2d uv_curr;
+        Eigen::Vector4d point_curr;
+        std::vector<double> y_vals_road;
+        for (unsigned int i = 0; i < nFeature; i++){
+            uv_curr = features[i].uv.back(); //latest feature
+            point_curr = features[i].point;
+            if (uv_curr.y > params.imSize[1] * 0.5 
+                && uv_curr.y > params.imSize[1] - 0.7 * uv_curr.x 
+                && uv_curr.y > params.imSize[1] + 0.7 * uv_curr.x - params.imSize[0] 
+                && !std::isnan(point_curr(2)))
+                y_vals_road.push_back(point_curr(1));
+        }
+        std::nth_element(y_vals_road.begin(), y_vals_road.begin() + y_vals_road.size()/2, y_vals_road.end());
+        scale = params.vehicle_height / y_vals_road[y_vals_road.size()/2];
+
+        t = scale * t_;
+
+        nFeatureInlier = nFeature3DReconstructed;
+        inlier.clear();
+        for (unsigned int i = 0; i < features.size(); i++)
+            inlier.push_back( features[i].is_3D_reconstructed );
+        flag = true;
+    }
+
+}
+
+// OVERLOADING
+bool MVO::scale_propagation(Eigen::Matrix3d &R, Eigen::Vector3d &t, std::vector<bool> &inlier, std::vector<bool> &outlier)
+{       
+    inlier.clear();
+    outlier.clear();
+
+    double scale = 0;
+    bool flag;
+    Eigen::Matrix4d T_;
+    T_.setIdentity();
+    T_.block(0,0,3,3) = R;
+    T_.block(0,3,3,1) = t;
+
+    unsigned int nPoint;
+    if (scale_initialized)
+    {
+        // Seek index of which feature is 3D reconstructed currently,
+        // and 3D initialized previously
+        std::vector<int> idx;
+        for (unsigned int i = 0; i < features.size(); i++){
+            if( features[i].is_3D_reconstructed && features[i].is_3D_init)
+                idx.push_back(i);
+        }
+        nPoint = idx.size();
+
+        // Use RANSAC to find suitable scale
+        if ( nPoint > params.ransacCoef_scale_prop.minPtNum){
+            // std::vector<Eigen::Vector3d> P1_ini;
+            // std::vector<Eigen::Vector3d> P1_exp;
+            std::vector<cv::Point3d> P1_ini;
+            std::vector<cv::Point3d> P1_exp;
+            Eigen::Vector3d Eigen_point;
+            Eigen::Vector4d temp_point;
+            for (unsigned int i = 0; i < nPoint; i++){
+                temp_point = features[idx[i]].point;
+
+                // Get initialized 3D point
+                Eigen_point = ( TocRec[step-1].inverse() * features[idx[i]].point_init ).block(0,0,3,1);
+                P1_ini.emplace_back(Eigen_point(0), Eigen_point(1), Eigen_point(2));
+                
+                // Get expected 3D point by transforming the coordinates of the observed 3d point
+                Eigen_point = ( T_.inverse() * temp_point ).block(0,0,3,1);
+                P1_exp.emplace_back(Eigen_point(0), Eigen_point(1), Eigen_point(2));
+                
+                // RANSAC weight
+                params.ransacCoef_scale_prop.weight.push_back( std::atan( -temp_point(2)/10 + 3 ) + 3.141592 / 2 );
+            }
+
+            scale = ransac(P1_exp, P1_ini, params.ransacCoef_scale_prop, inlier, outlier);
+
+            nFeatureInlier = inlier.size();
+
+        }
+
+        // Use the previous scale, if the scale cannot be found
+        if (nPoint <= params.ransacCoef_scale_prop.minPtNum 
+            || inlier.size() < params.thInlier || scale == 0)
+        {
+            std::cerr << "warning('there are a few SCALE FACTOR INLIERS')" << std::endl;
+            idx.clear();
+            for (unsigned int i = 0; i < features.size(); i++){
+                if (features[i].is_3D_init)
+                    idx.push_back(i);
+            }
+            nPoint = idx.size();
+
+            // Use RANSAC to find wuitable scale
+            if (nPoint > params.thInlier)
+            {
+                std::vector<cv::Point3d> objectPoints;
+                std::vector<cv::Point2d> imagePoints;
+                Eigen::Vector3d Eigen_point;
+                for (unsigned int i = 0; i < nPoint; i++){
+                    Eigen_point = ( T_.inverse() * features[idx[i]].point ).block(0,0,3,1);
+                    objectPoints.emplace_back( Eigen_point(0), Eigen_point(1), Eigen_point(2) );
+                    imagePoints.push_back( features[idx[i]].uv.back() ); // return last element of uv
+                }
+                std::vector<double> r_vec, t_vec;
+                cv::Mat cv_K;
+                cv::eigen2cv(params.K, cv_K);
+                bool success = cv::solvePnPRansac( objectPoints, imagePoints, cv_K, cv::noArray(),
+                                                    r_vec,  t_vec, false, 1e4, 
+                                                    params.reprojError, 0.99, inlier);
+                if (!success){
+                    bool success = cv::solvePnPRansac( objectPoints, imagePoints,cv_K, cv::noArray(),
+                                                    r_vec,  t_vec, false, 1e4, 
+                                                    std::pow(params.reprojError,2), 0.99, inlier);
+                }
+
+                Eigen::Matrix4d temp_T;
+                temp_T.setIdentity();
+                temp_T.block(0,0,3,3) = skew(Eigen::Vector3d(r_vec.data())).exp();
+                temp_T.block(0,3,3,1) = Eigen::Vector3d(t_vec.data());
+                temp_T = TRec[step-1].inverse() * temp_T; 
+                R = temp_T.block(0,0,3,3);
+                t = temp_T.block(0,3,3,1);
+
+                flag = success;
+                outlier = inlier;
+                outlier.flip();
+                
+            }
+            else{
+                inlier.clear();
+                outlier.clear();
+
+                scale = (TRec[step-1].block(0,0,3,1)).norm();
+
+                // Update scale
+                t = scale * t;
+                flag = false;
+            }
+        }
+        else{
+            // Update scale
+            t = scale * t;
+            flag = true;
+
+        }
+
+    }
+
+    // Initialization
+    // initialze scale, in the case of the first time
+    if (!scale_initialized){
+        cv::Point2d uv_curr;
+        Eigen::Vector4d point_curr;
+        std::vector<double> y_vals_road;
+        for (unsigned int i = 0; i < nFeature; i++){
+            uv_curr = features[i].uv.back(); //latest feature
+            point_curr = features[i].point;
+            if (uv_curr.y > params.imSize[1] * 0.5 
+                && uv_curr.y > params.imSize[1] - 0.7 * uv_curr.x 
+                && uv_curr.y > params.imSize[1] + 0.7 * uv_curr.x - params.imSize[0] 
+                && !std::isnan(point_curr(2)))
+                y_vals_road.push_back(point_curr(1));
+        }
+        std::nth_element(y_vals_road.begin(), y_vals_road.begin() + y_vals_road.size()/2, y_vals_road.end());
+        scale = params.vehicle_height / y_vals_road[y_vals_road.size()/2];
+
+        t = scale * t;
+
+        nFeatureInlier = nFeature3DReconstructed;
+        inlier.clear();
+        for (unsigned int i = 0; i < features.size(); i++)
+            inlier.push_back( features[i].is_3D_reconstructed );
+        flag = true;
+    }
+}
+
+double MVO::ransac(const std::vector<cv::Point3d> &x, const std::vector<cv::Point3d> &y,
+                   MVO::RansacCoef ransacCoef,
+                   std::vector<bool> &inlier, std::vector<bool> &outlier)
 {
     unsigned int ptNum = x.size();
 
@@ -525,12 +819,12 @@ double MVO::ransac(const std::vector<cv::Point3d>& x, const std::vector<cv::Poin
     std::vector<cv::Point3d> x_sample, y_sample;
 
     int iterNUM = 1e8;
-    std::size_t max_inlier = 0;
+    int max_inlier = 0;
 
     int it = 0;
 
     while (it < std::min(ransacCoef.iterMax, iterNUM))
-    {   
+    {
         // 1. fit using random points
         if (ransacCoef.weight.size() > 0)
         {
@@ -551,52 +845,47 @@ double MVO::ransac(const std::vector<cv::Point3d>& x, const std::vector<cv::Poin
         }
         double f1 = calculate_scale(x_sample, y_sample);
         std::vector<double> dist1 = calculate_scale_error(f1, x, y);
-        std::vector<int> in1;
+        std::vector<bool> in1;
         for (unsigned int i = 0; i < dist1.size(); i++)
         {
-            if (dist1[i] < ransacCoef.thDist)
-                in1.push_back(i);
+                in1.push_back( dist1[i] < ransacCoef.thDist );
         }
 
         if (in1.size() > max_inlier)
         {
             max_inlier = in1.size();
-            inlierIdx = in1;
+            inlier = in1;
             double InlrRatio = (double)max_inlier / (double)ptNum + 1e-16;
-            iterNUM = static_cast<int>(std::floor(std::log(1-ransacCoef.thInlrRatio) / std::log(1 - std::pow(InlrRatio, ransacCoef.minPtNum))));
+            iterNUM = static_cast<int>(std::floor(std::log(1 - ransacCoef.thInlrRatio) / std::log(1 - std::pow(InlrRatio, ransacCoef.minPtNum))));
         }
         it++;
     }
 
-    if (inlierIdx.size() == 0)
+    if (inlier.size() == 0)
     {
-        inlierIdx.clear();
-        outlierIdx.clear();
+        inlier.clear();
+        outlier.clear();
         return 0;
     }
     else
     {
         x_sample.clear();
         y_sample.clear();
-        int tempIdx = 0;
-        for (unsigned int i = 0; i < inlierIdx.size(); i++)
-        {
-            tempIdx = inlierIdx[i];
-            x_sample.push_back(x[tempIdx]);
-            y_sample.push_back(y[tempIdx]);
+        for (unsigned int i = 0; i < inlier.size(); i++){
+            if (inlier[i]){
+                x_sample.push_back(x[i]);
+                y_sample.push_back(y[i]);
+            }
         }
         double f1 = calculate_scale(x_sample, y_sample);
 
         std::vector<double> dist = calculate_scale_error(f1, x, y);
 
-        inlierIdx.clear();
-        outlierIdx.clear();
-        for (unsigned int i = 0; i < dist.size(); i++)
-        {
-            if (dist[i] < ransacCoef.thDist)
-                inlierIdx.push_back(i);
-            if (dist[i] > ransacCoef.thDistOut)
-                outlierIdx.push_back(i);
+        inlier.clear();
+        outlier.clear();
+        for (unsigned int i = 0; i < dist.size(); i++){
+                inlier.push_back(dist[i] < ransacCoef.thDist);
+                outlier.push_back(dist[i] > ransacCoef.thDistOut);
         }
 
         return f1;
@@ -606,20 +895,37 @@ double MVO::ransac(const std::vector<cv::Point3d>& x, const std::vector<cv::Poin
 std::vector<int> MVO::randperm(unsigned int ptNum, int minPtNum)
 {
     std::vector<int> result;
-    for (uint32_t i = 0; i < ptNum; i++)
+    for (unsigned int i = 0; i < ptNum; i++)
         result.push_back(i);
-    std::random_shuffle( result.begin(), result.begin()+minPtNum );
+    std::random_shuffle(result.begin(), result.begin() + minPtNum);
     return result;
 }
 
-
-std::vector<int> MVO::randweightedpick(const std::vector<double>& h, int n /*=1*/)
+std::vector<int> MVO::randweightedpick(const std::vector<double> &h, int n /*=1*/)
 {
     /*
     RANDWEIGHTEDPICK: Randomly pick n from size(h)>=n elements,
     biased with linear weights as given in h, without replacement.
     Works with infinity and zero weighting entries,
     but always picks them sequentially in this case.
+
+    Syntax: Y=randweightedpick(h,n)
+
+    Example:
+
+    randweightedpick([2,0,5,Inf,3,Inf,0],7)
+
+    returns [4,6,...,2,7] all the time as [4,6] are infinities and [2,7] are
+    zeros; in between, the results will be a permutation of [1,3,5]:
+
+    [...,3,5,1,...] 30.0% of the time {5/(2+3+5) * 3/(2+3)}
+    [...,3,1,5,...] 20.0% of the time {5/(2+3+5) * 2/(2+3)}
+    [...,5,3,1,...] 21.4% of the time {3/(2+3+5) * 5/(2+5)}
+    [...,1,3,5,...] 12.5% of the time {2/(2+3+5) * 5/(3+5)}
+    [...,5,1,3,...] 8.6% of the time {3/(2+3+5) * 2/(2+5)}
+    [...,1,5,3,...] 7.5% of the time {2/(2+3+5) * 3/(3+5)}
+
+    Y returns the vector of indices corresponding to the weights in h.
 
     Author: Adam W. Gripton (a.gripton -AT- hw.ac.uk) 2012/03/21
     */
@@ -628,14 +934,19 @@ std::vector<int> MVO::randweightedpick(const std::vector<double>& h, int n /*=1*
     int s_under;
     double sum, rand_num;
     std::vector<double> H = h;
+    //std::list<double> H;
+    // std::copy(h.cbegin(), h.cend(), std::back_inserter(H));
     std::vector<double> Hs, Hsc;
     std::vector<int> result;
 
     n = std::min(std::max(1, n), u);
-    std::vector<int> HI(u, 0);                     // vector with #u ints.
+    std::vector<int> HI(u, 0);          // vector with #u ints.
     std::iota(HI.begin(), HI.end(), 1); // Fill with 1, ..., u.
 
-    for (int i = 0; i < n; i++)
+    // std::transform(H.begin(), H.end(), Hs.begin(),
+    // [](double elem) -> double{ return elem/});
+
+    for (unsigned int i = 0; i < n; i++)
     {
         // initial variables
         Hs.clear();
@@ -643,34 +954,38 @@ std::vector<int> MVO::randweightedpick(const std::vector<double>& h, int n /*=1*
         // random weight
         sum = std::accumulate(H.begin(), H.end(), 0);
         std::transform(H.begin(), H.end(), std::back_inserter(Hs),
-                       std::bind(std::multiplies <double>(), std::placeholders::_1, 1/sum)); // divdie elements in H with the value of sum
-        std::partial_sum(Hs.begin(), Hs.end(), std::back_inserter(Hsc), std::plus<double>());           // cummulative sum.
+                       std::bind(std::multiplies<double>(), std::placeholders::_1, 1 / sum)); // divdie elements in H with the value of sum
+        std::partial_sum(Hs.begin(), Hs.end(), std::back_inserter(Hsc), std::plus<double>()); // cummulative sum.
 
         // generate rand num btw 0 to 1
         rand_num = ((double)rand() / (RAND_MAX));
         // increase s_under if Hsc is lower than rand_num
-        s_under = std::count_if(Hsc.begin(), Hsc.end(), [&](double elem){return elem < rand_num;});
+        s_under = std::count_if(Hsc.begin(), Hsc.end(), [&](double elem) { return elem < rand_num; });
 
         result.push_back(HI[s_under]);
         H.erase(H.begin() + s_under);
         HI.erase(HI.begin() + s_under);
     }
-    
+    // this function may have issue.
+    // about vector dynamic allocation.
+    // about header include.
     return result;
 }
 
-
-double MVO::calculate_scale(const std::vector<cv::Point3d>& pt1, const std::vector<cv::Point3d>& pt2){
+double MVO::calculate_scale(const std::vector<cv::Point3d> &pt1, const std::vector<cv::Point3d> &pt2)
+{
     double sum = 0;
-    for (unsigned int i = 0; i < pt1.size(); i++){
-        sum += (pt1[i].x*pt2[i].x + pt1[i].y*pt2[i].y + pt1[i].z*pt2[i].z) / (pt1[i].x * pt1[i].x + pt1[i].y * pt1[i].y + pt1[i].z * pt1[i].z + 1e-10);
+    for (unsigned int i = 0; i < pt1.size(); i++)
+    {
+        sum += (pt1[i].x * pt2[i].x + pt1[i].y * pt2[i].y + pt1[i].z * pt2[i].z) / (pt1[i].x * pt1[i].x + pt1[i].y * pt1[i].y + pt1[i].z * pt1[i].z + 1e-10);
     }
-    return sum/pt1.size();
+    return sum / pt1.size();
 }
 
-std::vector<double> MVO::calculate_scale_error(double scale, const std::vector<cv::Point3d>& pt1, const std::vector<cv::Point3d>& pt2){
+std::vector<double> MVO::calculate_scale_error(double scale, const std::vector<cv::Point3d> &pt1, const std::vector<cv::Point3d> &pt2)
+{
     std::vector<double> dist;
     for (unsigned int i = 0; i < pt1.size(); i++)
-        dist.push_back( cv::norm(pt2[i]-scale*pt1[i]) );
+        dist.push_back(cv::norm(pt2[i] - scale * pt1[i]));
     return dist;
 }
