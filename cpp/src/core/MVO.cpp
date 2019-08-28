@@ -6,9 +6,16 @@ uint32_t Feature::new_feature_id = 1;
 
 MVO::MVO(Parameter params){
     this->step = 0;
-    
-    this->nFeature = 0;
+    this->scale_initialized = false;
 
+    // Variables
+    this->nFeature = 0;
+    this->nFeatureMatched = 0;
+    this->nFeature2DInliered = 0;
+    this->nFeature3DReconstructed = 0;
+    this->nFeatureInlier = 0;
+
+    // Parameters
 	this->params.fx = params.fx;
 	this->params.fy = params.fy;
 	this->params.cx = params.cx;
@@ -32,7 +39,27 @@ MVO::MVO(Parameter params){
 	this->params.radialDistortion.push_back(params.k3);
 	this->params.tangentialDistortion.push_back(params.p1);
 	this->params.tangentialDistortion.push_back(params.p2);
-    obj.scale_initialized = false;
+
+    this->params.thInlier = 5;
+    this->params.min_px_dist = 7;
+
+    // RANSAC parameter			
+    this->params.ransacCoef_scale_prop.iterMax = 1e4;
+    this->params.ransacCoef_scale_prop.minPtNum = 5;
+    this->params.ransacCoef_scale_prop.thInlrRatio = 0.9;
+    this->params.ransacCoef_scale_prop.thDist = .5; // standard deviation
+    this->params.ransacCoef_scale_prop.thDistOut = 5; // three times of standard deviation
+    // this->params.ransacCoef_scale_prop.funcFindF = @obj.calculate_scale;
+    // this->params.ransacCoef_scale_prop.funcDist = @obj.calculate_scale_error;
+    
+    // Statistical model
+    this->params.var_theta = (90 / 1241 / 2)^2;
+    this->params.var_point = 1;
+    
+    // 3D reconstruction
+    this->params.vehicle_height = 1.5; // in meter
+    this->params.initScale = 1;
+    this->params.reprojError = 1.2;
 
     // Bucket
     this->bucket = Bucket();
@@ -42,46 +69,12 @@ MVO::MVO(Parameter params){
 	this->bucket.size = cv::Size(this->params.imSize.width/this->bucket.grid.width, this->params.imSize.height/this->bucket.grid.height);
 	this->bucket.mass.setZero(this->bucket.grid.width,this->bucket.grid.height);
 	this->bucket.prob.setZero(this->bucket.grid.width,this->bucket.grid.height);
-
-    // Variables
-    obj.nFeature = 0;
-    obj.nFeatureMatched = 0;
-    obj.nFeature2DInliered = 0;
-    obj.nFeature3DReconstructed = 0;
-    obj.nFeatureInlier = 0;
-    obj.params.thInlier = 5;
-    obj.params.min_px_dist = 7;
-    obj.new_feature_id = 1;
     
-    % Initial position
-    obj.TRec{1} = eye(4);
-    obj.TocRec{1} = eye(4);
-    obj.PocRec(:,1) = [0;0;0;1];
-    
-    % Gaussian kernel
-    std = 3;
-    sz = 3*std;
-    d = (repmat(-sz : sz, 2*sz+1,1).^2 + (repmat(-sz : sz, 2*sz+1,1).^2).').^0.5;
-    obj.params.kernel = normpdf(d, zeros(size(d)), std*ones(size(d)));
-    
-    % RANSAC parameter			
-    ransacCoef_scale_prop.iterMax = 1e4;
-    ransacCoef_scale_prop.minPtNum = obj.params.thInlier;
-    ransacCoef_scale_prop.thInlrRatio = 0.9;
-    ransacCoef_scale_prop.thDist = .5; % standard deviation
-    ransacCoef_scale_prop.thDistOut = 5; % three times of standard deviation
-    ransacCoef_scale_prop.funcFindF = @obj.calculate_scale;
-    ransacCoef_scale_prop.funcDist = @obj.calculate_scale_error;
-    obj.params.ransacCoef_scale_prop = ransacCoef_scale_prop;
-    
-    % Statistical model
-    obj.params.var_theta = (90 / 1241 / 2)^2;
-    obj.params.var_point = 1;
-    
-    % 3D reconstruction
-    obj.params.vehicle_height = 1.5; % in meter
-    obj.params.initScale = 1;
-    obj.params.reprojError = 1.2;
+    // Initial position
+    this->TRec.push_back(Eigen::Matrix4d::Identity());
+    this->TocRec.push_back(Eigen::Matrix4d::Identity());
+    this->PocRec.push_back(Eigen::Vector4d::Zero());
+    this->PocRec[0](3) = 1;
 }
 
 void MVO::refresh(){
@@ -182,8 +175,8 @@ bool MVO::update_features(){
             std::cerr << "There are a few FEATURE MATCHES" << std::endl;
             return false;
         }else{
-            return true;
             this->features.assign(features.begin(), features.end());
+            return true;
         }
     }else
         return true;
@@ -248,7 +241,7 @@ void MVO::add_feature(){
     // Choose ROI based on the probabilistic approaches with the mass of bucket
     uint32_t i, j;
     lsi::idx_randselect(this->bucket.prob, i, j);
-    cv::Rect roi = cv::Rect((i-1)*bkSize.width+1, (j-1)*bkSize.height+1, bkSize.width, bkSize.height);
+    cv::Rect roi = cv::Rect(i*bkSize.width+1, j*bkSize.height+1, bkSize.width, bkSize.height);
     
     roi.x = std::max(bkSafety, (uint32_t)roi.x);
     roi.y = std::max(bkSafety, (uint32_t)roi.y);
@@ -317,7 +310,10 @@ void MVO::add_feature(){
                 this->nFeature++;
 
                 // Update bucket
-                // this->bucket.prob = conv2(obj.bucket.mass, obj.params.kernel, 'same');
+                cv::Mat bucketMass, bucketMassBlur;
+                cv::eigen2cv(this->bucket.mass, bucketMass);
+                cv::GaussianBlur(bucketMass, bucketMassBlur, cv::Size(21,21), 3.0);
+                cv::cv2eigen(bucketMassBlur, this->bucket.prob);
                 this->bucket.mass(i, j)++;
             }
         }
@@ -503,7 +499,7 @@ double MVO::ransac(const std::vector<cv::Point3d>& x, const std::vector<cv::Poin
     std::vector<cv::Point3d> x_sample, y_sample;
 
     int iterNUM = 1e8;
-    int max_inlier = 0;
+    std::size_t max_inlier = 0;
 
     int it = 0;
 
@@ -584,7 +580,7 @@ double MVO::ransac(const std::vector<cv::Point3d>& x, const std::vector<cv::Poin
 std::vector<int> MVO::randperm(unsigned int ptNum, int minPtNum)
 {
     std::vector<int> result;
-    for (int i = 0; i < ptNum; i++)
+    for (uint32_t i = 0; i < ptNum; i++)
         result.push_back(i);
     std::random_shuffle( result.begin(), result.begin()+minPtNum );
     return result;
@@ -613,7 +609,7 @@ std::vector<int> MVO::randweightedpick(const std::vector<double>& h, int n /*=1*
     std::vector<int> HI(u, 0);                     // vector with #u ints.
     std::iota(HI.begin(), HI.end(), 1); // Fill with 1, ..., u.
 
-    for (unsigned int i = 0; i < n; i++)
+    for (int i = 0; i < n; i++)
     {
         // initial variables
         Hs.clear();

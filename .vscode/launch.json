@@ -11,7 +11,7 @@
 			"program": "/home/icsl/Documents/Monocular-Visual-Odometry/cpp/build/MonoVO",
 			"args": ["-i", "/home/icsl/Downloads/hyundai_1/", "-c", "/home/icsl/Documents/Monocular-Visual-Odometry/cpp/config/hyundai.yaml"],
 			"stopAtEntry": false,
-			"cwd": "${workspaceFolder}",
+			"cwd": "${workspaceFolder}/cpp/build/",
 			"environment": [],
 			"externalConsole": false,
 			"MIMode": "gdb",
