@@ -52,7 +52,8 @@ include_directories(
 ##################################################
 # Set sourcefiles
 LIST(APPEND SOURCEFILES
-  src/core/MVO.cpp
+  src/core/tracking.cpp
+  src/core/reconstruction.cpp
   src/core/imageProc.cpp
   src/core/time.cpp
   src/core/utils.cpp
