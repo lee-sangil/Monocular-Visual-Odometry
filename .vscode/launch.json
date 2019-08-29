@@ -10,7 +10,7 @@
 			"request": "launch",
 			"program": "/home/icsl/Documents/Monocular-Visual-Odometry/cpp/build/MonoVO",
 			// "args": ["-i", "/home/icsl/Downloads/hyundai_1/", "-c", "/home/icsl/Documents/Monocular-Visual-Odometry/cpp/config/hyundai.yaml"],
-			"args": ["-i", "/media/icsl/CAE2-F955/Datasets/Hyundai/2019_0603_sample/"],
+			"args": ["-i", "/media/icsl/CAE2-F955/Datasets/Hyundai/2019_0603_sample/", "-fi", "900"],
 			"stopAtEntry": false,
 			"cwd": "${workspaceFolder}/cpp/build/",
 			"environment": [],

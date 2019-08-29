@@ -107,9 +107,9 @@ void MVO::reload(){
 
     this->nFeature = this->features.size();
 
-    this->TRec[this->step] = Eigen::Matrix4d::Identity();
-    this->TocRec[this->step] = this->TocRec[this->step-1];
-    this->PocRec[this->step] = this->PocRec[this->step-1];
+    this->TRec.push_back(Eigen::Matrix4d::Identity());
+    this->TocRec.push_back(this->TocRec[this->step-1]);
+    this->PocRec.push_back(this->PocRec[this->step-1]);
 }
 
 void MVO::set_image(const cv::Mat image){
@@ -121,17 +121,18 @@ void MVO::set_image(const cv::Mat image){
 }
 
 void MVO::run(const cv::Mat image){
-    this->step++;
-
     this->set_image(image);
     this->refresh();
 
-    if( this->extract_features() &      // Extract and update features
-	    this->calculate_essential() &   // RANSAC for calculating essential/fundamental matrix
-		this->calculate_motion() )      // Extract rotational and translational from fundamental matrix
-        
-        this->backup();
-        
+    std::vector<bool> success;
+    success.push_back(this->extract_features());       // Extract and update features
+    success.push_back(this->calculate_essential());    // RANSAC for calculating essential/fundamental matrix
+    success.push_back(this->calculate_motion());       // Extract rotational and translational from fundamental matrix
+
+    if( std::all_of(success.begin(), success.end(), [](bool b){return b;}) )
+        this->backup();    
     else
         this->reload();
+
+    this->step++;
 }

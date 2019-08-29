@@ -4,7 +4,7 @@
 
 bool MVO::calculate_motion()
 {
-    if (this->step == 1)
+    if (this->step == 0)
         return true;
 
     Eigen::Matrix3d R, R_;
@@ -13,52 +13,59 @@ bool MVO::calculate_motion()
     Eigen::Vector4d Poc;
 	std::vector<bool> inlier, outlier;
     
-    bool success1 = this->findPoseFrom3DPoints(R_, t_, inlier, outlier);
-    if (!success1){
-        // Verity 4 solutions
-        bool success2 = this->verify_solutions(R_vec, t_vec, R_, t_);
+    this->verify_solutions(R_vec, t_vec, R_, t_);
+    std::cout << "R: " << std::endl;
+    std::cout << R_ << std::endl;
+    std::cout << "t: " << t_.transpose() << std::endl;
+
+    return true;
+
+    // bool success1 = this->findPoseFrom3DPoints(R_, t_, inlier, outlier);
+    // if (!success1){
+    //     // Verity 4 solutions
+    //     bool success2 = this->verify_solutions(R_vec, t_vec, R_, t_);
         
-        if (!success2){
-            std::cerr << "There are no meaningful R, t." << std::endl;
-            return false;
-        }
+    //     if (!success2){
+    //         std::cerr << "There are no meaningful R, t." << std::endl;
+    //         return false;
+    //     }
 
-        // Update 3D points
-        std::vector<bool> inlier, outlier;
-        bool success3 = this->scale_propagation(R_ ,t_, R, t, inlier, outlier);
+    //     // Update 3D points
+    //     std::vector<bool> inlier, outlier;
+    //     bool success3 = this->scale_propagation(R_ ,t_, R, t, inlier, outlier);
 
-        if (!success3){
-            std::cerr << "There are few inliers matching scale." << std::endl;
-            return false;
-        }
+    //     if (!success3){
+    //         std::cerr << "There are few inliers matching scale." << std::endl;
+    //         return false;
+    //     }
 
-        this->update3DPoints(R, t, inlier, outlier, T, Toc, Poc); // overloading function
-    } // if (!success1)
-    else{
-        this->verify_solutions(R_vec, t_vec, R_, t_);
+    //     this->update3DPoints(R, t, inlier, outlier, T, Toc, Poc); // overloading function
+    // } // if (!success1)
+    // else{
+    //     this->verify_solutions(R_vec, t_vec, R_, t_);
 
-        // Update 3D points
-        std::vector<bool> inlier, outlier;
-        bool success3 = this->scale_propagation(R_, t_, inlier, outlier);
+    //     // Update 3D points
+    //     std::vector<bool> inlier, outlier;
+    //     bool success3 = this->scale_propagation(R_, t_, inlier, outlier);
 
-        // Update 3D points
-        this->update3DPoints(R, t, inlier, outlier, R_, t_, success3, T, Toc, Poc); // overloading function
-    } // if (!success1)
+    //     // Update 3D points
+    //     this->update3DPoints(R, t, inlier, outlier, R_, t_, success3, T, Toc, Poc); // overloading function
+    // } // if (!success1)
 
-    scale_initialized = true;
+    // scale_initialized = true;
 
-    if (nFeature3DReconstructed < params.thInlier){
-        std::cerr << "There are few inliers reconstructed in 3D." << std::endl;
-        return false;
-    }
-    else{
-        // Save solution
-        TRec.push_back(T);
-        TocRec.push_back(Toc);
-        PocRec.push_back(Poc);
+    // if (nFeature3DReconstructed < params.thInlier){
+    //     std::cerr << "There are few inliers reconstructed in 3D." << std::endl;
+    //     return false;
+    // }
+    // else{
+    //     // Save solution
+    //     TRec.push_back(T);
+    //     TocRec.push_back(Toc);
+    //     PocRec.push_back(Poc);
 
-        return true;
-    }
+    //     return true;
+    // }
 }
 
 bool MVO::verify_solutions(std::vector<Eigen::Matrix3d>& R_vec, std::vector<Eigen::Vector3d>& t_vec, Eigen::Matrix3d& R, Eigen::Vector3d& t){
@@ -104,7 +111,7 @@ bool MVO::verify_solutions(std::vector<Eigen::Matrix3d>& R_vec, std::vector<Eige
 		this->constructDepth(x_prev, x_curr, R1, t1, X_prev, X_curr,  lambda_prev, lambda_curr);
 
 		std::vector<bool> inlier;
-		int nInlier;
+		int nInlier = 0;
 		for( uint32_t i = 0; i < lambda_prev.size(); i++ ){
 			if( lambda_curr[i] > 0 && lambda_prev[i] > 0 ){
 				inlier.push_back(true);
@@ -210,13 +217,16 @@ void MVO::constructDepth(const std::vector<Eigen::Vector3d> x_prev, const std::v
     Eigen::MatrixXd M_matrix(3*nPoints, nPoints+1);
 
     for (int i = 0; i < nPoints; i++){
+        std::cout << skew(x_curr[i])*R*x_prev[i] << std::endl;
+        std::cout << skew(x_curr[i])*t << std::endl;
         M_matrix.block(3*i,i,3,1) = skew(x_curr[i])*R*x_prev[i];
-        M_matrix.block(3*i,nPoints,3,1) = skew(x_curr[i])*R*x_prev[i];
+        M_matrix.block(3*i,nPoints,3,1) = skew(x_curr[i])*t;
     }
 
     Eigen::JacobiSVD<Eigen::MatrixXd> svd(M_matrix.transpose()*M_matrix, Eigen::ComputeThinU | Eigen::ComputeThinV);
     for (int i = 0; i < nPoints; i++){
 		Eigen::MatrixXd V = svd.matrixV();
+        std::cout << V << std::endl;
         lambda_prev.push_back( V(i,nPoints) / V(nPoints,nPoints) );
         X_prev.push_back( lambda_prev.back() * x_prev[i] );
         X_curr.push_back( R*X_prev.back() + t );

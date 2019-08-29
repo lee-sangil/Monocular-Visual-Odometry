@@ -11,7 +11,8 @@ int main(int argc, char * argv[]){
 		std::cout << "Error, invalid arguments.\n\n"
 				"\tMandatory -i: Input directory.\n"
 				"\tOptional -c: Camera setting .yaml file (default: /path/to/input_directory/camera.yaml).\n"
-				"\tOptional -o: Output directory (default path: ./CamTrajectory.txt).\n\n"
+				"\tOptional -o: Output directory (default path: ./CamTrajectory.txt).\n"
+				"\tOptional -fi: initial frame (default: 0).\n"
 				"Example: [./divo_dataset -c /path/to/setting.yaml -i /path/to/input_folder/ -o /path/to/output_folder/]" << std::endl;
         return 1;
     }
@@ -45,7 +46,17 @@ int main(int argc, char * argv[]){
 	 *  Read dataset
 	 **************************************************************************/
 	std::cout << "# inputFile: " << inputFile << std::endl;
+	int initFrame;
+	if( Parser::hasOption("-fi") ){
+		std::string initFrame_str = Parser::getOption("-fi");
+		initFrame = std::stoi(initFrame_str);
+	}
 	
+	if( initFrame < 0 ){
+		std::cerr << "Init frame should not be smaller than zero" << std::endl;
+		return 1;
+	}
+
 	// file name reading
 	std::vector<std::string> rgbNameRaw;
 	std::vector<std::array<double,6>> imuDataRaw;
@@ -60,6 +71,9 @@ int main(int argc, char * argv[]){
 	chk::getIMUFile(imu_path.c_str(), timeImu, imuDataRaw);
 	std::cout << "read done." << std::endl;
 
+	rgbNameRaw.erase(rgbNameRaw.begin(), rgbNameRaw.begin()+initFrame);
+	timeRgb.erase(timeRgb.begin(), timeRgb.begin()+initFrame);
+
 	std::vector<int> sensorID;
 	lsi::sortImageAndImu(timeImu, timeRgb, sensorID);
 
@@ -73,6 +87,7 @@ int main(int argc, char * argv[]){
 	 **************************************************************************/
 	std::ofstream statusLogger;
 	statusLogger.open(outputDir + "CamTrajectory.txt");
+
 	std::string dirRgb;
 	cv::Mat image;
 	bool bRun = true;

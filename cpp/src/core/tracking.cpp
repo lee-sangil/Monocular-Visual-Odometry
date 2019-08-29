@@ -226,14 +226,14 @@ void MVO::add_feature(){
 bool MVO::calculate_essential()
 {
     Eigen::Matrix3d K = this->params.K;
+
     // below define should go in constructor and class member variable
     double focal = (K(0, 0) + K(1, 1)) / 2;
     cv::Point2f principle_point(K(0, 2), K(1, 2));
     Eigen::Matrix3d W;
     W << 0, -1, 0, 1, 0, 0, 0, 0, 1;
-    //
 
-    if (this->step == 1)
+    if (this->step == 0)
         return true;
 
     // Extract homogeneous 2D point which is matched with corresponding feature
@@ -279,8 +279,8 @@ bool MVO::calculate_essential()
     this->t_vec.clear();
     this->R_vec.push_back(U * W * V.transpose());
     this->R_vec.push_back(U * W * V.transpose());
-    this->R_vec.push_back(U * W.transpose() * V);
-    this->R_vec.push_back(U * W.transpose() * V);
+    this->R_vec.push_back(U * W.transpose() * V.transpose());
+    this->R_vec.push_back(U * W.transpose() * V.transpose());
     this->t_vec.push_back(U.block(0, 2, 3, 1));
     this->t_vec.push_back(-U.block(0, 2, 3, 1));
     this->t_vec.push_back(U.block(0, 2, 3, 1));
