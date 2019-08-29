@@ -64,10 +64,9 @@ bool MVO::calculate_motion()
 bool MVO::verify_solutions(std::vector<Eigen::Matrix3d>& R_vec, std::vector<Eigen::Vector3d>& t_vec, Eigen::Matrix3d& R, Eigen::Vector3d& t){
     
 	bool success;
-	Eigen::Matrix3d K = this->params.K;
 
 	// Extract homogeneous 2D point which is inliered with essential constraint
-	std::vector<bool> idx_2DInlier;
+	std::vector<int> idx_2DInlier;
 	for( int i = 0; i < this->nFeature; i++ ){
 		if( this->features[i].is_2D_inliered )
 			idx_2DInlier.push_back(i);
@@ -85,10 +84,9 @@ bool MVO::verify_solutions(std::vector<Eigen::Matrix3d>& R_vec, std::vector<Eige
         uv_prev.push_back(uv_prev_i); // second to latest
         uv_curr.push_back(uv_curr_i); // latest
 
-		/////////////////////// K로 나누기
 		Eigen::Vector3d x_prev_i, x_curr_i;
-		x_prev_i << uv_prev_i.x, uv_prev_i.y, 1;
-		x_curr_i << uv_curr_i.x, uv_curr_i.y, 1;
+		x_prev_i << (uv_prev_i.x - this->params.cx)/this->params.fx, (uv_prev_i.y - this->params.cy)/this->params.fy, 1;
+		x_curr_i << (uv_curr_i.x - this->params.cx)/this->params.fx, (uv_curr_i.y - this->params.cy)/this->params.fy, 1;;
 		x_prev.push_back(x_prev_i);
 		x_curr.push_back(x_curr_i);
     }
@@ -99,7 +97,7 @@ bool MVO::verify_solutions(std::vector<Eigen::Matrix3d>& R_vec, std::vector<Eige
 	std::vector<Eigen::Vector4d> point_curr;
 	for( uint32_t i = 0; i < R_vec.size(); i++ ){
 		Eigen::Matrix3d R1 = R_vec[i];
-		Eigen::Matrix3d t1 = t_vec[i];
+		Eigen::Vector3d t1 = t_vec[i];
 		
 		std::vector<Eigen::Vector3d> X_prev, X_curr;
 		std::vector<double> lambda_prev, lambda_curr;
@@ -210,9 +208,10 @@ void MVO::constructDepth(const std::vector<Eigen::Vector3d> x_prev, const std::v
 {
     const int nPoints = x_prev.size();
     Eigen::MatrixXd M_matrix(3*nPoints, nPoints+1);
+
     for (int i = 0; i < nPoints; i++){
-        M_matrix.block(3*(i-1),i,3,1) = skew(x_curr[i])*R*x_prev[i];
-        M_matrix.block(3*(i-1),nPoints,3,1) = skew(x_curr[i])*R*x_prev[i];
+        M_matrix.block(3*i,i,3,1) = skew(x_curr[i])*R*x_prev[i];
+        M_matrix.block(3*i,nPoints,3,1) = skew(x_curr[i])*R*x_prev[i];
     }
 
     Eigen::JacobiSVD<Eigen::MatrixXd> svd(M_matrix.transpose()*M_matrix, Eigen::ComputeThinU | Eigen::ComputeThinV);
@@ -317,8 +316,6 @@ void MVO::update3DPoints(const Eigen::Matrix3d &R, const Eigen::Vector3d &t,
     }
 
     // Update 3D points in local coordinates
-    double scale = T.block(0,3,3,1).norm();
-
     for (unsigned int i = 0; i < nPoint; i++){
         features[idx3D[i]].point = point_prev[i];
         features[idx3D[i]].is_3D_reconstructed = true;
@@ -794,33 +791,6 @@ std::vector<int> MVO::randperm(unsigned int ptNum, int minPtNum)
 
 std::vector<int> MVO::randweightedpick(const std::vector<double> &h, int n /*=1*/)
 {
-    /*
-    RANDWEIGHTEDPICK: Randomly pick n from size(h)>=n elements,
-    biased with linear weights as given in h, without replacement.
-    Works with infinity and zero weighting entries,
-    but always picks them sequentially in this case.
-
-    Syntax: Y=randweightedpick(h,n)
-
-    Example:
-
-    randweightedpick([2,0,5,Inf,3,Inf,0],7)
-
-    returns [4,6,...,2,7] all the time as [4,6] are infinities and [2,7] are
-    zeros; in between, the results will be a permutation of [1,3,5]:
-
-    [...,3,5,1,...] 30.0% of the time {5/(2+3+5) * 3/(2+3)}
-    [...,3,1,5,...] 20.0% of the time {5/(2+3+5) * 2/(2+3)}
-    [...,5,3,1,...] 21.4% of the time {3/(2+3+5) * 5/(2+5)}
-    [...,1,3,5,...] 12.5% of the time {2/(2+3+5) * 5/(3+5)}
-    [...,5,1,3,...] 8.6% of the time {3/(2+3+5) * 2/(2+5)}
-    [...,1,5,3,...] 7.5% of the time {2/(2+3+5) * 3/(3+5)}
-
-    Y returns the vector of indices corresponding to the weights in h.
-
-    Author: Adam W. Gripton (a.gripton -AT- hw.ac.uk) 2012/03/21
-    */
-
     int u = h.size();
     int s_under;
     double sum, rand_num;
@@ -857,9 +827,7 @@ std::vector<int> MVO::randweightedpick(const std::vector<double> &h, int n /*=1*
         H.erase(H.begin() + s_under);
         HI.erase(HI.begin() + s_under);
     }
-    // this function may have issue.
-    // about vector dynamic allocation.
-    // about header include.
+    
     return result;
 }
 
