@@ -117,7 +117,7 @@ void MVO::set_image(const cv::Mat image){
     if( this->params.applyCLAHE )
         cvClahe->apply(image, this->cur_image);
     else
-        this->cur_image = image.clone();    
+        this->cur_image = image.clone();
 }
 
 void MVO::run(const cv::Mat image){
@@ -130,7 +130,7 @@ void MVO::run(const cv::Mat image){
     success.push_back(this->calculate_motion());       // Extract rotational and translational from fundamental matrix
 
     if( std::all_of(success.begin(), success.end(), [](bool b){return b;}) )
-        this->backup();    
+        this->backup();
     else
         this->reload();
 

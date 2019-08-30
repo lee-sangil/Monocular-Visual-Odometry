@@ -68,9 +68,6 @@ class MVO{
 	bool calculate_motion();
 	bool verify_solutions(std::vector<Eigen::Matrix3d>& R_vec, std::vector<Eigen::Vector3d>& t_vec,
 						  Eigen::Matrix3d& R, Eigen::Vector3d& t);
-	bool scale_propagation(const Eigen::Matrix3d& R_, const Eigen::Vector3d& t_,
-						   Eigen::Matrix3d& R, Eigen::Vector3d& t,
-						   std::vector<bool>& inlier, std::vector<bool>& outlier);
 	bool scale_propagation(Eigen::Matrix3d& R, Eigen::Vector3d& t,
 						   std::vector<bool>& inlier, std::vector<bool>& outlier);
 	bool findPoseFrom3DPoints(Eigen::Matrix3d &R, Eigen::Vector3d &t, std::vector<bool>& inlier, std::vector<bool>& outlier);

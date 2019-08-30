@@ -94,7 +94,7 @@ int main(int argc, char * argv[]){
 	int length = sensorID.size();
 	
 	int it_imu = 0, it_rgb = 0;
-	for( int it = 0; it < length && bRun; it++ ){
+	for( int it = 0; it < 10 && bRun; it++ ){
 
 		switch (sensorID[it]) {
 			case 1:

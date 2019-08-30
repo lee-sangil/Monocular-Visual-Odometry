@@ -29,6 +29,7 @@
 #include <eigen3/Eigen/SVD>
 #include <eigen3/Eigen/LU>
 #include <eigen3/unsupported/Eigen/MatrixFunctions>
+#include <eigen3/Eigen/StdVector>
 #include <opencv2/core/core.hpp>
 #include <opencv2/core/eigen.hpp>
 #include <opencv2/highgui/highgui.hpp>
