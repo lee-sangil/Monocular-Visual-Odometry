@@ -136,3 +136,12 @@ void MVO::run(const cv::Mat image){
 
     this->step++;
 }
+
+ptsROI_t MVO::get_points()
+{
+    ptsROI_t ptsROI;
+    for( uint32_t i = 0; i < this->features.size(); i++ ){
+        ptsROI.push_back( std::make_tuple(this->features[i].uv.back(), this->features[i].point.block(0, 0, 3, 1) ) );
+    }
+    return ptsROI;
+}
