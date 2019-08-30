@@ -3,6 +3,8 @@
 
 #include "core/common.hpp"
 
+typedef  std::vector< std::tuple<cv::Point2f, Eigen::Vector3d> > ptsROI_t;
+
 class MVO{
 	public:
 
@@ -47,6 +49,9 @@ class MVO{
 	// Set image
 	void set_image(const cv::Mat image);
 
+	// Get feature 
+	ptsROI_t get_points();
+	
 	// Script operations
 	void backup();
 	void reload();
