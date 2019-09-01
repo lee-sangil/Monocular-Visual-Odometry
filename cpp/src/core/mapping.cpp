@@ -41,19 +41,21 @@ bool MVO::calculate_motion()
         this->update3DPoints(R_, t_, inlier, outlier, T, Toc, Poc); // overloading function
     }
 
-    scale_initialized = true;
+    this->scale_initialized = true;
 
-    if (nFeature3DReconstructed < params.thInlier){
+    if (this->nFeature3DReconstructed < this->params.thInlier){
         std::cerr << "There are few inliers reconstructed in 3D." << std::endl;
         return false;
     }
     else{
+        std::cerr << (T-TRec.back()).norm() << std::endl;
+        std::cerr << "Temporal velocity: " << T.block(0,3,3,1).norm() << std::endl;
+        std::cerr << "Number of 3D points reconstructed: " << this->nFeature3DReconstructed << std::endl;
+
         // Save solution
         TRec.push_back(T);
         TocRec.push_back(Toc);
         PocRec.push_back(Poc);
-
-        std::cout << T << std::endl;
 
         return true;
     }
@@ -171,11 +173,10 @@ bool MVO::findPoseFrom3DPoints(Eigen::Matrix3d &R, Eigen::Vector3d &t, std::vect
         bool success = cv::solvePnPRansac(objectPoints, imagePoints, this->params.Kcv, cv::noArray(),
                                           r_vec, t_vec, false, 1e4,
                                           this->params.reprojError, 0.99, idxInlier, cv::SOLVEPNP_AP3P);
-        if (!success)
-        {
+        if (!success){
             success = cv::solvePnPRansac(objectPoints, imagePoints, this->params.Kcv, cv::noArray(),
                                               r_vec, t_vec, false, 1e4,
-                                              std::pow(params.reprojError, 2), 0.99, idxInlier, cv::SOLVEPNP_AP3P);
+                                              1.5 * params.reprojError, 0.99, idxInlier, cv::SOLVEPNP_AP3P);
         }
 
         Eigen::Vector3d r_vec_;
@@ -322,6 +323,8 @@ void MVO::update3DPoints(const Eigen::Matrix3d &R, const Eigen::Vector3d &t,
             this->features[idx3D[i]].is_3D_init = true;
         }
     }
+
+    std::cerr << "Update and reconstruct with essential constraint: " << '\t';
 }
 	
 // with pnp
@@ -381,10 +384,12 @@ void MVO::update3DPoints(const Eigen::Matrix3d &R, const Eigen::Vector3d &t,
     if(success_E){
         Rinv = R_E;
         tinv = t_E;
+        std::cerr << "Update with PnP, reconstruct with essential constraint: " << '\t';
     }
     else{
         Rinv = T.block(0,0,3,3).transpose();
         tinv = -T.block(0,0,3,3).transpose()*T.block(0,3,3,1);
+        std::cerr << "Update and reconstruct with PnP: " << '\t';
     }
 
     nPoint = idx2D.size();

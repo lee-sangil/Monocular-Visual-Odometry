@@ -2,6 +2,7 @@
 #include "core/parser.hpp"
 #include "core/imageProc.hpp"
 #include "core/MVO.hpp"
+#include "core/time.hpp"
 
 int main(int argc, char * argv[]){
 	
@@ -68,7 +69,7 @@ int main(int argc, char * argv[]){
 
 	chk::getImageFile(image_path.c_str(), timeRgb, rgbNameRaw);
 	chk::getIMUFile(imu_path.c_str(), timeImu, imuDataRaw);
-	std::cout << "read done." << std::endl;
+	std::cout << "Read successfully." << std::endl;
 
 	rgbNameRaw.erase(rgbNameRaw.begin(), rgbNameRaw.begin()+initFrame);
 	timeRgb.erase(timeRgb.begin(), timeRgb.begin()+initFrame);
@@ -108,7 +109,9 @@ int main(int argc, char * argv[]){
 				dirRgb.append(inputFile).append(rgbNameRaw[it_rgb]);
 				chk::getImgTUMdataset(dirRgb, image);
 
+				lsi::tic();
 				vo->run(image);
+				std::cout << "Iteration: " << it_rgb << ", Execution time: " << lsi::toc()/1e3 << "ms" << std::endl;
 				vo->plot();
 
 				it_rgb++;
@@ -128,6 +131,8 @@ int main(int argc, char * argv[]){
 
 	if( statusLogger.is_open() ) statusLogger.close();
 	image.release();
+
+	std::cout << "All done." << std::endl;
 	cv::waitKey(0);
 
 	return 0;

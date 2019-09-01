@@ -1,0 +1,117 @@
+%YAML:1.0
+
+#--------------------------------------------------------------------------------------------
+# IMU Parameters (fixed).
+#--------------------------------------------------------------------------------------------
+
+# IMU data rate
+IMU.dps: 185
+
+# Threshold of small angle (<1/2deg)
+IMU.nSmallAngle: 0.008726646
+
+# IMU sensor noise
+IMU.sigma_g: 1.6968e-04
+IMU.sigma_wg: 1.9393e-05
+IMU.sigma_a: 2.0000e-3
+IMU.sigma_wa: 3.0000e-3
+
+# Gravity
+IMU.nG: 9.8082
+
+#--------------------------------------------------------------------------------------------
+# Camera Parameters (fixed).
+#--------------------------------------------------------------------------------------------
+
+# Camera frame rate
+Camera.fps: 15
+
+# Camera image resolution
+Camera.width: 960
+Camera.height: 540
+
+# Camera intrinsics
+Camera.fx: 1067.06
+Camera.fy: 1067.81
+Camera.cx: 456.07
+Camera.cy: 276.98
+
+Camera.k1: -0.344263739
+Camera.k2: 0.065336455
+Camera.p1: 0
+Camera.p2: 0
+Camera.k3: 0
+
+# Camera extrinsics [B:IMU,C0:cam0]
+Camera.T_BC0: !!opencv-matrix
+     rows: 4
+     cols: 4
+     dt: d
+     data: [-1.0, 0.0, 0.0, 0.058,
+            0.0, 0.0, -1.0, -0.038,
+            0.0, -1.0, 0.0, 0.010,
+            0.0, 0.0, 0.0, 1.0]
+
+LiDAR.R: [0.99769146, -0.01995549,  0.064911606,
+         0.02136297,  0.99954991, -0.021061777,
+        -0.06446209,  0.02239986,  0.997668725]
+
+LiDAR.T: [-0.4822433, -0.0082169, 0.4185907]
+
+#--------------------------------------------------------------------------------------------
+# Feature Parameters (tunable).
+#--------------------------------------------------------------------------------------------
+
+# Number of features
+Feature.num: 600
+
+# Number of features matching per image 
+Feature.thInlier: 5
+
+# Min. feature distance between
+Feature.min_px_dist: 7
+
+# Bucket safety region (px)
+Bucket.safety: 20
+
+# Bucket size
+Bucket.rows: 16
+Bucket.cols: 8
+
+#--------------------------------------------------------------------------------------------
+# Reconstruction Parameters (tunable).
+#--------------------------------------------------------------------------------------------
+
+# Iteration
+RANSAC.iterMax: 1e3
+
+# Min. number of samples
+RANSAC.nSample: 5
+
+# Inlier ratio
+RANSAC.thInlrRatio: 0.99
+
+# Inlier threshold
+RANSAC.thDist: 0.5
+
+# Rejection threshold
+RANSAC.thDistOut: 5
+
+# Vehicel height
+Scale.height: 1.5
+
+# Min. Reprojection error
+Scale.error: 1.0
+
+# SVD Methods: Jacobi(0), BDC(1: recommended), OpenCV(2)
+SVD.Method: 1
+
+#--------------------------------------------------------------------------------------------
+# Display Parameters (tunable).
+#--------------------------------------------------------------------------------------------
+
+# Size of point
+Landmark.nScale: 10
+
+# Publishing rate
+Landmark.nPubRate: 5

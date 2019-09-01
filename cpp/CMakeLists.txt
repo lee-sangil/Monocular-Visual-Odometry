@@ -18,7 +18,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 message(STATUS "Using flag -std=c++11.")
 
 # Enable compile optimizations
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse3 -m64 -Wall")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")
 
 # Include our cmake files
 LIST(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake_modules/)
@@ -42,7 +42,27 @@ include_directories(
 # Make binary for the main library
 ##################################################
 # Set sourcefiles
-LIST(APPEND SOURCEFILES
+# LIST(APPEND SOURCEFILES
+#   src/core/MVO.cpp
+#   src/core/tracking.cpp
+#   src/core/mapping.cpp
+#   src/core/imageProc.cpp
+#   src/core/time.cpp
+#   src/core/utils.cpp
+#   src/visualization/plot.cpp
+# )
+
+# # Set link libraries
+# LIST(APPEND LINK_LIBS
+#   ${EIGEN3_LIBS}
+#   ${OpenCV_LIBS}
+#   ${Boost_LIBRARIES}
+# )
+
+##################################################
+# Make binary for main method ROS
+##################################################
+add_library(${PROJECT_NAME} SHARED
   src/core/MVO.cpp
   src/core/tracking.cpp
   src/core/mapping.cpp
@@ -51,16 +71,13 @@ LIST(APPEND SOURCEFILES
   src/core/utils.cpp
   src/visualization/plot.cpp
 )
-
-# Set link libraries
-LIST(APPEND LINK_LIBS
+target_link_libraries(${PROJECT_NAME}
   ${EIGEN3_LIBS}
   ${OpenCV_LIBS}
   ${Boost_LIBRARIES}
 )
 
-##################################################
-# Make binary for main method ROS
-##################################################
-add_executable(${PROJECT_NAME} src/main.cpp ${SOURCEFILES})
-target_link_libraries(${PROJECT_NAME} ${LINK_LIBS})
+add_executable(main src/main.cpp)
+target_link_libraries(main
+  ${PROJECT_NAME}
+)
