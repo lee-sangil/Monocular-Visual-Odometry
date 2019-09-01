@@ -8,6 +8,12 @@ typedef  std::vector< std::tuple<cv::Point2f, Eigen::Vector3d> > ptsROI_t;
 class MVO{
 	public:
 
+	enum SVD{
+		JACOBI,
+		BDC,
+		OpenCV
+	};
+	
 	struct RansacCoef{
 		int iterMax = 1e4;
 		double minPtNum = 5;
@@ -21,8 +27,10 @@ class MVO{
 		double fx, fy, cx, cy;
 		double k1, k2, p1, p2, k3;
 		Eigen::Matrix3d K;
+		cv::Mat Kcv;
 		std::vector<double> radialDistortion;
 		std::vector<double> tangentialDistortion;
+		std::vector<double> distCoeffs;
 		cv::Size imSize;
 		bool applyCLAHE = false;
 
@@ -38,7 +46,9 @@ class MVO{
 		// 3D reconstruction
 		double vehicle_height;
 		double initScale;
+		double plotScale;
 		double reprojError;
+		MVO::SVD SVDMethod;
 	};
 	
 	public:
@@ -75,7 +85,7 @@ class MVO{
 						  Eigen::Matrix3d& R, Eigen::Vector3d& t);
 	bool scale_propagation(Eigen::Matrix3d& R, Eigen::Vector3d& t,
 						   std::vector<bool>& inlier, std::vector<bool>& outlier);
-	bool findPoseFrom3DPoints(Eigen::Matrix3d &R, Eigen::Vector3d &t, std::vector<bool>& inlier, std::vector<bool>& outlier);
+	bool findPoseFrom3DPoints(Eigen::Matrix3d &R, Eigen::Vector3d &t, std::vector<int>& inlier, std::vector<int>& outlier);
 	void constructDepth(const std::vector<Eigen::Vector3d> x_prev, const std::vector<Eigen::Vector3d> x_curr, 
                         const Eigen::Matrix3d R, const Eigen::Vector3d t, 
                         std::vector<Eigen::Vector3d> &X_prev, std::vector<Eigen::Vector3d> &X_curr, 
@@ -89,11 +99,11 @@ class MVO{
 						Eigen::Matrix4d& T, Eigen::Matrix4d& Toc, Eigen::Vector4d& Poc);
 
 	// RANSAC
-	static double ransac(const std::vector<cv::Point3d>& x, const std::vector<cv::Point3d>& y,
+	static double ransac(const std::vector<cv::Point3f>& x, const std::vector<cv::Point3f>& y,
 				MVO::RansacCoef ransacCoef,
 				std::vector<bool>& inlier, std::vector<bool>& outlier);
-	static double calculate_scale(const std::vector<cv::Point3d>& pt1, const std::vector<cv::Point3d>& pt2);
-	static std::vector<double> calculate_scale_error(double scale, const std::vector<cv::Point3d>& pt1, const std::vector<cv::Point3d>& pt2);
+	static double calculate_scale(const std::vector<cv::Point3f>& pt1, const std::vector<cv::Point3f>& pt2);
+	static std::vector<double> calculate_scale_error(double scale, const std::vector<cv::Point3f>& pt1, const std::vector<cv::Point3f>& pt2);
 	static std::vector<int> randperm(unsigned int ptNum, int minPtNum);
 	static std::vector<int> randweightedpick(const std::vector<double>& h, int n = 1);
 	

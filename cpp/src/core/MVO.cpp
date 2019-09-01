@@ -47,12 +47,16 @@ MVO::MVO(std::string yaml):MVO(){
     this->params.K << this->params.fx, 0, this->params.cx,
 						0, this->params.fy, this->params.cy,
 						0, 0, 1;
+    cv::eigen2cv(this->params.K, this->params.Kcv);
 
 	this->params.radialDistortion.push_back(params.k1);
 	this->params.radialDistortion.push_back(params.k2);
 	this->params.radialDistortion.push_back(params.k3);
 	this->params.tangentialDistortion.push_back(params.p1);
 	this->params.tangentialDistortion.push_back(params.p2);
+    this->params.distCoeffs.insert(this->params.distCoeffs.begin(), this->params.radialDistortion.begin(), this->params.radialDistortion.begin()+1);
+    this->params.distCoeffs.insert(this->params.distCoeffs.end(), this->params.tangentialDistortion.begin(), this->params.tangentialDistortion.end());
+    this->params.distCoeffs.insert(this->params.distCoeffs.begin(), this->params.radialDistortion.begin()+2, this->params.radialDistortion.end());
 
     this->params.thInlier =         fSettings["Feature.thInlier"];
     this->params.min_px_dist =      fSettings["Feature.min_px_dist"];
@@ -67,7 +71,21 @@ MVO::MVO(std::string yaml):MVO(){
     // 3D reconstruction
     this->params.vehicle_height =   fSettings["Scale.height"]; // in meter
     this->params.reprojError =      fSettings["Scale.error"];
-    this->params.initScale = 1;
+    this->params.plotScale =        fSettings["Landmark.nScale"]; // in px
+    this->params.initScale =        1;
+    
+    switch( fSettings["SVD.Method"] ){
+        case 0:
+            this->params.SVDMethod = MVO::SVD::JACOBI;
+            break;
+        case 1:
+            this->params.SVDMethod = MVO::SVD::BDC;
+            break;
+        case 2:
+        default:
+            this->params.SVDMethod = MVO::SVD::OpenCV;
+            break;
+    }
 
     // Bucket
     this->bucket = Bucket();
@@ -114,10 +132,13 @@ void MVO::reload(){
 
 void MVO::set_image(const cv::Mat image){
 	this->prev_image = this->cur_image.clone();
+    
+    cv::Mat cur_image;
+    cv::undistort(image, cur_image, this->params.Kcv, this->params.distCoeffs);
     if( this->params.applyCLAHE )
-        cvClahe->apply(image, this->cur_image);
+        cvClahe->apply(cur_image, this->cur_image);
     else
-        this->cur_image = image.clone();
+        this->cur_image = cur_image.clone();
 }
 
 void MVO::run(const cv::Mat image){

@@ -6,10 +6,10 @@ SET(DEBUG true)
 # Set our build type
 IF(${DEBUG})
   SET(CMAKE_BUILD_TYPE DEBUG)
-  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -pg -O0")
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -pg -O2")
 ELSE()
   SET(CMAKE_BUILD_TYPE RELEASE)
-  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2 -fomit-frame-pointer")
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2 -fomit-frame-pointer -flto -fopenmp")
 ENDIF()
 MESSAGE(STATUS "Build type: " ${CMAKE_BUILD_TYPE})
 
@@ -18,7 +18,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
 message(STATUS "Using flag -std=c++11.")
 
 # Enable compile optimizations
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse3 -m64 -flto -fopenmp -Wall")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -msse3 -m64 -Wall")
 
 # Include our cmake files
 LIST(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake_modules/)
@@ -49,7 +49,7 @@ LIST(APPEND SOURCEFILES
   src/core/imageProc.cpp
   src/core/time.cpp
   src/core/utils.cpp
-  src/main.cpp
+  src/visualization/plot.cpp
 )
 
 # Set link libraries
