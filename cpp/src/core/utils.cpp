@@ -9,6 +9,11 @@ double lsi::rand(){
 }
 
 void lsi::idx_randselect(Eigen::MatrixXd weight, int& idx_row, int& idx_col){
+
+	for( int i = 0; i < weight.rows(); i++ ){
+		weight.block(i,0,1,weight.cols()) *= std::pow(weight.rows(),2);
+	}
+
     // Calculate weight
 	Eigen::VectorXd weightVec(Eigen::Map<Eigen::VectorXd>(weight.data(), weight.rows()*weight.cols()));
 

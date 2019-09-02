@@ -29,6 +29,8 @@ bool MVO::calculate_motion()
             return false;
         }
 
+        std::cerr << "R diag: " << R_.diagonal().transpose() << ", t: " << t.transpose() << std::endl;
+
         // Update 3D points
         std::vector<bool> inlier, outlier;
         bool success = this->scale_propagation(R_ ,t_, inlier, outlier);
@@ -40,8 +42,6 @@ bool MVO::calculate_motion()
 
         this->update3DPoints(R_, t_, inlier, outlier, T, Toc, Poc); // overloading function
     }
-
-    this->scale_initialized = true;
 
     if (this->nFeature3DReconstructed < this->params.thInlier){
         std::cerr << "There are few inliers reconstructed in 3D." << std::endl;
@@ -57,6 +57,7 @@ bool MVO::calculate_motion()
         TocRec.push_back(Toc);
         PocRec.push_back(Poc);
 
+        this->scale_initialized = true;
         return true;
     }
 }
@@ -530,7 +531,7 @@ bool MVO::scale_propagation(Eigen::Matrix3d &R, Eigen::Vector3d &t, std::vector<
                 if (!success){
                     cv::solvePnPRansac( objectPoints, imagePoints, this->params.Kcv, cv::noArray(),
                                                     r_vec,  t_vec, false, 1e4, 
-                                                    std::pow(this->params.reprojError,2), 0.99, idxInlier);
+                                                    1.5 * this->params.reprojError, 0.99, idxInlier);
                 }
 
                 Eigen::Vector3d r_vec_, t_vec_;
@@ -610,7 +611,11 @@ bool MVO::scale_propagation(Eigen::Matrix3d &R, Eigen::Vector3d &t, std::vector<
             inlier.push_back( this->features[i].is_3D_reconstructed );
         flag = true;
     }
-    return flag;
+
+    if( t.hasNaN() )
+        return false;
+    else
+        return flag;
 }
 
 double MVO::ransac(const std::vector<cv::Point3f> &x, const std::vector<cv::Point3f> &y,

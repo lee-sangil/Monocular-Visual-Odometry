@@ -6,7 +6,7 @@ SET(DEBUG true)
 # Set our build type
 IF(${DEBUG})
   SET(CMAKE_BUILD_TYPE DEBUG)
-  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -pg -O2")
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -pg -O0")
 ELSE()
   SET(CMAKE_BUILD_TYPE RELEASE)
   SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2 -fomit-frame-pointer -flto -fopenmp")
