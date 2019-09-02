@@ -30,7 +30,7 @@ void MVO::plot(){
 
 	// feature points
 	for( int i = 0; i < this->nFeature; i++ ){
-		if( this->features[i].is_3D_reconstructed )
+		if( this->features[i].is_3D_init )
 			cv::circle(traj, cv::Point(300 + this->params.plotScale * this->features[i].point(0), 300 - this->params.plotScale * this->features[i].point(2)), 1, cv::Scalar(255,255,255), CV_FILLED);
 	}
 

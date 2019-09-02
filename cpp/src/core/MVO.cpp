@@ -150,12 +150,12 @@ void MVO::run(const cv::Mat image){
     success.push_back(this->calculate_motion());       // Extract rotational and translational from fundamental matrix
 
     std::cerr << "============ Iteration: " << this->step << " ============" << std::endl;
-    if( std::all_of(success.begin(), success.end(), [](bool b){return b;}) )
-        this->backup();
-    else if( this->scale_initialized )
-        this->reload();
+    // if( std::all_of(success.begin(), success.end(), [](bool b){return b;}) )
+    //     this->backup();
+    // else if( this->scale_initialized )
+    //     this->reload();
 
-    std::cerr << '[' << this->features[4].uv[0].x << ", " << this->features[4].uv[0].y << "] -> [" << this->features[4].uv.back().x << ", " << this->features[4].uv.back().y << ']' << std::endl;
+    // std::cerr << '[' << this->features[4].uv[0].x << ", " << this->features[4].uv[0].y << "] -> [" << this->features[4].uv.back().x << ", " << this->features[4].uv.back().y << ']' << std::endl;
     this->step++;
 }
 

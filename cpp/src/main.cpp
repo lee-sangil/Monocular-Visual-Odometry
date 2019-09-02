@@ -5,7 +5,6 @@
 #include "core/time.hpp"
 
 int main(int argc, char * argv[]){
-	
 	Parser::init(argc, argv);
     if(!Parser::hasOption("-i")){
 		std::cout << "Error, invalid arguments.\n\n"
@@ -46,12 +45,11 @@ int main(int argc, char * argv[]){
 	 *  Read dataset
 	 **************************************************************************/
 	std::cout << "# inputFile: " << inputFile << std::endl;
-	int initFrame;
+	int initFrame = 0;
 	if( Parser::hasOption("-fi") ){
 		std::string initFrame_str = Parser::getOption("-fi");
 		initFrame = std::stoi(initFrame_str);
 	}
-	
 	if( initFrame < 0 ){
 		std::cerr << "Init frame should not be smaller than zero" << std::endl;
 		return 1;
