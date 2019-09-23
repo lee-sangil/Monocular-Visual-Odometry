@@ -1,18 +1,21 @@
 #include "core/MVO.hpp"
 #include "core/utils.hpp"
 #include "core/numerics.hpp"
-
+#include "core/time.hpp"
 uint32_t Feature::new_feature_id = 0;
 
 bool MVO::extract_features(){
     // Update features using KLT tracker
     if( this->update_features() ){
-        
+        std::cerr << "# Update features: " << lsi::toc() << std::endl;
+
         // Delete features which is failed to track by KLT tracker
         this->delete_dead_features();
+        std::cerr << "# Delete features: " << lsi::toc() << std::endl;
         
         // Add features to the number of the lost features
         this->add_features();
+        std::cerr << "# Add features: " << lsi::toc() << std::endl;
         
         return true;
     }
@@ -21,37 +24,35 @@ bool MVO::extract_features(){
 }
 
 bool MVO::update_features(){
-    
-    std::vector<Feature> _features = this->features;
 
     if( this->nFeature ){
         // Track the points
         std::vector<cv::Point2f> points;
         std::vector<bool> validity;
         this->klt_tracker(points, validity);
-        
+        std::cerr << "## KLT tracker: " << lsi::toc() << std::endl;
+
         for( int i = 0; i < this->nFeature; i++ ){
-            if( validity[i] & (_features[i].life > 0) ){
-                _features[i].life++;
-                _features[i].uv.push_back(points[i]);
-                _features[i].is_matched = true;
+            if( validity[i] & (this->features[i].life > 0) ){
+                this->features[i].life++;
+                this->features[i].uv.push_back(points[i]);
+                this->features[i].is_matched = true;
                 
-                if( cv::norm(_features[i].uv.front() - _features[i].uv.back()) > this->params.min_px_dist ){
-                    _features[i].is_wide = true;
+                if( cv::norm(this->features[i].uv.front() - this->features[i].uv.back()) > this->params.min_px_dist ){
+                    this->features[i].is_wide = true;
                 }else{
-                    _features[i].is_wide = false;
+                    this->features[i].is_wide = false;
                 }
                 this->nFeatureMatched++;
 
             }else
-                _features[i].life = 0;
+                this->features[i].life = 0;
         }
 
         if( this->nFeatureMatched < this->params.thInlier ){
             std::cerr << "There are a few FEATURE MATCHES" << std::endl;
             return false;
         }else{
-            this->features = _features;
             return true;
         }
     }else
@@ -59,21 +60,35 @@ bool MVO::update_features(){
 }
 
 void MVO::klt_tracker(std::vector<cv::Point2f>& fwd_pts, std::vector<bool>& validity){
-    std::vector<cv::Point2f> pts;
+    std::vector<cv::Point2f> pts, bwd_pts;
+    pts.reserve(this->nFeature);
+    bwd_pts.reserve(this->nFeature);
     for( int i = 0; i < this->nFeature; i++ ){
         pts.push_back(this->features[i].uv.back());
     }
     
     // Forward-backward error evaluation
-    std::vector<cv::Point2f> bwd_pts;
-    std::vector<cv::Mat> prevPyr, currPyr;
+    std::vector<cv::Mat>& prevPyr = this->prevPyramidTemplate;
+    std::vector<cv::Mat>& currPyr = this->currPyramidTemplate;
+    prevPyr.clear();
+    currPyr.clear();
+    std::cerr << "### Prepare variables: " << lsi::toc() << std::endl;
+
     cv::Mat status, err;
-    cv::buildOpticalFlowPyramid(this->prev_image, prevPyr, cv::Size(21,21), 4, true);
-    cv::buildOpticalFlowPyramid(this->cur_image, currPyr, cv::Size(21,21), 4, true);
-    cv::calcOpticalFlowPyrLK(prevPyr, currPyr, pts, fwd_pts, status, err);
-    cv::calcOpticalFlowPyrLK(currPyr, prevPyr, fwd_pts, bwd_pts, status, err);
+    // cv::buildOpticalFlowPyramid(this->prev_image, prevPyr, cv::Size(21,21), 4, true);
+    // cv::buildOpticalFlowPyramid(this->cur_image, currPyr, cv::Size(21,21), 4, true);
+    // std::cerr << "### Build pyramids: " << lsi::toc() << std::endl;
+
+    // cv::calcOpticalFlowPyrLK(prevPyr, currPyr, pts, fwd_pts, status, err);
+    // cv::calcOpticalFlowPyrLK(currPyr, prevPyr, fwd_pts, bwd_pts, status, err);
+    // std::cerr << "### Calculate optical flows: " << lsi::toc() << std::endl;
     
+    cv::calcOpticalFlowPyrLK(prevPyr, currPyr, pts, fwd_pts, status, err, cv::Size(21,21), 4);
+    cv::calcOpticalFlowPyrLK(currPyr, prevPyr, fwd_pts, bwd_pts, status, err, cv::Size(21,21), 4);
+    std::cerr << "### Calculate optical flows with build: " << lsi::toc() << std::endl;
+
     // Calculate bi-directional error( = validity ): validity = ~border_invalid & error_valid
+    validity.reserve(this->nFeature);
     for( int i = 0; i < this->nFeature; i++ ){
         bool border_invalid = (fwd_pts[i].x < 0) | (fwd_pts[i].x > this->params.imSize.width) | (fwd_pts[i].y < 0) | (fwd_pts[i].y > this->params.imSize.height);
         bool error_valid = cv::norm(pts[i] - bwd_pts[i]) < std::min( cv::norm(pts[i] - fwd_pts[i])/5.0, 2.0);
@@ -94,14 +109,16 @@ void MVO::delete_dead_features(){
 
 void MVO::add_features(){
     this->update_bucket();
+    std::cerr << "## Update bucket: " << lsi::toc() << std::endl;
     while( this->nFeature < this->bucket.max_features )
         this->add_feature();
 }
 
 void MVO::update_bucket(){
     this->bucket.mass.fill(0.0);
+    cv::Point2f uv;
     for( int i = 0; i < this->nFeature; i++ ){
-        cv::Point2f uv = this->features[i].uv.back();
+        uv = this->features[i].uv.back();
         uint32_t row_bucket = std::ceil(uv.x / this->params.imSize.width * this->bucket.grid.width);
         uint32_t col_bucket = std::ceil(uv.y / this->params.imSize.height * this->bucket.grid.height);
         this->features[i].bucket = cv::Size(row_bucket, col_bucket);
@@ -125,7 +142,9 @@ void MVO::add_feature(){
     roi.height = std::min(this->params.imSize.height-bkSafety, (uint32_t)roi.y+roi.height)-roi.y;
 
     // Seek index of which feature is extracted specific bucket
-    std::vector<uint32_t> idxBelongToBucket;
+    std::vector<uint32_t>& idxBelongToBucket = this->idxTemplate;
+    idxBelongToBucket.clear();
+
     for( int l = 0; l < this->nFeature; l++ ){
         for( int ii = std::max(i-1,0); ii < std::min(i+1,this->bucket.grid.width); ii++){
             for( int jj = std::max(j-1,0); jj < std::min(j+1,this->bucket.grid.height); jj++){
@@ -139,15 +158,17 @@ void MVO::add_feature(){
     
     // Try to find a seperate feature
     double filterSize = 5.0;
+    cv::Mat crop_image;
+    std::vector<cv::Point2f> keypoints;
+    cv::Mat bucketMass, bucketMassBlur;
 
     while( true ){
 
         if( filterSize < 3.0 )
             return;
 
-        cv::Mat crop_image = this->cur_image(roi);
-        std::vector<cv::Point2f> keypoints;
-        cv::goodFeaturesToTrack(crop_image, keypoints, 1000, 0.01, 2.0, cv::Mat(), 3, true);
+        crop_image = this->cur_image(roi);
+        cv::goodFeaturesToTrack(crop_image, keypoints, 1000, 0.01, 2.0, cv::noArray(), 3, true);
         
         if( keypoints.size() == 0 )
             return;
@@ -178,7 +199,7 @@ void MVO::add_feature(){
                 }
             }
             if( success ){
-                if( minDist > maxMinDist){
+                if( minDist >= maxMinDist){
                     maxMinDist = minDist;
                     bestKeypoint = keypoints[l];
                 }
@@ -211,7 +232,6 @@ void MVO::add_feature(){
             // Update bucket
             this->bucket.mass(i, j)++;
 
-            cv::Mat bucketMass, bucketMassBlur;
             cv::eigen2cv(this->bucket.mass, bucketMass);
             cv::GaussianBlur(bucketMass, bucketMassBlur, cv::Size(21,21), 3.0);
             cv::cv2eigen(bucketMassBlur, this->bucket.prob);
@@ -239,7 +259,9 @@ bool MVO::calculate_essential()
     // Extract homogeneous 2D point which is matched with corresponding feature
     // TODO: define of find function
 
-    std::vector<int> idx;
+    std::vector<uint32_t>& idx = this->idxTemplate;
+    idx.clear();
+
     for (uint32_t i = 0; i < this->features.size(); i++)
     {
         if (this->features[i].is_matched)
@@ -250,6 +272,8 @@ bool MVO::calculate_essential()
 
     std::vector<cv::Point2f> points1;
     std::vector<cv::Point2f> points2;
+    points1.reserve(nInlier);
+    points2.reserve(nInlier);
 
     // initialize the points here ... */
     int len;
@@ -261,30 +285,52 @@ bool MVO::calculate_essential()
     }
 
     cv::Mat inlier_mat;
-    cv::Mat E;
-    Eigen::Matrix3d E_, U, V;
-    E = cv::findEssentialMat(points1, points2, focal, principle_point, cv::RANSAC, 0.999, 0.1, inlier_mat);
-    
-    cv::cv2eigen(E, E_);
-    Eigen::JacobiSVD<Eigen::MatrixXd> svd(E_, Eigen::ComputeThinU | Eigen::ComputeThinV);
-    U = svd.matrixU();
-    V = svd.matrixV();
+    this->essentialMat = cv::findEssentialMat(points1, points2, focal, principle_point, cv::RANSAC, 0.99, 1, inlier_mat);
+    std::cerr << "# Calculate essential: " << lsi::toc() << std::endl;
 
-    if (U.determinant() < 0)
-        U.block(0, 2, 3, 1) = -U.block(0, 2, 3, 1);
-    if (V.determinant() < 0)
-        V.block(0, 2, 3, 1) = -V.block(0, 2, 3, 1);
+    // cv::cv2eigen(E, E_);
+    // switch( this->params.SVDMethod){
+    //     case MVO::SVD::JACOBI:{
+    //         Eigen::JacobiSVD<Eigen::MatrixXd> svd(E_, Eigen::ComputeThinU | Eigen::ComputeThinV);
+    //         U = svd.matrixU();
+    //         V = svd.matrixV();
+    //         break;
+    //     }
+    //     case MVO::SVD::BDC:{
+    //         Eigen::BDCSVD<Eigen::MatrixXd> svd(E_, Eigen::ComputeThinU | Eigen::ComputeThinV);
+    //         U = svd.matrixU();
+    //         V = svd.matrixV();
+    //         break;
+    //     }
+    //     case MVO::SVD::OpenCV:{
+    //         cv::Mat Vt, U_, W;
+    //         cv::SVD::compute(E, W, U_, Vt);
 
-    this->R_vec.clear();
-    this->t_vec.clear();
-    this->R_vec.push_back(U * W * V.transpose());
-    this->R_vec.push_back(U * W * V.transpose());
-    this->R_vec.push_back(U * W.transpose() * V.transpose());
-    this->R_vec.push_back(U * W.transpose() * V.transpose());
-    this->t_vec.push_back(U.block(0, 2, 3, 1));
-    this->t_vec.push_back(-U.block(0, 2, 3, 1));
-    this->t_vec.push_back(U.block(0, 2, 3, 1));
-    this->t_vec.push_back(-U.block(0, 2, 3, 1));
+    //         Eigen::MatrixXd Vt_;
+    //         cv::cv2eigen(Vt, Vt_);
+    //         V = Vt_.transpose();
+    //         cv::cv2eigen(U_, U);
+    //         break;
+    //     }
+    // }
+
+    // if (U.determinant() < 0)
+    //     U.block(0, 2, 3, 1) = -U.block(0, 2, 3, 1);
+    // if (V.determinant() < 0)
+    //     V.block(0, 2, 3, 1) = -V.block(0, 2, 3, 1);
+
+    // this->R_vec.clear();
+    // this->t_vec.clear();
+    // this->R_vec.push_back(U * W * V.transpose());
+    // this->R_vec.push_back(U * W * V.transpose());
+    // this->R_vec.push_back(U * W.transpose() * V.transpose());
+    // this->R_vec.push_back(U * W.transpose() * V.transpose());
+    // this->t_vec.push_back(U.block(0, 2, 3, 1));
+    // this->t_vec.push_back(-U.block(0, 2, 3, 1));
+    // this->t_vec.push_back(U.block(0, 2, 3, 1));
+    // this->t_vec.push_back(-U.block(0, 2, 3, 1));
+
+    std::cerr << "# Extract R, t: " << lsi::toc() << std::endl;
 
     uint32_t inlier_cnt = 0;
     for (int i = 0; i < inlier_mat.rows; i++)

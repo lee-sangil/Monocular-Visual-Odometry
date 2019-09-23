@@ -12,6 +12,7 @@ int main(int argc, char * argv[]){
 				"\tOptional -c: Camera setting .yaml file (default: /path/to/input_directory/camera.yaml).\n"
 				"\tOptional -o: Output directory (default path: ./CamTrajectory.txt).\n"
 				"\tOptional -fi: initial frame (default: 0).\n"
+				"\tOptional -fl: length frame (default: eof).\n"
 				"Example: [./divo_dataset -c /path/to/setting.yaml -i /path/to/input_folder/ -o /path/to/output_folder/]" << std::endl;
         return 1;
     }
@@ -47,8 +48,7 @@ int main(int argc, char * argv[]){
 	std::cout << "# inputFile: " << inputFile << std::endl;
 	int initFrame = 0;
 	if( Parser::hasOption("-fi") ){
-		std::string initFrame_str = Parser::getOption("-fi");
-		initFrame = std::stoi(initFrame_str);
+		initFrame = Parser::getIntOption("-fi");
 	}
 	if( initFrame < 0 ){
 		std::cerr << "Init frame should not be smaller than zero" << std::endl;
@@ -89,10 +89,16 @@ int main(int argc, char * argv[]){
 	std::string dirRgb;
 	cv::Mat image;
 	bool bRun = true;
-	int length = sensorID.size();
+	int length;
+
+	if( Parser::hasOption("-fl") ){
+		length = Parser::getIntOption("-fl");
+	}else{
+		length = sensorID.size();
+	}
 	
 	int it_imu = 0, it_rgb = 0;
-	for( int it = 0; it < 10 && bRun; it++ ){
+	for( int it = 0; it < length && bRun; it++ ){
 
 		switch (sensorID[it]) {
 			case 1:
@@ -128,7 +134,6 @@ int main(int argc, char * argv[]){
 	}
 
 	if( statusLogger.is_open() ) statusLogger.close();
-	image.release();
 
 	std::cout << "All done." << std::endl;
 	cv::waitKey(0);

@@ -57,7 +57,7 @@ class MVO{
 	MVO(std::string yaml);
 	
 	// Set image
-	void set_image(const cv::Mat image);
+	void set_image(cv::Mat& image);
 
 	// Get feature 
 	ptsROI_t get_points();
@@ -66,7 +66,7 @@ class MVO{
 	void backup();
 	void reload();
 	void refresh();
-	void run(const cv::Mat image);
+	void run(cv::Mat& image);
 	void plot();
 
 	// Feature operations
@@ -104,8 +104,8 @@ class MVO{
 				std::vector<bool>& inlier, std::vector<bool>& outlier);
 	static double calculate_scale(const std::vector<cv::Point3f>& pt1, const std::vector<cv::Point3f>& pt2);
 	static std::vector<double> calculate_scale_error(double scale, const std::vector<cv::Point3f>& pt1, const std::vector<cv::Point3f>& pt2);
-	static std::vector<int> randperm(unsigned int ptNum, int minPtNum);
-	static std::vector<int> randweightedpick(const std::vector<double>& h, int n = 1);
+	static std::vector<uint32_t> randperm(unsigned int ptNum, int minPtNum);
+	static std::vector<uint32_t> randweightedpick(const std::vector<double>& h, int n = 1);
 	
 	private:
 
@@ -128,11 +128,18 @@ class MVO{
 	int nFeature3DReconstructed;
 	int nFeatureInlier;
 
+	cv::Mat Identity3x3;
+	cv::Mat essentialMat;
 	std::vector<Eigen::Matrix3d> R_vec;
 	std::vector<Eigen::Vector3d> t_vec;
 	std::vector<Eigen::Matrix4d> TRec;
 	std::vector<Eigen::Matrix4d> TocRec;
 	std::vector<Eigen::Vector4d> PocRec;
+
+	std::vector<uint32_t> idxTemplate;
+	std::vector<bool> inlierTemplate;
+	std::vector<cv::Mat> prevPyramidTemplate, currPyramidTemplate;
+	Eigen::MatrixXd MapMatrixTemplate;
 
 	Parameter params;
 };

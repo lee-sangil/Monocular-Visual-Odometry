@@ -1,6 +1,7 @@
 #include "core/MVO.hpp"
 #include "core/utils.hpp"
 #include "core/numerics.hpp"
+#include "core/time.hpp"
 
 MVO::MVO(){
     this->step = 0;
@@ -19,6 +20,15 @@ MVO::MVO(){
     this->TocRec.push_back(Eigen::Matrix4d::Identity());
     this->PocRec.push_back(Eigen::Vector4d::Zero());
     this->PocRec[0](3) = 1;
+
+    this->R_vec.reserve(4);
+	this->t_vec.reserve(4);
+
+    this->Identity3x3.create(3,3,CV_32FC1);
+    this->Identity3x3.setTo(0);
+    this->Identity3x3.at<float>(0,0) = 1;
+    this->Identity3x3.at<float>(1,1) = 1;
+    this->Identity3x3.at<float>(2,2) = 1;
 }
 
 MVO::MVO(std::string yaml):MVO(){
@@ -98,7 +108,13 @@ MVO::MVO(std::string yaml):MVO(){
 	this->bucket.size = cv::Size(this->params.imSize.width/this->bucket.grid.width, this->params.imSize.height/this->bucket.grid.height);
 	this->bucket.mass.setZero(this->bucket.grid.width,this->bucket.grid.height);
 	this->bucket.prob.setZero(this->bucket.grid.width,this->bucket.grid.height);
-    
+
+    this->features.reserve(this->bucket.max_features);
+    this->features_backup.reserve(this->bucket.max_features);
+    this->idxTemplate.reserve(this->bucket.max_features);
+    this->inlierTemplate.reserve(this->bucket.max_features);
+    this->prevPyramidTemplate.reserve(10);
+    this->currPyramidTemplate.reserve(10);
 }
 
 void MVO::refresh(){
@@ -129,7 +145,7 @@ void MVO::reload(){
     this->PocRec.push_back(this->PocRec.back());
 }
 
-void MVO::set_image(const cv::Mat image){
+void MVO::set_image(cv::Mat& image){
 	this->prev_image = this->cur_image.clone();
     
     cv::Mat cur_image;
@@ -138,18 +154,23 @@ void MVO::set_image(const cv::Mat image){
         cvClahe->apply(cur_image, this->cur_image);
     else
         this->cur_image = cur_image.clone();
+    
+    cur_image.release();
 }
 
-void MVO::run(const cv::Mat image){
+void MVO::run(cv::Mat& image){
+    std::cerr << "============ Iteration: " << this->step << " ============" << std::endl;
+
     this->set_image(image);
+    std::cerr << "# Grab image: " << lsi::toc() << std::endl;
     this->refresh();
 
     std::vector<bool> success;
+    success.reserve(3);
     success.push_back(this->extract_features());       // Extract and update features
     success.push_back(this->calculate_essential());    // RANSAC for calculating essential/fundamental matrix
     success.push_back(this->calculate_motion());       // Extract rotational and translational from fundamental matrix
 
-    std::cerr << "============ Iteration: " << this->step << " ============" << std::endl;
     if( !std::all_of(success.begin(), success.end(), [](bool b){return b;}) )
         this->scale_initialized = false;
     //     this->backup();
