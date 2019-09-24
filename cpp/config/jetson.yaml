@@ -103,8 +103,8 @@ Scale.height: 1.5
 # Min. Reprojection error
 Scale.error: 1.0
 
-# SVD Methods: Jacobi(0), BDC(1: recommended), OpenCV(2)
-SVD.Method: 1
+# SVD Methods: Jacobi(0), BDC(1: recommended), OpenCV(2), Eigen(3)
+SVD.Method: 3
 
 #--------------------------------------------------------------------------------------------
 # Display Parameters (tunable).

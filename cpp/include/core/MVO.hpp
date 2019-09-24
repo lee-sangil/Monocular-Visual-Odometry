@@ -11,7 +11,8 @@ class MVO{
 	enum SVD{
 		JACOBI,
 		BDC,
-		OpenCV
+		OpenCV,
+		Eigen
 	};
 	
 	struct RansacCoef{
@@ -81,6 +82,7 @@ class MVO{
 	// Calculations
 	bool calculate_essential();
 	bool calculate_motion();
+	bool verify_solutions(Eigen::Matrix3d& R, Eigen::Vector3d& t);
 	bool verify_solutions(std::vector<Eigen::Matrix3d>& R_vec, std::vector<Eigen::Vector3d>& t_vec,
 						  Eigen::Matrix3d& R, Eigen::Vector3d& t);
 	bool scale_propagation(Eigen::Matrix3d& R, Eigen::Vector3d& t,

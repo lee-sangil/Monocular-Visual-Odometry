@@ -10,7 +10,7 @@
 			"request": "launch",
 			"program": "/home/icsl/Documents/Monocular-Visual-Odometry/cpp/build/main",
 			// "args": ["-i", "/home/icsl/Downloads/hyundai_1/", "-c", "/home/icsl/Documents/Monocular-Visual-Odometry/cpp/config/jetson.yaml"],
-			"args": ["-i", "/home/icsl/Downloads/data_outdoor_1_crop/"],
+			"args": ["-i", "/home/icsl/Downloads/data_outdoor_1_crop/", "-c", "/home/icsl/Documents/Monocular-Visual-Odometry/cpp/config/jetson.yaml"],
 			"stopAtEntry": false,
 			"cwd": "${workspaceFolder}/cpp/build/",
 			"environment": [],

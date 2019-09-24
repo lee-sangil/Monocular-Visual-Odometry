@@ -18,12 +18,26 @@ bool MVO::calculate_motion()
     cv::decomposeEssentialMat(this->essentialMat, R_cv_1, R_cv_2, t_cv);
     std::cerr << "# Verify unique pose: " << lsi::toc() << std::endl;
 
-    if( cv::norm(R_cv_1) - cv::norm(this->Identity3x3) < cv::norm(R_cv_2) - cv::norm(this->Identity3x3) )
-        cv::cv2eigen(R_cv_1, R_);
+    // std::cout << R_cv_1 << std::endl;
+    // std::cout << R_cv_2 << std::endl;
+
+    Eigen::Matrix3d Identity = Eigen::Matrix3d::Identity();
+    Eigen::Matrix3d R_cv_1_, R_cv_2_;
+    cv::cv2eigen(R_cv_1, R_cv_1_);
+    cv::cv2eigen(R_cv_2, R_cv_2_);
+
+    R_cv_1_.transposeInPlace();
+    R_cv_2_.transposeInPlace();
+
+    if( (R_cv_1_ - Identity).norm() < (R_cv_2_ - Identity).norm() )
+        R_ = R_cv_1_;
     else
-        cv::cv2eigen(R_cv_2, R_);
-        
-    cv::cv2eigen(t_cv, t_);
+        R_ = R_cv_2_;
+    
+    cv::cv2eigen(-t_cv, t_);
+
+    this->verify_solutions(R_, t_);
+    std::cerr << "# Verify unique pose: " << lsi::toc() << std::endl;
 
     if (this->findPoseFrom3DPoints(R, t, idxInlier, idxOutlier)){
         std::cerr << "# Find pose from PnP: " << lsi::toc() << std::endl;    
@@ -154,8 +168,79 @@ bool MVO::verify_solutions(std::vector<Eigen::Matrix3d>& R_vec, std::vector<Eige
 
 	return success;
 }
+
+bool MVO::verify_solutions(Eigen::Matrix3d& R, Eigen::Vector3d& t){
+    
+	bool success;
+
+	// Extract homogeneous 2D point which is inliered with essential constraint
+	std::vector<int> idx_2DInlier;
+	for( int i = 0; i < this->nFeature; i++ ){
+		if( this->features[i].is_2D_inliered )
+			idx_2DInlier.push_back(i);
+	}
+
+	std::vector<cv::Point2f> uv_prev, uv_curr;
+	std::vector<Eigen::Vector3d> x_prev, x_curr;
+
+    int len;
+	cv::Point2f uv_prev_i, uv_curr_i;
+    for (uint32_t i = 0; i < idx_2DInlier.size(); i++){
+		len = this->features[idx_2DInlier[i]].uv.size();
+		uv_prev_i = this->features[idx_2DInlier[i]].uv[len-2];
+		uv_curr_i = this->features[idx_2DInlier[i]].uv.back();
+        uv_prev.push_back(uv_prev_i); // second to latest
+        uv_curr.push_back(uv_curr_i); // latest
+
+        x_prev.emplace_back((uv_prev_i.x - this->params.cx)/this->params.fx, (uv_prev_i.y - this->params.cy)/this->params.fy, 1);
+		x_curr.emplace_back((uv_curr_i.x - this->params.cx)/this->params.fx, (uv_curr_i.y - this->params.cy)/this->params.fy, 1);
+    }
+
+	// Find reasonable rotation and translational vector
+	std::vector<Eigen::Vector4d> point_curr;
+    
+    std::vector<Eigen::Vector3d> X_prev, X_curr;
+    std::vector<double> lambda_prev, lambda_curr;
+    this->constructDepth(x_prev, x_curr, R, t, X_prev, X_curr,  lambda_prev, lambda_curr);
+
+    std::vector<bool> inlier;
+    int nInlier = 0;
+    for( uint32_t i = 0; i < lambda_prev.size(); i++ ){
+        if( lambda_curr[i] > 0 && lambda_prev[i] > 0 ){
+            inlier.push_back(true);
+            nInlier++;
+        }else
+            inlier.push_back(false);
+    }
+
+    point_curr.clear();
+    for( int i = 0; i < nInlier; i++ ){
+        if( inlier[i] ){
+            Eigen::Vector4d point_curr_i;
+            point_curr_i << X_curr[i], 1;
+            point_curr.push_back(point_curr_i);
+        }
+    }
+
+	// Store 3D characteristics in features
+	if( nInlier < this->nFeature2DInliered*0.5 )
+		success = false;
+	else{
+		for( int i = 0; i < this->nFeature2DInliered; i++ ){
+			if( inlier[idx_2DInlier[i]] ){
+				this->features[idx_2DInlier[i]].point = point_curr[i];
+				this->features[idx_2DInlier[i]].is_3D_reconstructed = true;
+			}
+			this->nFeature3DReconstructed++;
+		}
+		success = true;
+	}
+
+	return success;
+}
+
 bool MVO::findPoseFrom3DPoints(Eigen::Matrix3d &R, Eigen::Vector3d &t, std::vector<int>& idxInlier, std::vector<int>& idxOutlier)
-{
+{    
     // Seek index of which feature is 3D reconstructed currently,
     // and 3D initialized previously
 	bool flag;
@@ -262,6 +347,12 @@ void MVO::constructDepth(const std::vector<Eigen::Vector3d> x_prev, const std::v
             Eigen::MatrixXd Vt_;
             cv::cv2eigen(Vt, Vt_);
             V = Vt_.transpose();
+            break;
+        }
+        case MVO::SVD::Eigen:{
+            Eigen::EigenSolver<Eigen::Matrix3d> eig(MtM_,true);
+            V = eig.eigenvectors().real();
+
             break;
         }
     }

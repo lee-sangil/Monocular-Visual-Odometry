@@ -75,17 +75,17 @@ void MVO::klt_tracker(std::vector<cv::Point2f>& fwd_pts, std::vector<bool>& vali
     std::cerr << "### Prepare variables: " << lsi::toc() << std::endl;
 
     cv::Mat status, err;
-    // cv::buildOpticalFlowPyramid(this->prev_image, prevPyr, cv::Size(21,21), 4, true);
-    // cv::buildOpticalFlowPyramid(this->cur_image, currPyr, cv::Size(21,21), 4, true);
-    // std::cerr << "### Build pyramids: " << lsi::toc() << std::endl;
+    cv::buildOpticalFlowPyramid(this->prev_image, prevPyr, cv::Size(21,21), 4, true);
+    cv::buildOpticalFlowPyramid(this->cur_image, currPyr, cv::Size(21,21), 4, true);
+    std::cerr << "### Build pyramids: " << lsi::toc() << std::endl;
 
-    // cv::calcOpticalFlowPyrLK(prevPyr, currPyr, pts, fwd_pts, status, err);
-    // cv::calcOpticalFlowPyrLK(currPyr, prevPyr, fwd_pts, bwd_pts, status, err);
-    // std::cerr << "### Calculate optical flows: " << lsi::toc() << std::endl;
+    cv::calcOpticalFlowPyrLK(prevPyr, currPyr, pts, fwd_pts, status, err);
+    cv::calcOpticalFlowPyrLK(currPyr, prevPyr, fwd_pts, bwd_pts, status, err);
+    std::cerr << "### Calculate optical flows: " << lsi::toc() << std::endl;
     
-    cv::calcOpticalFlowPyrLK(prevPyr, currPyr, pts, fwd_pts, status, err, cv::Size(21,21), 4);
-    cv::calcOpticalFlowPyrLK(currPyr, prevPyr, fwd_pts, bwd_pts, status, err, cv::Size(21,21), 4);
-    std::cerr << "### Calculate optical flows with build: " << lsi::toc() << std::endl;
+    // cv::calcOpticalFlowPyrLK(prevPyr, currPyr, pts, fwd_pts, status, err, cv::Size(21,21), 4);
+    // cv::calcOpticalFlowPyrLK(currPyr, prevPyr, fwd_pts, bwd_pts, status, err, cv::Size(21,21), 4);
+    // std::cerr << "### Calculate optical flows with build: " << lsi::toc() << std::endl;
 
     // Calculate bi-directional error( = validity ): validity = ~border_invalid & error_valid
     validity.reserve(this->nFeature);

@@ -92,9 +92,13 @@ MVO::MVO(std::string yaml):MVO(){
             this->params.SVDMethod = MVO::SVD::BDC;
             break;
         case 2:
-        default:
             this->params.SVDMethod = MVO::SVD::OpenCV;
             break;
+        case 3:
+            this->params.SVDMethod = MVO::SVD::Eigen;
+            break;
+        default:
+            abort();    
     }
 
     // Bucket
