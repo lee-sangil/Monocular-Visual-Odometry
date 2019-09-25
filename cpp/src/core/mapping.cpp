@@ -327,6 +327,7 @@ void MVO::constructDepth(const std::vector<Eigen::Vector3d> x_prev, const std::v
     std::cerr << "## Construct MtM: " << lsi::toc() << std::endl;
 
     Eigen::MatrixXd V;
+    int idxMinEigen = nPoints;
     switch( this->params.SVDMethod){
         case MVO::SVD::JACOBI:{
             Eigen::JacobiSVD<Eigen::MatrixXd> svd(MtM_, Eigen::ComputeThinU | Eigen::ComputeThinV);
@@ -350,16 +351,19 @@ void MVO::constructDepth(const std::vector<Eigen::Vector3d> x_prev, const std::v
             break;
         }
         case MVO::SVD::Eigen:{
-            Eigen::EigenSolver<Eigen::Matrix3d> eig(MtM_,true);
+            Eigen::EigenSolver<Eigen::MatrixXd> eig(MtM_,true);
+            Eigen::VectorXd D = eig.eigenvalues().real();
             V = eig.eigenvectors().real();
+
+            D.minCoeff(&idxMinEigen);
 
             break;
         }
     }
-    std::cerr << "## SVD: " << lsi::toc() << std::endl;
+    std::cerr << "## Compute eigenvector: " << lsi::toc() << std::endl;
 
     for (int i = 0; i < nPoints; i++){
-        lambda_prev.push_back( V(i,nPoints) / V(nPoints,nPoints) );
+        lambda_prev.push_back( V(i,idxMinEigen) / V(nPoints,idxMinEigen) );
         X_prev.push_back( lambda_prev.back() * x_prev[i] );
         X_curr.push_back( R*X_prev.back() + t );
         lambda_curr.push_back( X_curr.back()(2) );
