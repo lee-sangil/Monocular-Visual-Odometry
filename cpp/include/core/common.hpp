@@ -47,6 +47,7 @@ typedef struct Bucket{
 	cv::Size size;
 	Eigen::MatrixXd mass;
 	Eigen::MatrixXd prob;
+	Eigen::MatrixXd saturated;
 }Bucket;
 
 typedef struct Feature{

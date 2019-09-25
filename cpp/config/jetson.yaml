@@ -75,8 +75,8 @@ Feature.min_px_dist: 7
 Bucket.safety: 20
 
 # Bucket size
-Bucket.rows: 16
-Bucket.cols: 8
+Bucket.rows: 4 #16
+Bucket.cols: 3 #8
 
 #--------------------------------------------------------------------------------------------
 # Reconstruction Parameters (tunable).

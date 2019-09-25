@@ -5,7 +5,7 @@
 
 namespace lsi{
 	double rand();
-	void idx_randselect(Eigen::MatrixXd weight, int& i, int& j);
+	void idx_randselect(Eigen::MatrixXd weight, Eigen::MatrixXd& mask, int& i, int& j);
 }
 
 #endif //__UTILS_HPP__

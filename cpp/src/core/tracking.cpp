@@ -97,6 +97,16 @@ void MVO::klt_tracker(std::vector<cv::Point2f>& fwd_pts, std::vector<bool>& vali
 }
 
 void MVO::delete_dead_features(){
+    this->features_temp.clear();
+    for( uint32_t i = 0; i < this->features.size(); i++){
+        if( this->features[i].life > 0 ){
+            this->features_temp.push_back(this->features[i]);
+        }
+    }
+    // this->features.swap(temp);
+    this->nFeature = this->features_temp.size();
+    std::cerr << "# Delete features with new vector: " << lsi::toc() << std::endl;
+
     for( uint32_t i = 0; i < this->features.size(); ){
         if( this->features[i].life <= 0 ){
             this->features.erase(this->features.begin()+i);
@@ -110,12 +120,13 @@ void MVO::delete_dead_features(){
 void MVO::add_features(){
     this->update_bucket();
     std::cerr << "## Update bucket: " << lsi::toc() << std::endl;
-    while( this->nFeature < this->bucket.max_features )
+    while( this->nFeature < this->bucket.max_features && this->bucket.saturated.any() == true )
         this->add_feature();
 }
 
 void MVO::update_bucket(){
     this->bucket.mass.fill(0.0);
+    this->bucket.saturated.fill(1.0);
     cv::Point2f uv;
     for( int i = 0; i < this->nFeature; i++ ){
         uv = this->features[i].uv.back();
@@ -133,9 +144,12 @@ void MVO::add_feature(){
 
     // Choose ROI based on the probabilistic approaches with the mass of bucket
     int i, j;
-    lsi::idx_randselect(this->bucket.prob, i, j);
+    lsi::idx_randselect(this->bucket.prob, this->bucket.saturated, i, j);
     cv::Rect roi = cv::Rect(i*bkSize.width+1, j*bkSize.height+1, bkSize.width, bkSize.height);
     
+    std::cout << "mask:" << std::endl << this->bucket.saturated << std::endl;
+    std::cout << "i: " << i << ", j: " << j << std::endl;
+
     roi.x = std::max(bkSafety, (uint32_t)roi.x);
     roi.y = std::max(bkSafety, (uint32_t)roi.y);
     roi.width = std::min(this->params.imSize.width-bkSafety, (uint32_t)roi.x + roi.width)-roi.x;
@@ -164,15 +178,20 @@ void MVO::add_feature(){
 
     while( true ){
 
-        if( filterSize < 3.0 )
+        if( filterSize < 3.0 ){
+            this->bucket.saturated(i,j) = 0.0;
+            std::cout << "Feature cannot be found!" << std::endl;
             return;
+        }
 
         crop_image = this->cur_image(roi);
         cv::goodFeaturesToTrack(crop_image, keypoints, 1000, 0.01, 2.0, cv::noArray(), 3, true);
         
-        if( keypoints.size() == 0 )
+        if( keypoints.size() == 0 ){
+            this->bucket.saturated(i,j) = 0.0;
+            std::cout << "Feature cannot be found!" << std::endl;
             return;
-        else{
+        }else{
             for( uint32_t l = 0; l < keypoints.size(); l++ ){
                 keypoints[l].x = keypoints[l].x + roi.x - 1;
                 keypoints[l].y = keypoints[l].y + roi.y - 1;
@@ -235,7 +254,7 @@ void MVO::add_feature(){
             cv::eigen2cv(this->bucket.mass, bucketMass);
             cv::GaussianBlur(bucketMass, bucketMassBlur, cv::Size(21,21), 3.0);
             cv::cv2eigen(bucketMassBlur, this->bucket.prob);
-
+            std::cout << "Feature is added!" << std::endl;
             return;
         }
         filterSize = filterSize - 2;

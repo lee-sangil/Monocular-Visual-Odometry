@@ -120,6 +120,7 @@ class MVO{
 
 	Bucket bucket;
 	std::vector<Feature> features;
+	std::vector<Feature> features_temp;
 	std::vector<Feature> features_backup;
 
 	bool scale_initialized;
