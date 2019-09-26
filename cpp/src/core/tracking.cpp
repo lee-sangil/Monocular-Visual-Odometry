@@ -75,8 +75,8 @@ void MVO::klt_tracker(std::vector<cv::Point2f>& fwd_pts, std::vector<bool>& vali
     std::cerr << "### Prepare variables: " << lsi::toc() << std::endl;
 
     cv::Mat status, err;
-    cv::buildOpticalFlowPyramid(this->prev_image, prevPyr, cv::Size(21,21), 4, true);
-    cv::buildOpticalFlowPyramid(this->cur_image, currPyr, cv::Size(21,21), 4, true);
+    cv::buildOpticalFlowPyramid(this->prev_image, prevPyr, cv::Size(21,21), 3, true);
+    cv::buildOpticalFlowPyramid(this->cur_image, currPyr, cv::Size(21,21), 3, true);
     std::cerr << "### Build pyramids: " << lsi::toc() << std::endl;
 
     cv::calcOpticalFlowPyrLK(prevPyr, currPyr, pts, fwd_pts, status, err);

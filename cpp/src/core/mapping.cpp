@@ -351,11 +351,13 @@ void MVO::constructDepth(const std::vector<Eigen::Vector3d> x_prev, const std::v
             break;
         }
         case MVO::SVD::Eigen:{
-            Eigen::EigenSolver<Eigen::MatrixXd> eig(MtM_,true);
-            Eigen::VectorXd D = eig.eigenvalues().real();
+            Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> eig(MtM_, Eigen::ComputeEigenvectors);
+            // Eigen::VectorXd D = eig.eigenvalues().real();
             V = eig.eigenvectors().real();
+            idxMinEigen = 0;
 
-            D.minCoeff(&idxMinEigen);
+            // std::cout << D.transpose() << std::endl;
+            // D.minCoeff(&idxMinEigen);
 
             break;
         }
