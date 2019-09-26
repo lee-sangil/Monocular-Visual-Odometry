@@ -12,7 +12,8 @@ void lsi::idx_randselect(Eigen::MatrixXd weight, Eigen::MatrixXd& mask, int& idx
 
 	// Assign high weight for ground
 	for( int i = 0; i < weight.rows(); i++ ){
-		weight.block(i,0,1,weight.cols()) *= std::pow(weight.rows(),2);
+		// weight.block(i,0,1,weight.cols()) /= std::pow(weight.rows(),2);
+		weight.block(i,0,1,weight.cols()) /= i+1;
 	}
 
     // Calculate weight
@@ -36,8 +37,8 @@ void lsi::idx_randselect(Eigen::MatrixXd weight, Eigen::MatrixXd& mask, int& idx
 	for( int i = 0; i < weightVec.size(); i++ ){
 		cumsum += weightVec(i);
 		if( rand < cumsum ){
-			idx_row = std::floor((double) i / weight.cols());
-    		idx_col = i % weight.cols();
+			idx_col = std::floor((double) i / weight.rows());
+    		idx_row = i % weight.rows();
 			return;
 		}
 	}

@@ -66,7 +66,7 @@ LiDAR.T: [-0.4822433, -0.0082169, 0.4185907]
 Feature.num: 400
 
 # Number of features matching per image 
-Feature.thInlier: 5
+Feature.thInlier: 6
 
 # Min. feature distance between
 Feature.min_px_dist: 7
@@ -75,8 +75,8 @@ Feature.min_px_dist: 7
 Bucket.safety: 20
 
 # Bucket size
-Bucket.rows: 4 #16
-Bucket.cols: 3 #8
+Bucket.rows: 16
+Bucket.cols: 8
 
 #--------------------------------------------------------------------------------------------
 # Reconstruction Parameters (tunable).

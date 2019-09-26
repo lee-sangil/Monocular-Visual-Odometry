@@ -130,9 +130,9 @@ void MVO::update_bucket(){
     cv::Point2f uv;
     for( int i = 0; i < this->nFeature; i++ ){
         uv = this->features[i].uv.back();
-        uint32_t row_bucket = std::ceil(uv.x / this->params.imSize.width * this->bucket.grid.width);
-        uint32_t col_bucket = std::ceil(uv.y / this->params.imSize.height * this->bucket.grid.height);
-        this->features[i].bucket = cv::Size(row_bucket, col_bucket);
+        uint32_t row_bucket = std::ceil(uv.y / this->params.imSize.height * this->bucket.grid.height);
+        uint32_t col_bucket = std::ceil(uv.x / this->params.imSize.width * this->bucket.grid.width);
+        this->features[i].bucket = cv::Point(row_bucket, col_bucket);
         this->bucket.mass(row_bucket-1, col_bucket-1)++;
     }
 }
@@ -143,16 +143,16 @@ void MVO::add_feature(){
     uint32_t bkSafety = this->bucket.safety;
 
     // Choose ROI based on the probabilistic approaches with the mass of bucket
-    int i, j;
-    lsi::idx_randselect(this->bucket.prob, this->bucket.saturated, i, j);
-    cv::Rect roi = cv::Rect(i*bkSize.width+1, j*bkSize.height+1, bkSize.width, bkSize.height);
+    int row, col;
+    lsi::idx_randselect(this->bucket.prob, this->bucket.saturated, row, col);
+    cv::Rect roi = cv::Rect(col*bkSize.width+1, row*bkSize.height+1, bkSize.width, bkSize.height);
     
-    std::cout << "mask:" << std::endl << this->bucket.saturated << std::endl;
-    std::cout << "i: " << i << ", j: " << j << std::endl;
+    // std::cout << "mask:" << std::endl << this->bucket.saturated << std::endl;
+    // std::cout << "row: " << row << ", col: " << col << std::endl;
 
     roi.x = std::max(bkSafety, (uint32_t)roi.x);
     roi.y = std::max(bkSafety, (uint32_t)roi.y);
-    roi.width = std::min(this->params.imSize.width-bkSafety, (uint32_t)roi.x + roi.width)-roi.x;
+    roi.width = std::min(this->params.imSize.width-bkSafety, (uint32_t)roi.x+roi.width)-roi.x;
     roi.height = std::min(this->params.imSize.height-bkSafety, (uint32_t)roi.y+roi.height)-roi.y;
 
     // Seek index of which feature is extracted specific bucket
@@ -160,8 +160,8 @@ void MVO::add_feature(){
     idxBelongToBucket.clear();
 
     for( int l = 0; l < this->nFeature; l++ ){
-        for( int ii = std::max(i-1,0); ii < std::min(i+1,this->bucket.grid.width); ii++){
-            for( int jj = std::max(j-1,0); jj < std::min(j+1,this->bucket.grid.height); jj++){
+        for( int ii = std::max(col-1,0); ii < std::min(col+1,this->bucket.grid.width); ii++){
+            for( int jj = std::max(row-1,0); jj < std::min(row+1,this->bucket.grid.height); jj++){
                 if( (this->features[l].bucket.x == ii) & (this->features[l].bucket.y == jj)){
                     idxBelongToBucket.push_back(l);
                 }
@@ -179,8 +179,8 @@ void MVO::add_feature(){
     while( true ){
 
         if( filterSize < 3.0 ){
-            this->bucket.saturated(i,j) = 0.0;
-            std::cout << "Feature cannot be found!" << std::endl;
+            this->bucket.saturated(row,col) = 0.0;
+            // std::cout << "Feature cannot be found!" << std::endl;
             return;
         }
 
@@ -188,8 +188,8 @@ void MVO::add_feature(){
         cv::goodFeaturesToTrack(crop_image, keypoints, 1000, 0.01, 2.0, cv::noArray(), 3, true);
         
         if( keypoints.size() == 0 ){
-            this->bucket.saturated(i,j) = 0.0;
-            std::cout << "Feature cannot be found!" << std::endl;
+            this->bucket.saturated(row,col) = 0.0;
+            // std::cout << "Feature cannot be found!" << std::endl;
             return;
         }else{
             for( uint32_t l = 0; l < keypoints.size(); l++ ){
@@ -218,7 +218,7 @@ void MVO::add_feature(){
                 }
             }
             if( success ){
-                if( minDist >= maxMinDist){
+                if( minDist > maxMinDist){
                     maxMinDist = minDist;
                     bestKeypoint = keypoints[l];
                 }
@@ -233,7 +233,7 @@ void MVO::add_feature(){
             newFeature.frame_init = this->step; // frame step when the feature is created
             newFeature.uv.push_back(bestKeypoint); // uv point in pixel coordinates
             newFeature.life = 1; // the number of frames in where the feature is observed
-            newFeature.bucket = cv::Point(i, j); // the location of bucket where the feature belong to
+            newFeature.bucket = cv::Point(row, col); // the location of bucket where the feature belong to
             newFeature.point.setZero(4,1); // 3-dim homogeneous point in the local coordinates
             newFeature.is_matched = false; // matched between both frame
             newFeature.is_wide = false; // verify whether features btw the initial and current are wide enough
@@ -249,12 +249,12 @@ void MVO::add_feature(){
             Feature::new_feature_id++;
 
             // Update bucket
-            this->bucket.mass(i, j)++;
+            this->bucket.mass(row, col)++;
 
             cv::eigen2cv(this->bucket.mass, bucketMass);
             cv::GaussianBlur(bucketMass, bucketMassBlur, cv::Size(21,21), 3.0);
             cv::cv2eigen(bucketMassBlur, this->bucket.prob);
-            std::cout << "Feature is added!" << std::endl;
+            // std::cout << "Feature is added!" << std::endl;
             return;
         }
         filterSize = filterSize - 2;

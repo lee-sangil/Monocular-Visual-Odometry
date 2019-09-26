@@ -110,9 +110,9 @@ MVO::MVO(std::string yaml):MVO(){
 
 	this->bucket.grid = cv::Size(bucketGridRows,bucketGridCols);
 	this->bucket.size = cv::Size(this->params.imSize.width/this->bucket.grid.width, this->params.imSize.height/this->bucket.grid.height);
-	this->bucket.mass.setZero(this->bucket.grid.width,this->bucket.grid.height);
-	this->bucket.prob.setZero(this->bucket.grid.width,this->bucket.grid.height);
-    this->bucket.saturated.setZero(this->bucket.grid.width,this->bucket.grid.height);
+	this->bucket.mass.setZero(this->bucket.grid.height, this->bucket.grid.width);
+	this->bucket.prob.setZero(this->bucket.grid.height, this->bucket.grid.width);
+    this->bucket.saturated.setZero(this->bucket.grid.height, this->bucket.grid.width);
 
     this->features.reserve(this->bucket.max_features);
     this->features_backup.reserve(this->bucket.max_features);
