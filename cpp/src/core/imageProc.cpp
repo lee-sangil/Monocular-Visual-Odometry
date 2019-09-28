@@ -22,22 +22,22 @@ void chk::getImageFile(const std::string& nameFile, std::vector<double>& timesta
 	
 	while(std::getline(file,str)){
 		if(str[0] != '#'){
-			// Dataset recorded with imbedded board
-			std::string seq = str.substr(0, str.find('\t'));
-			std::stringstream ss;
-			ss << std::setw(6) << std::setfill('0') << seq << ".jpg";
-			file_contents.push_back(ss.str());
-			
-			str.erase(0,seq.length()+1);
-			// str = str.substr(0,str.length()-1); // erase '\r'
-			timestampFile.push_back(std::stod(str));
-
-			// // Dataset provided by Hyundai MNsoft
+			// // Dataset recorded with imbedded board
 			// std::string seq = str.substr(0, str.find('\t'));
-			// timestampFile.push_back(std::stod(seq));
-
+			// std::stringstream ss;
+			// ss << std::setw(6) << std::setfill('0') << seq << ".jpg";
+			// file_contents.push_back(ss.str());
+			
 			// str.erase(0,seq.length()+1);
-			// file_contents.push_back(str);
+			// // str = str.substr(0,str.length()-1); // erase '\r'
+			// timestampFile.push_back(std::stod(str));
+
+			// Dataset provided by Hyundai MNsoft
+			std::string seq = str.substr(0, str.find(' '));
+			timestampFile.push_back(std::stod(seq));
+
+			str.erase(0,seq.length()+1);
+			file_contents.push_back(str);
 		}
 	}
 //	std::cout<<"read complete. length: "<<file_contents.size()<<std::endl;

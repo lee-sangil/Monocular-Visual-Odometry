@@ -5,6 +5,7 @@
 #include "core/time.hpp"
 
 int main(int argc, char * argv[]){
+
 	Parser::init(argc, argv);
     if(!Parser::hasOption("-i")){
 		std::cout << "Error, invalid arguments.\n\n"

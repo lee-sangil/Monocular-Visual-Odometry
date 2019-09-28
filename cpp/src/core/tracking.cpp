@@ -16,6 +16,7 @@ bool MVO::extract_features(){
         // Add features to the number of the lost features
         this->add_features();
         std::cerr << "# Add features: " << lsi::toc() << std::endl;
+        std::cerr << "nFeatures = " << this->nFeature << std::endl;
         
         return true;
     }
@@ -74,11 +75,11 @@ void MVO::klt_tracker(std::vector<cv::Point2f>& fwd_pts, std::vector<bool>& vali
     currPyr.clear();
     std::cerr << "### Prepare variables: " << lsi::toc() << std::endl;
 
-    cv::Mat status, err;
     cv::buildOpticalFlowPyramid(this->prev_image, prevPyr, cv::Size(21,21), 3, true);
     cv::buildOpticalFlowPyramid(this->cur_image, currPyr, cv::Size(21,21), 3, true);
     std::cerr << "### Build pyramids: " << lsi::toc() << std::endl;
 
+    cv::Mat status, err;
     cv::calcOpticalFlowPyrLK(prevPyr, currPyr, pts, fwd_pts, status, err);
     cv::calcOpticalFlowPyrLK(currPyr, prevPyr, fwd_pts, bwd_pts, status, err);
     std::cerr << "### Calculate optical flows: " << lsi::toc() << std::endl;
@@ -97,15 +98,15 @@ void MVO::klt_tracker(std::vector<cv::Point2f>& fwd_pts, std::vector<bool>& vali
 }
 
 void MVO::delete_dead_features(){
-    this->features_temp.clear();
-    for( uint32_t i = 0; i < this->features.size(); i++){
-        if( this->features[i].life > 0 ){
-            this->features_temp.push_back(this->features[i]);
-        }
-    }
-    // this->features.swap(temp);
-    this->nFeature = this->features_temp.size();
-    std::cerr << "# Delete features with new vector: " << lsi::toc() << std::endl;
+    // this->features_temp.clear();
+    // for( uint32_t i = 0; i < this->features.size(); i++){
+    //     if( this->features[i].life > 0 ){
+    //         this->features_temp.push_back(this->features[i]);
+    //     }
+    // }
+    // // this->features.swap(this->features_temp);
+    // this->nFeature = this->features_temp.size();
+    // std::cerr << "# Delete features with new vector: " << lsi::toc() << std::endl;
 
     for( uint32_t i = 0; i < this->features.size(); ){
         if( this->features[i].life <= 0 ){
@@ -120,6 +121,7 @@ void MVO::delete_dead_features(){
 void MVO::add_features(){
     this->update_bucket();
     std::cerr << "## Update bucket: " << lsi::toc() << std::endl;
+
     while( this->nFeature < this->bucket.max_features && this->bucket.saturated.any() == true )
         this->add_feature();
 }
@@ -127,11 +129,9 @@ void MVO::add_features(){
 void MVO::update_bucket(){
     this->bucket.mass.fill(0.0);
     this->bucket.saturated.fill(1.0);
-    cv::Point2f uv;
     for( int i = 0; i < this->nFeature; i++ ){
-        uv = this->features[i].uv.back();
-        uint32_t row_bucket = std::ceil(uv.y / this->params.imSize.height * this->bucket.grid.height);
-        uint32_t col_bucket = std::ceil(uv.x / this->params.imSize.width * this->bucket.grid.width);
+        uint32_t row_bucket = std::ceil(this->features[i].uv.back().y / this->params.imSize.height * this->bucket.grid.height);
+        uint32_t col_bucket = std::ceil(this->features[i].uv.back().x / this->params.imSize.width * this->bucket.grid.width);
         this->features[i].bucket = cv::Point(row_bucket, col_bucket);
         this->bucket.mass(row_bucket-1, col_bucket-1)++;
     }
@@ -174,7 +174,6 @@ void MVO::add_feature(){
     double filterSize = 5.0;
     cv::Mat crop_image;
     std::vector<cv::Point2f> keypoints;
-    cv::Mat bucketMass, bucketMassBlur;
 
     while( true ){
 
@@ -185,7 +184,7 @@ void MVO::add_feature(){
         }
 
         crop_image = this->cur_image(roi);
-        cv::goodFeaturesToTrack(crop_image, keypoints, 1000, 0.01, 2.0, cv::noArray(), 3, true);
+        cv::goodFeaturesToTrack(crop_image, keypoints, 50, 0.01, 2.0, cv::noArray(), 3, true);
         
         if( keypoints.size() == 0 ){
             this->bucket.saturated(row,col) = 0.0;
@@ -199,9 +198,7 @@ void MVO::add_feature(){
         }
 
         bool success;
-        double dist;
-        double minDist;
-        double maxMinDist = 0;
+        double dist, minDist, maxMinDist = 0;
         cv::Point2f bestKeypoint;
         for( uint32_t l = 0; l < keypoints.size(); l++ ){
             success = true;
@@ -231,7 +228,7 @@ void MVO::add_feature(){
 
             newFeature.id = Feature::new_feature_id; // unique id of the feature
             newFeature.frame_init = this->step; // frame step when the feature is created
-            newFeature.uv.push_back(bestKeypoint); // uv point in pixel coordinates
+            newFeature.uv.emplace_back(bestKeypoint.x, bestKeypoint.y); // uv point in pixel coordinates
             newFeature.life = 1; // the number of frames in where the feature is observed
             newFeature.bucket = cv::Point(row, col); // the location of bucket where the feature belong to
             newFeature.point.setZero(4,1); // 3-dim homogeneous point in the local coordinates
@@ -251,10 +248,20 @@ void MVO::add_feature(){
             // Update bucket
             this->bucket.mass(row, col)++;
 
-            cv::eigen2cv(this->bucket.mass, bucketMass);
-            cv::GaussianBlur(bucketMass, bucketMassBlur, cv::Size(21,21), 3.0);
-            cv::cv2eigen(bucketMassBlur, this->bucket.prob);
+            cv::eigen2cv(this->bucket.mass, this->bucket.cvMass);
+            cv::GaussianBlur(this->bucket.cvMass, this->bucket.cvProb, cv::Size(21,21), 3.0);
+            cv::cv2eigen(this->bucket.cvProb, this->bucket.prob);
+
+            this->bucket.prob.array() += 0.05;
+            this->bucket.prob = this->bucket.prob.cwiseInverse();
+
+            // Assign high weight for ground
+            for( int i = 0; i < this->bucket.prob.rows(); i++ ){
+                // weight.block(i,0,1,weight.cols()) /= std::pow(weight.rows(),2);
+                this->bucket.prob.block(i,0,1,this->bucket.prob.cols()) *= i+1;
+            }            
             // std::cout << "Feature is added!" << std::endl;
+
             return;
         }
         filterSize = filterSize - 2;
@@ -304,50 +311,55 @@ bool MVO::calculate_essential()
     }
 
     cv::Mat inlier_mat;
-    this->essentialMat = cv::findEssentialMat(points1, points2, focal, principle_point, cv::RANSAC, 0.99, 1, inlier_mat);
+    this->essentialMat = cv::findEssentialMat(points1, points2, focal, principle_point, cv::RANSAC, 0.999, 0.5, inlier_mat);
     std::cerr << "# Calculate essential: " << lsi::toc() << std::endl;
 
-    // cv::cv2eigen(E, E_);
-    // switch( this->params.SVDMethod){
-    //     case MVO::SVD::JACOBI:{
-    //         Eigen::JacobiSVD<Eigen::MatrixXd> svd(E_, Eigen::ComputeThinU | Eigen::ComputeThinV);
-    //         U = svd.matrixU();
-    //         V = svd.matrixV();
-    //         break;
-    //     }
-    //     case MVO::SVD::BDC:{
-    //         Eigen::BDCSVD<Eigen::MatrixXd> svd(E_, Eigen::ComputeThinU | Eigen::ComputeThinV);
-    //         U = svd.matrixU();
-    //         V = svd.matrixV();
-    //         break;
-    //     }
-    //     case MVO::SVD::OpenCV:{
-    //         cv::Mat Vt, U_, W;
-    //         cv::SVD::compute(E, W, U_, Vt);
+    Eigen::Matrix3d U,V;
+    switch( this->params.SVDMethod){
+        case MVO::SVD::JACOBI:{
+            Eigen::Matrix3d E_;
+            cv::cv2eigen(this->essentialMat, E_);
+            Eigen::JacobiSVD<Eigen::MatrixXd> svd(E_, Eigen::ComputeThinU | Eigen::ComputeThinV);
+            U = svd.matrixU();
+            V = svd.matrixV();
+            break;
+        }
+        case MVO::SVD::OpenCV:{
+            cv::Mat Vt, U_, W;
+            cv::SVD::compute(this->essentialMat, W, U_, Vt);
 
-    //         Eigen::MatrixXd Vt_;
-    //         cv::cv2eigen(Vt, Vt_);
-    //         V = Vt_.transpose();
-    //         cv::cv2eigen(U_, U);
-    //         break;
-    //     }
-    // }
+            Eigen::MatrixXd Vt_;
+            cv::cv2eigen(Vt, Vt_);
+            V = Vt_.transpose();
+            cv::cv2eigen(U_, U);
+            break;
+        }
+        case MVO::SVD::BDC:
+        default:{
+            Eigen::Matrix3d E_;
+            cv::cv2eigen(this->essentialMat, E_);
+            Eigen::BDCSVD<Eigen::MatrixXd> svd(E_, Eigen::ComputeThinU | Eigen::ComputeThinV);
+            U = svd.matrixU();
+            V = svd.matrixV();
+            break;
+        }
+    }
 
-    // if (U.determinant() < 0)
-    //     U.block(0, 2, 3, 1) = -U.block(0, 2, 3, 1);
-    // if (V.determinant() < 0)
-    //     V.block(0, 2, 3, 1) = -V.block(0, 2, 3, 1);
+    if (U.determinant() < 0)
+        U.block(0, 2, 3, 1) = -U.block(0, 2, 3, 1);
+    if (V.determinant() < 0)
+        V.block(0, 2, 3, 1) = -V.block(0, 2, 3, 1);
 
-    // this->R_vec.clear();
-    // this->t_vec.clear();
-    // this->R_vec.push_back(U * W * V.transpose());
-    // this->R_vec.push_back(U * W * V.transpose());
-    // this->R_vec.push_back(U * W.transpose() * V.transpose());
-    // this->R_vec.push_back(U * W.transpose() * V.transpose());
-    // this->t_vec.push_back(U.block(0, 2, 3, 1));
-    // this->t_vec.push_back(-U.block(0, 2, 3, 1));
-    // this->t_vec.push_back(U.block(0, 2, 3, 1));
-    // this->t_vec.push_back(-U.block(0, 2, 3, 1));
+    this->R_vec.clear();
+    this->t_vec.clear();
+    this->R_vec.push_back(U * W * V.transpose());
+    this->R_vec.push_back(U * W * V.transpose());
+    this->R_vec.push_back(U * W.transpose() * V.transpose());
+    this->R_vec.push_back(U * W.transpose() * V.transpose());
+    this->t_vec.push_back(U.block(0, 2, 3, 1));
+    this->t_vec.push_back(-U.block(0, 2, 3, 1));
+    this->t_vec.push_back(U.block(0, 2, 3, 1));
+    this->t_vec.push_back(-U.block(0, 2, 3, 1));
 
     std::cerr << "# Extract R, t: " << lsi::toc() << std::endl;
 

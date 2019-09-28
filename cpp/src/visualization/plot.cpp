@@ -37,11 +37,12 @@ void MVO::plot(){
 	Eigen::Matrix4d currTco = this->TocRec.back().inverse();
 	Eigen::Matrix4d prevTco = Eigen::Matrix4d::Identity();
 	Eigen::Matrix4d nextTco;
-	for( uint32_t i = 0; i < this->TocRec.size(); i++ ){
-		nextTco = currTco * this->TocRec[i];
+	for( uint32_t i = 0; i < this->TocRec.size()-1; i++ ){
+		prevTco = currTco * this->TocRec[i];
+		nextTco = currTco * this->TocRec[i+1];
 		cv::line(traj, cv::Point2f(300 + this->params.plotScale * prevTco(0,3), 300 - this->params.plotScale * prevTco(2,3)), 
 						cv::Point2f(300 + this->params.plotScale * nextTco(0,3), 300 - this->params.plotScale * nextTco(2,3)), cv::Scalar(0,0,255), 2);
-		prevTco = nextTco;
+		// prevTco = nextTco;
 	}
 	cv::circle(traj, cv::Point(300, 300), 3, cv::Scalar(0,0,255), 3);
 

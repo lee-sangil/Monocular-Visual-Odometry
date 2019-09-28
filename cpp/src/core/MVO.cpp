@@ -78,6 +78,27 @@ MVO::MVO(std::string yaml):MVO(){
     this->params.ransacCoef_scale_prop.thDist =         fSettings["RANSAC.thDist"]; // standard deviation
     this->params.ransacCoef_scale_prop.thDistOut =      fSettings["RANSAC.thDistOut"]; // three times of standard deviation
     
+    // Bucket
+    this->bucket = Bucket();
+    this->bucket.safety =           fSettings["Bucket.safety"];
+	this->bucket.max_features =     fSettings["Feature.num"];
+    int bucketGridRows =            fSettings["Bucket.rows"];
+    int bucketGridCols =            fSettings["Bucket.cols"];
+
+	this->bucket.grid = cv::Size(bucketGridRows,bucketGridCols);
+	this->bucket.size = cv::Size(this->params.imSize.width/this->bucket.grid.width, this->params.imSize.height/this->bucket.grid.height);
+	this->bucket.mass.setZero(this->bucket.grid.height, this->bucket.grid.width);
+	this->bucket.prob.resize(this->bucket.grid.height, this->bucket.grid.width);
+    this->bucket.prob.fill(1.0);
+    this->bucket.saturated.setZero(this->bucket.grid.height, this->bucket.grid.width);
+
+    this->features.reserve(this->bucket.max_features);
+    this->features_backup.reserve(this->bucket.max_features);
+    this->idxTemplate.reserve(this->bucket.max_features);
+    this->inlierTemplate.reserve(this->bucket.max_features);
+    this->prevPyramidTemplate.reserve(10);
+    this->currPyramidTemplate.reserve(10);
+
     // 3D reconstruction
     this->params.vehicle_height =   fSettings["Scale.height"]; // in meter
     this->params.reprojError =      fSettings["Scale.error"];
@@ -100,26 +121,7 @@ MVO::MVO(std::string yaml):MVO(){
         default:
             abort();    
     }
-
-    // Bucket
-    this->bucket = Bucket();
-    this->bucket.safety =           fSettings["Bucket.safety"];
-	this->bucket.max_features =     fSettings["Feature.num"];
-    int bucketGridRows =            fSettings["Bucket.rows"];
-    int bucketGridCols =            fSettings["Bucket.cols"];
-
-	this->bucket.grid = cv::Size(bucketGridRows,bucketGridCols);
-	this->bucket.size = cv::Size(this->params.imSize.width/this->bucket.grid.width, this->params.imSize.height/this->bucket.grid.height);
-	this->bucket.mass.setZero(this->bucket.grid.height, this->bucket.grid.width);
-	this->bucket.prob.setZero(this->bucket.grid.height, this->bucket.grid.width);
-    this->bucket.saturated.setZero(this->bucket.grid.height, this->bucket.grid.width);
-
-    this->features.reserve(this->bucket.max_features);
-    this->features_backup.reserve(this->bucket.max_features);
-    this->idxTemplate.reserve(this->bucket.max_features);
-    this->inlierTemplate.reserve(this->bucket.max_features);
-    this->prevPyramidTemplate.reserve(10);
-    this->currPyramidTemplate.reserve(10);
+    // this->eigenSolver = new Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd>(this->bucket.max_features);
 }
 
 void MVO::refresh(){
@@ -153,18 +155,16 @@ void MVO::reload(){
 void MVO::set_image(cv::Mat& image){
 	this->prev_image = this->cur_image.clone();
     
-    cv::Mat cur_image;
-    cv::undistort(image, cur_image, this->params.Kcv, this->params.distCoeffs);
+    cv::undistort(image, this->temp_image, this->params.Kcv, this->params.distCoeffs);
     if( this->params.applyCLAHE )
-        cvClahe->apply(cur_image, this->cur_image);
+        cvClahe->apply(this->temp_image, this->cur_image);
     else
-        this->cur_image = cur_image.clone();
-    
-    cur_image.release();
+        this->cur_image = this->temp_image.clone();
 }
 
 void MVO::run(cv::Mat& image){
     std::cerr << "============ Iteration: " << this->step << " ============" << std::endl;
+    std::cerr << lsi::toc() << std::endl;
 
     this->set_image(image);
     std::cerr << "# Grab image: " << lsi::toc() << std::endl;

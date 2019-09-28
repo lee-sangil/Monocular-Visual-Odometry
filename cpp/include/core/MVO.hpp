@@ -56,6 +56,9 @@ class MVO{
 
 	MVO();
 	MVO(std::string yaml);
+	~MVO(){
+		delete this->eigenSolver;
+	}
 	
 	// Set image
 	void set_image(cv::Mat& image);
@@ -116,6 +119,7 @@ class MVO{
 	cv::Mat undist_image;
 	cv::Mat cur_image;
 	cv::Mat prev_image;
+	cv::Mat temp_image;
 	cv::Ptr<cv::CLAHE> cvClahe;
 
 	Bucket bucket;
@@ -143,6 +147,7 @@ class MVO{
 	std::vector<bool> inlierTemplate;
 	std::vector<cv::Mat> prevPyramidTemplate, currPyramidTemplate;
 	Eigen::MatrixXd MapMatrixTemplate;
+	Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> * eigenSolver;
 
 	Parameter params;
 };

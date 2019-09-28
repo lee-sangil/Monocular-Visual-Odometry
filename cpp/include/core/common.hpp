@@ -45,6 +45,8 @@ typedef struct Bucket{
 	int max_features = 400;
 	cv::Size grid;
 	cv::Size size;
+	cv::Mat cvMass;
+	cv::Mat cvProb;
 	Eigen::MatrixXd mass;
 	Eigen::MatrixXd prob;
 	Eigen::MatrixXd saturated;

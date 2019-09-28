@@ -15,28 +15,70 @@ bool MVO::calculate_motion()
     Eigen::Vector4d Poc;
 	std::vector<int> idxInlier, idxOutlier;
     
-    cv::decomposeEssentialMat(this->essentialMat, R_cv_1, R_cv_2, t_cv);
-    std::cerr << "# Verify unique pose: " << lsi::toc() << std::endl;
-
-    // std::cout << R_cv_1 << std::endl;
-    // std::cout << R_cv_2 << std::endl;
-
-    Eigen::Matrix3d Identity = Eigen::Matrix3d::Identity();
-    Eigen::Matrix3d R_cv_1_, R_cv_2_;
-    cv::cv2eigen(R_cv_1, R_cv_1_);
-    cv::cv2eigen(R_cv_2, R_cv_2_);
-
-    R_cv_1_.transposeInPlace();
-    R_cv_2_.transposeInPlace();
-
-    if( (R_cv_1_ - Identity).norm() < (R_cv_2_ - Identity).norm() )
-        R_ = R_cv_1_;
-    else
-        R_ = R_cv_2_;
+    // cv::decomposeEssentialMat(this->essentialMat, R_cv_1, R_cv_2, t_cv);
+    // std::cerr << "# Verify unique pose: " << lsi::toc() << std::endl;
     
-    cv::cv2eigen(-t_cv, t_);
+    Eigen::Matrix3d Identity = Eigen::Matrix3d::Identity();
+    // Eigen::Matrix3d R_cv_1_, R_cv_2_;
+    // cv::cv2eigen(R_cv_1, R_cv_1_);
+    // cv::cv2eigen(R_cv_2, R_cv_2_);
 
+    // R_cv_1_.transposeInPlace();
+    // R_cv_2_.transposeInPlace();
+    // cv::cv2eigen(t_cv, t_);
+
+    /**** mapping and scaling with exact criteria ****/
+    // this->R_vec.push_back(R_cv_1_);
+    // this->R_vec.push_back(R_cv_1_);
+    // this->R_vec.push_back(R_cv_2_);
+    // this->R_vec.push_back(R_cv_2_);
+    // this->t_vec.push_back(t_);
+    // this->t_vec.push_back(-t_);
+    // this->t_vec.push_back(t_);
+    // this->t_vec.push_back(-t_);
+    // this->verify_solutions(this->R_vec, this->t_vec, R_, t_);
+
+    /**** mapping and scaling with simple criteria with svd decomposition ****/
+    if( (this->R_vec[0] - Identity).norm() < (this->R_vec[2] - Identity).norm() ){
+        // std::cout << "R error: " << R_ - this->R_vec[0] << std::endl;
+        R_ = this->R_vec[0];
+    }else{
+        // std::cout << "R error: " << R_ - this->R_vec[2] << std::endl;
+        R_ = this->R_vec[2];
+    }
+
+    if( this->t_vec[0](2) > 0){
+        // std::cout << "t error: " << t_.transpose() - this->t_vec[1].transpose() << std::endl;
+        t_ = this->t_vec[1];
+    }else{
+        // std::cout << "t error: " << t_.transpose() - this->t_vec[0].transpose() << std::endl;
+        t_ = this->t_vec[0];
+    }
     this->verify_solutions(R_, t_);
+
+    /**** mapping and scaling with simple criteria ****/
+    // if( (R_cv_1_ - Identity).norm() < (R_cv_2_ - Identity).norm() )
+    //     R_ = R_cv_1_;
+    // else
+    //     R_ = R_cv_2_;
+
+    // if( t_(2) > 0)
+    //     t_ = -t_;
+    // this->verify_solutions(R_, t_);
+    
+    /**** without mapping and scaling ****/
+    // T.setIdentity();
+    // T.block(0,0,3,3) = R_.transpose(); 
+    // T.block(0,3,3,1) = -R_.transpose()*t_;
+    // Toc = this->TocRec.back() * T;
+    // Poc = Toc.block(0,3,4,1);
+
+    // TRec.push_back(T);
+    // TocRec.push_back(Toc);
+    // PocRec.push_back(Poc);
+
+    // return true;
+    
     std::cerr << "# Verify unique pose: " << lsi::toc() << std::endl;
 
     if (this->findPoseFrom3DPoints(R, t, idxInlier, idxOutlier)){
@@ -257,21 +299,19 @@ bool MVO::findPoseFrom3DPoints(Eigen::Matrix3d &R, Eigen::Vector3d &t, std::vect
     {
         std::vector<cv::Point3f> objectPoints;
         std::vector<cv::Point2f> imagePoints;
-        Eigen::Vector3d Eigen_point;
         for (unsigned int i = 0; i < nPoint; i++)
         {
-            Eigen_point = (features[idx[i]].point_init).block(0, 0, 3, 1);
-            objectPoints.emplace_back(Eigen_point(0), Eigen_point(1), Eigen_point(2));
-            imagePoints.push_back(features[idx[i]].uv.back()); // return last element of uv
+            objectPoints.emplace_back(features[idx[i]].point_init(0), features[idx[i]].point_init(1), features[idx[i]].point_init(2));
+            imagePoints.emplace_back(features[idx[i]].uv.back().x, features[idx[i]].uv.back().y); // return last element of uv
         }
         cv::Mat r_vec, t_vec;
         bool success = cv::solvePnPRansac(objectPoints, imagePoints, this->params.Kcv, cv::noArray(),
                                           r_vec, t_vec, false, 1e3,
-                                          this->params.reprojError, 0.99, idxInlier, cv::SOLVEPNP_AP3P);
+                                          this->params.reprojError, 0.999, idxInlier, cv::SOLVEPNP_AP3P);
         if (!success){
             success = cv::solvePnPRansac(objectPoints, imagePoints, this->params.Kcv, cv::noArray(),
                                               r_vec, t_vec, false, 1e3,
-                                              1.5 * params.reprojError, 0.99, idxInlier, cv::SOLVEPNP_AP3P);
+                                              2 * params.reprojError, 0.999, idxInlier, cv::SOLVEPNP_AP3P);
         }
         std::cerr << "## Solve PnP: " << lsi::toc() << std::endl;
 
@@ -351,9 +391,10 @@ void MVO::constructDepth(const std::vector<Eigen::Vector3d> x_prev, const std::v
             break;
         }
         case MVO::SVD::Eigen:{
-            Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> eig(MtM_, Eigen::ComputeEigenvectors);
+            this->eigenSolver = new Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd>(MtM_, Eigen::ComputeEigenvectors);
+            // this->eigenSolver->compute(MtM_, Eigen::ComputeEigenvectors);
             // Eigen::VectorXd D = eig.eigenvalues().real();
-            V = eig.eigenvectors().real();
+            V = this->eigenSolver->eigenvectors();
             idxMinEigen = 0;
 
             // std::cout << D.transpose() << std::endl;
@@ -611,7 +652,7 @@ bool MVO::scale_propagation(Eigen::Matrix3d &R, Eigen::Vector3d &t, std::vector<
         if (nPoint <= this->params.ransacCoef_scale_prop.minPtNum 
             || inlier.size() < (std::size_t)this->params.thInlier || scale == 0)
         {
-            std::cerr << "warning('there are a few SCALE FACTOR INLIERS')" << std::endl;
+            std::cerr << "There are a few SCALE FACTOR INLIERS" << std::endl;
             idx.clear();
             for (unsigned int i = 0; i < features.size(); i++){
                 if (features[i].is_3D_init)
