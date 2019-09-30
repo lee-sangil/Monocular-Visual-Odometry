@@ -92,7 +92,7 @@ RANSAC.nSample: 5
 RANSAC.thInlrRatio: 0.99
 
 # Inlier threshold
-RANSAC.thDist: 0.5
+RANSAC.thDist: 1
 
 # Rejection threshold
 RANSAC.thDistOut: 5

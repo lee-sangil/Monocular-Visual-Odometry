@@ -9,7 +9,7 @@ IF(${DEBUG})
   SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -pg -O0")
 ELSE()
   SET(CMAKE_BUILD_TYPE RELEASE)
-  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2 -fomit-frame-pointer -flto -fopenmp")
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -fomit-frame-pointer -flto -fopenmp")
 ENDIF()
 MESSAGE(STATUS "Build type: " ${CMAKE_BUILD_TYPE})
 
