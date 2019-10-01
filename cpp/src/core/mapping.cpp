@@ -14,11 +14,10 @@ bool MVO::calculate_motion()
     Eigen::Matrix4d T, Toc;
     Eigen::Vector4d Poc;
 	std::vector<int> idxInlier, idxOutlier;
-    
+
     // cv::decomposeEssentialMat(this->essentialMat, R_cv_1, R_cv_2, t_cv);
     // std::cerr << "# Verify unique pose: " << lsi::toc() << std::endl;
     
-    Eigen::Matrix3d Identity = Eigen::Matrix3d::Identity();
     // Eigen::Matrix3d R_cv_1_, R_cv_2_;
     // cv::cv2eigen(R_cv_1, R_cv_1_);
     // cv::cv2eigen(R_cv_2, R_cv_2_);
@@ -39,24 +38,16 @@ bool MVO::calculate_motion()
     // this->verify_solutions(this->R_vec, this->t_vec, R_, t_);
 
     /**** mapping and scaling with simple criteria with svd decomposition ****/
-    if( (this->R_vec[0] - Identity).norm() < (this->R_vec[2] - Identity).norm() ){
-        // std::cout << "R error: " << R_ - this->R_vec[0] << std::endl;
-        R_ = this->R_vec[0];
-    }else{
-        // std::cout << "R error: " << R_ - this->R_vec[2] << std::endl;
-        R_ = this->R_vec[2];
-    }
+    Eigen::Matrix3d Identity = Eigen::Matrix3d::Identity();
+    if( (this->R_vec[0] - Identity).norm() < (this->R_vec[2] - Identity).norm() ) R_ = this->R_vec[0];
+    else R_ = this->R_vec[2];
 
-    if( this->t_vec[0](2) > 0){
-        // std::cout << "t error: " << t_.transpose() - this->t_vec[1].transpose() << std::endl;
-        t_ = this->t_vec[1];
-    }else{
-        // std::cout << "t error: " << t_.transpose() - this->t_vec[0].transpose() << std::endl;
-        t_ = this->t_vec[0];
-    }
+    if( this->t_vec[0](2) > 0) t_ = this->t_vec[1];
+    else t_ = this->t_vec[0];
     this->verify_solutions(R_, t_);
 
     /**** mapping and scaling with simple criteria ****/
+    // Eigen::Matrix3d Identity = Eigen::Matrix3d::Identity();
     // if( (R_cv_1_ - Identity).norm() < (R_cv_2_ - Identity).norm() )
     //     R_ = R_cv_1_;
     // else
@@ -66,6 +57,8 @@ bool MVO::calculate_motion()
     //     t_ = -t_;
     // this->verify_solutions(R_, t_);
     
+    std::cerr << "# Verify unique pose: " << lsi::toc() << std::endl;
+
     /**** without mapping and scaling ****/
     // T.setIdentity();
     // T.block(0,0,3,3) = R_.transpose(); 
@@ -76,10 +69,12 @@ bool MVO::calculate_motion()
     // TRec.push_back(T);
     // TocRec.push_back(Toc);
     // PocRec.push_back(Poc);
-
     // return true;
-    
-    std::cerr << "# Verify unique pose: " << lsi::toc() << std::endl;
+
+    /**** use only essential 3d reconstruction ****/
+    // std::vector<bool> inlier, outlier;
+    // this->scale_propagation(R_ ,t_, inlier, outlier);
+    // this->update3DPoints(R_, t_, inlier, outlier, T, Toc, Poc); // overloading function
 
     /**** use only PnP ****/
     if( this->scale_initialized == true ){
@@ -278,11 +273,21 @@ bool MVO::verify_solutions(Eigen::Matrix3d& R, Eigen::Vector3d& t){
 	if( nInlier < this->nFeature2DInliered*0.5 )
 		success = false;
 	else{
+        int iterIdx2DInlier = 0;
 		for( int i = 0; i < this->nFeature2DInliered; i++ ){
 			if( inlier[idx_2DInlier[i]] ){
 				this->features[idx_2DInlier[i]].point = point_curr[i];
 				this->features[idx_2DInlier[i]].is_3D_reconstructed = true;
 			}
+            // if( !features[idx_2DInlier[i]].is_3D_init && features[idx_2DInlier[i]].is_wide ){
+            //     features[idx_2DInlier[i]].point = point_curr[iterIdx2DInlier];
+            //     features[idx_2DInlier[i]].is_3D_reconstructed = true;
+
+            //     // features[idx_2DInlier[i]].point_init = Toc*point_curr[iterIdx2DInlier];
+            //     // features[idx_2DInlier[i]].is_3D_init = true;
+
+            //     iterIdx2DInlier++;
+            // }
 			this->nFeature3DReconstructed++;
 		}
 		success = true;
@@ -291,8 +296,7 @@ bool MVO::verify_solutions(Eigen::Matrix3d& R, Eigen::Vector3d& t){
 	return success;
 }
 
-bool MVO::findPoseFrom3DPoints(Eigen::Matrix3d &R, Eigen::Vector3d &t, std::vector<int>& idxInlier, std::vector<int>& idxOutlier)
-{    
+bool MVO::findPoseFrom3DPoints(Eigen::Matrix3d &R, Eigen::Vector3d &t, std::vector<int>& idxInlier, std::vector<int>& idxOutlier){    
     // Seek index of which feature is 3D reconstructed currently,
     // and 3D initialized previously
 	bool flag;
@@ -360,8 +364,7 @@ bool MVO::findPoseFrom3DPoints(Eigen::Matrix3d &R, Eigen::Vector3d &t, std::vect
 void MVO::constructDepth(const std::vector<Eigen::Vector3d> x_prev, const std::vector<Eigen::Vector3d> x_curr, 
                         const Eigen::Matrix3d R, const Eigen::Vector3d t, 
                         std::vector<Eigen::Vector3d> &X_prev, std::vector<Eigen::Vector3d> &X_curr, 
-                        std::vector<double> &lambda_prev, std::vector<double> &lambda_curr)
-{
+                        std::vector<double> &lambda_prev, std::vector<double> &lambda_curr){
     std::cerr << "## Init constructDepth: " << lsi::toc() << std::endl;
     const int nPoints = x_prev.size();
     Eigen::MatrixXd& M_matrix = this->MapMatrixTemplate;
@@ -372,28 +375,37 @@ void MVO::constructDepth(const std::vector<Eigen::Vector3d> x_prev, const std::v
         M_matrix.block(3*i,i,3,1) = skew(x_curr[i])*R*x_prev[i];
         M_matrix.block(3*i,nPoints,3,1) = skew(x_curr[i])*t;
     }
-
-    Eigen::MatrixXd MtM_ = M_matrix.transpose()*M_matrix;
     std::cerr << "## Construct MtM: " << lsi::toc() << std::endl;
 
     Eigen::MatrixXd V;
     int idxMinEigen = nPoints;
     switch( this->params.SVDMethod){
         case MVO::SVD::JACOBI:{
-            Eigen::JacobiSVD<Eigen::MatrixXd> svd(MtM_, Eigen::ComputeThinU | Eigen::ComputeThinV);
+            Eigen::JacobiSVD<Eigen::MatrixXd> svd(M_matrix, Eigen::ComputeThinV);
             V = svd.matrixV();
             break;
         }
         case MVO::SVD::BDC:{
-            Eigen::BDCSVD<Eigen::MatrixXd> svd(MtM_, Eigen::ComputeThinU | Eigen::ComputeThinV);
+            Eigen::HouseholderQR<Eigen::MatrixXd> qrdecomposer(M_matrix);
+            Eigen::MatrixXd R = qrdecomposer.matrixQR().triangularView<Eigen::Upper>();
+            Eigen::MatrixXd compactR;
+            
+            for( int i = R.rows()-1; i >= 0; i-- ){
+                if( R.row(i).any() ){
+                    compactR = R.topRows(i+1);
+                    break;
+                }
+            }
+            
+            Eigen::BDCSVD<Eigen::MatrixXd> svd(compactR, Eigen::ComputeThinV);
             V = svd.matrixV();
             break;
         }
         case MVO::SVD::OpenCV:{
             cv::Mat Vt, U, W;
-            cv::Mat MtM;
-            cv::eigen2cv(MtM_, MtM);
-            cv::SVD::compute(MtM, W, U, Vt);
+            cv::Mat M;
+            cv::eigen2cv(M_matrix, M);
+            cv::SVD::compute(M, W, U, Vt, cv::SVD::MODIFY_A);
 
             Eigen::MatrixXd Vt_;
             cv::cv2eigen(Vt, Vt_);
@@ -401,6 +413,7 @@ void MVO::constructDepth(const std::vector<Eigen::Vector3d> x_prev, const std::v
             break;
         }
         case MVO::SVD::Eigen:{
+            Eigen::MatrixXd MtM_ = M_matrix.transpose()*M_matrix;
             this->eigenSolver = new Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd>(MtM_, Eigen::ComputeEigenvectors);
             // this->eigenSolver->compute(MtM_, Eigen::ComputeEigenvectors);
             // Eigen::VectorXd D = eig.eigenvalues().real();
@@ -426,8 +439,7 @@ void MVO::constructDepth(const std::vector<Eigen::Vector3d> x_prev, const std::v
 // without PnP
 void MVO::update3DPoints(const Eigen::Matrix3d &R, const Eigen::Vector3d &t, 
                         const std::vector<bool> &inlier, const std::vector<bool> &outlier, 
-                        Eigen::Matrix4d &T, Eigen::Matrix4d &Toc, Eigen::Vector4d &Poc)
-{
+                        Eigen::Matrix4d &T, Eigen::Matrix4d &Toc, Eigen::Vector4d &Poc){
     // without PnP
     double scale = t.norm();
     
@@ -588,8 +600,7 @@ void MVO::update3DPoints(const Eigen::Matrix3d &R, const Eigen::Vector3d &t,
     this->nFeature3DReconstructed = Feature3Dconstructed;
 }
 
-bool MVO::scale_propagation(Eigen::Matrix3d &R, Eigen::Vector3d &t, std::vector<bool> &inlier, std::vector<bool> &outlier)
-{       
+bool MVO::scale_propagation(Eigen::Matrix3d &R, Eigen::Vector3d &t, std::vector<bool> &inlier, std::vector<bool> &outlier){       
     inlier.clear();
     outlier.clear();
 
@@ -760,8 +771,7 @@ bool MVO::scale_propagation(Eigen::Matrix3d &R, Eigen::Vector3d &t, std::vector<
 
 double MVO::ransac(const std::vector<cv::Point3f> &x, const std::vector<cv::Point3f> &y,
                    MVO::RansacCoef ransacCoef,
-                   std::vector<bool> &inlier, std::vector<bool> &outlier)
-{
+                   std::vector<bool> &inlier, std::vector<bool> &outlier){
     unsigned int ptNum = x.size();
 
     std::vector<uint32_t> sampleIdx;
@@ -845,8 +855,7 @@ double MVO::ransac(const std::vector<cv::Point3f> &x, const std::vector<cv::Poin
     }
 }
 
-std::vector<uint32_t> MVO::randperm(unsigned int ptNum, int minPtNum)
-{
+std::vector<uint32_t> MVO::randperm(unsigned int ptNum, int minPtNum){
     std::vector<uint32_t> result;
     for (unsigned int i = 0; i < ptNum; i++)
         result.push_back(i);
@@ -854,8 +863,7 @@ std::vector<uint32_t> MVO::randperm(unsigned int ptNum, int minPtNum)
     return result;
 }
 
-std::vector<uint32_t> MVO::randweightedpick(const std::vector<double> &h, int n /*=1*/)
-{
+std::vector<uint32_t> MVO::randweightedpick(const std::vector<double> &h, int n /*=1*/){
     int u = h.size();
     int s_under;
     double sum, rand_num;
@@ -896,8 +904,7 @@ std::vector<uint32_t> MVO::randweightedpick(const std::vector<double> &h, int n 
     return result;
 }
 
-double MVO::calculate_scale(const std::vector<cv::Point3f> &pt1, const std::vector<cv::Point3f> &pt2)
-{
+double MVO::calculate_scale(const std::vector<cv::Point3f> &pt1, const std::vector<cv::Point3f> &pt2){
     double sum = 0;
     for (unsigned int i = 0; i < pt1.size(); i++)
     {
@@ -906,8 +913,7 @@ double MVO::calculate_scale(const std::vector<cv::Point3f> &pt1, const std::vect
     return sum / pt1.size();
 }
 
-std::vector<double> MVO::calculate_scale_error(double scale, const std::vector<cv::Point3f> &pt1, const std::vector<cv::Point3f> &pt2)
-{
+std::vector<double> MVO::calculate_scale_error(double scale, const std::vector<cv::Point3f> &pt1, const std::vector<cv::Point3f> &pt2){
     std::vector<double> dist;
     for (unsigned int i = 0; i < pt1.size(); i++)
         dist.push_back(cv::norm(pt2[i] - scale * pt1[i]));

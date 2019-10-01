@@ -75,8 +75,8 @@ void MVO::klt_tracker(std::vector<cv::Point2f>& fwd_pts, std::vector<bool>& vali
     currPyr.clear();
     std::cerr << "### Prepare variables: " << lsi::toc() << std::endl;
 
-    cv::buildOpticalFlowPyramid(this->prev_image, prevPyr, cv::Size(21,21), 3, true);
-    cv::buildOpticalFlowPyramid(this->cur_image, currPyr, cv::Size(21,21), 3, true);
+    cv::buildOpticalFlowPyramid(this->prev_image, prevPyr, cv::Size(21,21), 2, true);
+    cv::buildOpticalFlowPyramid(this->cur_image, currPyr, cv::Size(21,21), 2, true);
     std::cerr << "### Build pyramids: " << lsi::toc() << std::endl;
 
     cv::Mat status, err;
@@ -84,8 +84,8 @@ void MVO::klt_tracker(std::vector<cv::Point2f>& fwd_pts, std::vector<bool>& vali
     cv::calcOpticalFlowPyrLK(currPyr, prevPyr, fwd_pts, bwd_pts, status, err);
     std::cerr << "### Calculate optical flows: " << lsi::toc() << std::endl;
     
-    // cv::calcOpticalFlowPyrLK(prevPyr, currPyr, pts, fwd_pts, status, err, cv::Size(21,21), 4);
-    // cv::calcOpticalFlowPyrLK(currPyr, prevPyr, fwd_pts, bwd_pts, status, err, cv::Size(21,21), 4);
+    // cv::calcOpticalFlowPyrLK(this->prev_image, this->cur_image, pts, fwd_pts, status, err, cv::Size(21,21), 2);
+    // cv::calcOpticalFlowPyrLK(this->cur_image, this->prev_image, fwd_pts, bwd_pts, status, err, cv::Size(21,21), 2);
     // std::cerr << "### Calculate optical flows with build: " << lsi::toc() << std::endl;
 
     // Calculate bi-directional error( = validity ): validity = ~border_invalid & error_valid
@@ -94,6 +94,8 @@ void MVO::klt_tracker(std::vector<cv::Point2f>& fwd_pts, std::vector<bool>& vali
         bool border_invalid = (fwd_pts[i].x < 0) | (fwd_pts[i].x > this->params.imSize.width) | (fwd_pts[i].y < 0) | (fwd_pts[i].y > this->params.imSize.height);
         bool error_valid = cv::norm(pts[i] - bwd_pts[i]) < std::min( cv::norm(pts[i] - fwd_pts[i])/5.0, 2.0);
         validity.push_back(!border_invalid & error_valid);
+        // bool valid = ~border_invalid & status.at<uchar>(i);// & err.at<float>(i) < std::min( cv::norm(pts[i] - fwd_pts[i])/5.0, 2.0);
+        // validity.push_back(valid);
     }
 }
 

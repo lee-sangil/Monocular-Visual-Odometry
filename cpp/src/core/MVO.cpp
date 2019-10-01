@@ -182,7 +182,6 @@ void MVO::run(cv::Mat& image){
     // else if( this->scale_initialized )
     //     this->reload();
 
-    // std::cerr << '[' << this->features[4].uv[0].x << ", " << this->features[4].uv[0].y << "] -> [" << this->features[4].uv.back().x << ", " << this->features[4].uv.back().y << ']' << std::endl;
     this->step++;
 }
 
