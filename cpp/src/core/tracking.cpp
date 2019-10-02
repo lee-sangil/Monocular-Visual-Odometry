@@ -366,10 +366,8 @@ bool MVO::calculate_essential()
     std::cerr << "# Extract R, t: " << lsi::toc() << std::endl;
 
     uint32_t inlier_cnt = 0;
-    for (int i = 0; i < inlier_mat.rows; i++)
-    {
-        if (inlier_mat.at<char>(i))
-        {
+    for (int i = 0; i < inlier_mat.rows; i++){
+        if (inlier_mat.at<char>(i)){
             this->features[i].is_2D_inliered = true;
             inlier_cnt++;
         }

@@ -8,13 +8,10 @@ bool MVO::calculate_motion()
     if (this->step == 0)
         return true;
 
-    cv::Mat R_cv_1, R_cv_2, t_cv;
-    Eigen::Matrix3d R, R_;
-    Eigen::Vector3d t, t_;
-    Eigen::Matrix4d T, Toc;
-    Eigen::Vector4d Poc;
-	std::vector<int> idxInlier, idxOutlier;
-
+    Eigen::Matrix3d R_;
+    Eigen::Vector3d t_;
+    
+    // cv::Mat R_cv_1, R_cv_2, t_cv;
     // cv::decomposeEssentialMat(this->essentialMat, R_cv_1, R_cv_2, t_cv);
     // std::cerr << "# Verify unique pose: " << lsi::toc() << std::endl;
     
@@ -59,6 +56,12 @@ bool MVO::calculate_motion()
     
     std::cerr << "# Verify unique pose: " << lsi::toc() << std::endl;
 
+    Eigen::Matrix3d R;
+    Eigen::Vector3d t;
+    Eigen::Matrix4d T, Toc;
+    Eigen::Vector4d Poc;
+	std::vector<int> idxInlier, idxOutlier;
+
     /**** without mapping and scaling ****/
     // T.setIdentity();
     // T.block(0,0,3,3) = R_.transpose(); 
@@ -77,44 +80,45 @@ bool MVO::calculate_motion()
     // this->update3DPoints(R_, t_, inlier, outlier, T, Toc, Poc); // overloading function
 
     /**** use only PnP ****/
-    if( this->scale_initialized == true ){
-        this->findPoseFrom3DPoints(R, t, idxInlier, idxOutlier);
-    }else{
-        R = R_;
-        t = t_;
-    }
-    std::vector<bool> inlier, outlier;
-    this->update3DPoints(R, t, inlier, outlier, R_, t_, false, T, Toc, Poc); // overloading function
+    // std::vector<bool> inlier, outlier;
+    // if( this->scale_initialized == true ){
+    //     this->findPoseFrom3DPoints(R, t, idxInlier, idxOutlier);
+    // }else{
+    //     R = R_;
+    //     t = t_;
+    // }
+    // this->update3DPoints(R, t, inlier, outlier, R_, t_, false, T, Toc, Poc); // overloading function
 
     /**** use both PnP and essential 3d reconstruction ****/
-    // if (this->findPoseFrom3DPoints(R, t, idxInlier, idxOutlier)){
-    //     std::cerr << "# Find pose from PnP: " << lsi::toc() << std::endl;    
+    if (this->findPoseFrom3DPoints(R, t, idxInlier, idxOutlier)){
+        std::cerr << "# Find pose from PnP: " << lsi::toc() << std::endl;    
 
-    //     // Update 3D points
-    //     std::vector<bool> inlier, outlier;
-    //     bool success = this->scale_propagation(R_, t_, inlier, outlier);
-    //     std::cerr << "# Propagate scale: " << lsi::toc() << std::endl;
+        // Update 3D points
+        std::vector<bool> inlier, outlier;
+        bool success = this->scale_propagation(R_, t_, inlier, outlier);
+        std::cerr << "# Propagate scale: " << lsi::toc() << std::endl;
 
-    //     // Update 3D points
-    //     this->update3DPoints(R, t, inlier, outlier, R_, t_, success, T, Toc, Poc); // overloading function
-    //     std::cerr << "# Update 3D points with PnP: " << lsi::toc() << std::endl;
-    // }else{
-    //     std::cerr << "# Find pose from PnP: " << lsi::toc() << std::endl;
+        // Update 3D points
+        this->update3DPoints(R, t, inlier, outlier, R_, t_, success, T, Toc, Poc); // overloading function
+        std::cerr << "# Update 3D points with PnP: " << lsi::toc() << std::endl;
+    }else{
+        std::cerr << "# Find pose from PnP: " << lsi::toc() << std::endl;
 
-    //     // Update 3D points
-    //     std::vector<bool> inlier, outlier;
-    //     bool success = this->scale_propagation(R_ ,t_, inlier, outlier);
-    //     std::cerr << "# Propagate scale: " << lsi::toc() << std::endl;
+        // Update 3D points
+        std::vector<bool> inlier, outlier;
+        bool success = this->scale_propagation(R_ ,t_, inlier, outlier);
+        std::cerr << "# Propagate scale: " << lsi::toc() << std::endl;
 
-    //     if (!success){
-    //         std::cerr << "There are few inliers matching scale." << std::endl;
-    //         return false;
-    //     }
+        if (!success){
+            std::cerr << "There are few inliers matching scale." << std::endl;
+            return false;
+        }
 
-    //     this->update3DPoints(R_, t_, inlier, outlier, T, Toc, Poc); // overloading function
-    //     std::cerr << "# Update 3D points with Essential: " << lsi::toc() << std::endl;
-    // }
+        this->update3DPoints(R_, t_, inlier, outlier, T, Toc, Poc); // overloading function
+        std::cerr << "# Update 3D points with Essential: " << lsi::toc() << std::endl;
+    }
 
+    /**** ****/
     if (this->nFeature3DReconstructed < this->params.thInlier){
         std::cerr << "There are few inliers reconstructed in 3D." << std::endl;
         return false;
@@ -143,17 +147,13 @@ bool MVO::verify_solutions(std::vector<Eigen::Matrix3d>& R_vec, std::vector<Eige
 			idx_2DInlier.push_back(i);
 	}
 
-	std::vector<cv::Point2f> uv_prev, uv_curr;
-	std::vector<Eigen::Vector3d> x_prev, x_curr;
-
     int len;
+	std::vector<Eigen::Vector3d> x_prev, x_curr;
 	cv::Point2f uv_prev_i, uv_curr_i;
     for (uint32_t i = 0; i < idx_2DInlier.size(); i++){
 		len = this->features[idx_2DInlier[i]].uv.size();
 		uv_prev_i = this->features[idx_2DInlier[i]].uv[len-2];
 		uv_curr_i = this->features[idx_2DInlier[i]].uv.back();
-        uv_prev.push_back(uv_prev_i); // second to latest
-        uv_curr.push_back(uv_curr_i); // latest
 
         x_prev.emplace_back((uv_prev_i.x - this->params.cx)/this->params.fx, (uv_prev_i.y - this->params.cy)/this->params.fy, 1);
 		x_curr.emplace_back((uv_curr_i.x - this->params.cx)/this->params.fx, (uv_curr_i.y - this->params.cy)/this->params.fy, 1);
@@ -162,7 +162,7 @@ bool MVO::verify_solutions(std::vector<Eigen::Matrix3d>& R_vec, std::vector<Eige
 	// Find reasonable rotation and translational vector
 	int max_num = 0;
 	std::vector<bool> max_inlier;
-	std::vector<Eigen::Vector4d> point_curr;
+	std::vector<Eigen::Vector3d> opt_X_curr;
 	for( uint32_t i = 0; i < R_vec.size(); i++ ){
 		Eigen::Matrix3d R1 = R_vec[i];
 		Eigen::Vector3d t1 = t_vec[i];
@@ -184,15 +184,7 @@ bool MVO::verify_solutions(std::vector<Eigen::Matrix3d>& R_vec, std::vector<Eige
 		if( nInlier > max_num ){
 			max_num = nInlier;
 			max_inlier = inlier;
-
-            point_curr.clear();
-			for( int i = 0; i < nInlier; i++ ){
-				if( inlier[i] ){
-					Eigen::Vector4d point_curr_i;
-					point_curr_i << X_curr[i], 1;
-					point_curr.push_back(point_curr_i);
-				}
-			}
+            opt_X_curr = X_curr;
 			
 			R = R1;
 			t = t1;
@@ -205,7 +197,7 @@ bool MVO::verify_solutions(std::vector<Eigen::Matrix3d>& R_vec, std::vector<Eige
 	else{
 		for( int i = 0; i < this->nFeature2DInliered; i++ ){
 			if( max_inlier[idx_2DInlier[i]] ){
-				this->features[idx_2DInlier[i]].point = point_curr[i];
+				this->features[idx_2DInlier[i]].point = (Eigen::Vector4d() << opt_X_curr[i], 1).finished();
 				this->features[idx_2DInlier[i]].is_3D_reconstructed = true;
 			}
 			this->nFeature3DReconstructed++;
@@ -227,25 +219,19 @@ bool MVO::verify_solutions(Eigen::Matrix3d& R, Eigen::Vector3d& t){
 			idx_2DInlier.push_back(i);
 	}
 
-	std::vector<cv::Point2f> uv_prev, uv_curr;
-	std::vector<Eigen::Vector3d> x_prev, x_curr;
-
     int len;
+	std::vector<Eigen::Vector3d> x_prev, x_curr;
 	cv::Point2f uv_prev_i, uv_curr_i;
     for (uint32_t i = 0; i < idx_2DInlier.size(); i++){
 		len = this->features[idx_2DInlier[i]].uv.size();
 		uv_prev_i = this->features[idx_2DInlier[i]].uv[len-2];
 		uv_curr_i = this->features[idx_2DInlier[i]].uv.back();
-        uv_prev.push_back(uv_prev_i); // second to latest
-        uv_curr.push_back(uv_curr_i); // latest
 
         x_prev.emplace_back((uv_prev_i.x - this->params.cx)/this->params.fx, (uv_prev_i.y - this->params.cy)/this->params.fy, 1);
 		x_curr.emplace_back((uv_curr_i.x - this->params.cx)/this->params.fx, (uv_curr_i.y - this->params.cy)/this->params.fy, 1);
     }
 
 	// Find reasonable rotation and translational vector
-	std::vector<Eigen::Vector4d> point_curr;
-    
     std::vector<Eigen::Vector3d> X_prev, X_curr;
     std::vector<double> lambda_prev, lambda_curr;
     this->constructDepth(x_prev, x_curr, R, t, X_prev, X_curr,  lambda_prev, lambda_curr);
@@ -260,33 +246,21 @@ bool MVO::verify_solutions(Eigen::Matrix3d& R, Eigen::Vector3d& t){
             inlier.push_back(false);
     }
 
-    point_curr.clear();
-    for( int i = 0; i < nInlier; i++ ){
-        if( inlier[i] ){
-            Eigen::Vector4d point_curr_i;
-            point_curr_i << X_curr[i], 1;
-            point_curr.push_back(point_curr_i);
-        }
-    }
-
 	// Store 3D characteristics in features
 	if( nInlier < this->nFeature2DInliered*0.5 )
 		success = false;
 	else{
-        int iterIdx2DInlier = 0;
 		for( int i = 0; i < this->nFeature2DInliered; i++ ){
 			if( inlier[idx_2DInlier[i]] ){
-				this->features[idx_2DInlier[i]].point = point_curr[i];
+				this->features[idx_2DInlier[i]].point = (Eigen::Vector4d() << X_curr[i], 1).finished();
 				this->features[idx_2DInlier[i]].is_3D_reconstructed = true;
 			}
             // if( !features[idx_2DInlier[i]].is_3D_init && features[idx_2DInlier[i]].is_wide ){
-            //     features[idx_2DInlier[i]].point = point_curr[iterIdx2DInlier];
+            //     features[idx_2DInlier[i]].point = (Eigen::Vector4d() << X_curr[i], 1).finished();
             //     features[idx_2DInlier[i]].is_3D_reconstructed = true;
 
-            //     // features[idx_2DInlier[i]].point_init = Toc*point_curr[iterIdx2DInlier];
+            //     // features[idx_2DInlier[i]].point_init = Toc*features[idx_2DInlier[i]].point;
             //     // features[idx_2DInlier[i]].is_3D_init = true;
-
-            //     iterIdx2DInlier++;
             // }
 			this->nFeature3DReconstructed++;
 		}
@@ -498,9 +472,9 @@ void MVO::update3DPoints(const Eigen::Matrix3d &R, const Eigen::Vector3d &t,
     }
     unsigned int nPoint = idx3D.size();
 
-    std::vector<Eigen::Vector3d> x_init_;
+    std::vector<Eigen::Vector4d> X_init_;
     for (unsigned int i = 0; i < nPoint; i++){
-        x_init_.push_back(features[idx3D[i]].point_init.block(0,0,3,1));
+        X_init_.push_back(features[idx3D[i]].point_init);
     }
 
     Toc.setIdentity();
@@ -513,17 +487,10 @@ void MVO::update3DPoints(const Eigen::Matrix3d &R, const Eigen::Vector3d &t,
     Tco.setIdentity();
     Tco.block(0, 0, 3, 3) = R;
     Tco.block(0, 3, 3, 1) = t;
-    std::vector<Eigen::Vector4d> point_curr, point_prev;
-    for (unsigned int i = 0; i < nPoint; i++){
-        Eigen::Vector4d temp_vec;
-        temp_vec << x_init_[i], 1;
-        point_curr.push_back( Tco*temp_vec );
-        point_prev.push_back( T*Tco*temp_vec );
-    }
 
     // Update 3D points in local coordinates
     for (unsigned int i = 0; i < nPoint; i++){
-        features[idx3D[i]].point = point_prev[i];
+        features[idx3D[i]].point = Tco*X_init_[i];
         features[idx3D[i]].is_3D_reconstructed = true;
     }
 
@@ -547,18 +514,13 @@ void MVO::update3DPoints(const Eigen::Matrix3d &R, const Eigen::Vector3d &t,
     }
 
     nPoint = idx2D.size();
-
-    std::vector<cv::Point2f> uv_prev, uv_curr;
-	std::vector<Eigen::Vector3d> x_prev, x_curr;
-
     int len;
+	std::vector<Eigen::Vector3d> x_prev, x_curr;
 	cv::Point2f uv_prev_i, uv_curr_i;
-    for (uint32_t i = 0; i < idx2D.size(); i++){
+    for (uint32_t i = 0; i < nPoint; i++){
 		len = this->features[idx2D[i]].uv.size();
 		uv_prev_i = this->features[idx2D[i]].uv[len-2];
 		uv_curr_i = this->features[idx2D[i]].uv.back();
-        uv_prev.push_back(uv_prev_i); // second to latest
-        uv_curr.push_back(uv_curr_i); // latest
 
 		x_prev.emplace_back((uv_prev_i.x - this->params.cx)/this->params.fx, (uv_prev_i.y - this->params.cy)/this->params.fy, 1);
 		x_curr.emplace_back((uv_curr_i.x - this->params.cx)/this->params.fx, (uv_curr_i.y - this->params.cy)/this->params.fy, 1);
@@ -568,30 +530,20 @@ void MVO::update3DPoints(const Eigen::Matrix3d &R, const Eigen::Vector3d &t,
     std::vector<double> lambda_prev, lambda_curr;
     constructDepth(x_prev, x_curr, Rinv, tinv, X_prev, X_curr, lambda_prev, lambda_curr);
 
-    point_prev.clear();
-    point_curr.clear();
-    Eigen::Vector4d temp_vec4_prev, temp_vec4_curr;
-    temp_vec4_prev(3) = 1;
-    temp_vec4_curr(3) = 1;
-    int iterIdx2DInlier = 0;
     for (unsigned int i = 0; i < nPoint; i++){
         // 2d inliers
         if(lambda_prev[i] > 0 && lambda_curr[i] > 0){
-            temp_vec4_prev.block(0,0,3,1) = X_prev[i];
-            temp_vec4_curr.block(0,0,3,1) = X_curr[i];
-            point_prev.push_back(temp_vec4_prev);
-            point_curr.push_back(temp_vec4_curr);
             
             if( !features[idx2D[i]].is_3D_init && features[idx2D[i]].is_wide ){
-                features[idx2D[i]].point = point_curr[iterIdx2DInlier];
+                features[idx2D[i]].point = (Eigen::Vector4d() << X_curr[i], 1).finished();
                 features[idx2D[i]].is_3D_reconstructed = true;
 
-                features[idx2D[i]].point_init = Toc*point_curr[iterIdx2DInlier];
+                features[idx2D[i]].point_init = Toc*features[idx2D[i]].point;
                 features[idx2D[i]].is_3D_init = true;
             }
-            iterIdx2DInlier ++;
         } // if(lambda_prev > 0 && lambda_curr > 0)
     } // for
+
     int Feature3Dconstructed = 0;
     for (unsigned int i = 0; i < features.size(); i++){
         if(features[i].is_3D_reconstructed)
@@ -822,7 +774,7 @@ double MVO::ransac(const std::vector<cv::Point3f> &x, const std::vector<cv::Poin
         }
         it++;
     }
-    std::cout << "Ransac iterations: " << it << std::endl;
+    std::cerr << "Ransac iterations: " << it << std::endl;
 
     if (max_inlier == 0)
     {
