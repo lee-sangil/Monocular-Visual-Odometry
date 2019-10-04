@@ -86,7 +86,7 @@ Bucket.cols: 8
 RANSAC.iterMax: 1000
 
 # Min. number of samples
-RANSAC.nSample: 5
+RANSAC.nSample: 2
 
 # Inlier ratio
 RANSAC.thInlrRatio: 0.99
@@ -111,7 +111,7 @@ SVD.Method: 3
 #--------------------------------------------------------------------------------------------
 
 # Size of point
-Landmark.nScale: 10
+Landmark.nScale: 3
 
 # Publishing rate
 Landmark.nPubRate: 5

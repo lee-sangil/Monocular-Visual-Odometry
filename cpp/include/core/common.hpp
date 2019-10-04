@@ -24,8 +24,8 @@
 #include <valarray>
 #include <memory>
 
+#include <eigen3/Eigen/Core>
 #include <eigen3/Eigen/Dense>
-#include <eigen3/Eigen/src/Core/IO.h>
 #include <eigen3/Eigen/SVD>
 #include <eigen3/Eigen/LU>
 #include <eigen3/Eigen/Eigen>

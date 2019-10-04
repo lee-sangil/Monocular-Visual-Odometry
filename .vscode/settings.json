@@ -52,7 +52,8 @@
 		"cfenv": "cpp",
 		"utility": "cpp",
 		"typeindex": "cpp",
-		"typeinfo": "cpp"
+		"typeinfo": "cpp",
+		"stdvector": "cpp"
 	},
 	"C_Cpp.default.includePath": [
 		"cpp/include"
