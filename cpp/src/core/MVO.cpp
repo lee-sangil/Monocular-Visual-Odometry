@@ -119,7 +119,18 @@ MVO::MVO(std::string yaml):MVO(){
             this->params.SVDMethod = MVO::SVD::Eigen;
             break;
         default:
-            abort();    
+            abort();
+    }
+
+    switch( fSettings["Triangulation.Method"] ){
+        case 0:
+            this->params.triangulationMethod = MVO::TRIANGULATION::MIDP;
+            break;
+        case 1:
+            this->params.triangulationMethod = MVO::TRIANGULATION::LLS;
+            break;
+        default:
+            abort();
     }
     // this->eigenSolver = new Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd>(this->bucket.max_features);
 }

@@ -106,12 +106,15 @@ Scale.error: 2
 # SVD Methods: Jacobi(0), BDC(1), OpenCV(2), Eigen(3: recommended)
 SVD.Method: 3
 
+# SVD Methods: mid-point(0: recommended), linear least square(1)
+Triangulation.Method: 0
+
 #--------------------------------------------------------------------------------------------
 # Display Parameters (tunable).
 #--------------------------------------------------------------------------------------------
 
 # Size of point
-Landmark.nScale: 3
+Landmark.nScale: 10
 
 # Publishing rate
 Landmark.nPubRate: 5

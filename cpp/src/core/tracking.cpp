@@ -373,6 +373,7 @@ bool MVO::calculate_essential()
         }
     }
     this->nFeature2DInliered = inlier_cnt;
+    std::cerr << "nFeature2DInliered: " << this->nFeature2DInliered << std::endl;
 
     if (this->nFeature2DInliered < this->params.thInlier)
     {

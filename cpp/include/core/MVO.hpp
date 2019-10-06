@@ -14,6 +14,11 @@ class MVO{
 		OpenCV,
 		Eigen
 	};
+
+	enum TRIANGULATION{
+		MIDP,
+		LLS
+	};
 	
 	struct RansacCoef{
 		int iterMax = 1e4;
@@ -50,6 +55,7 @@ class MVO{
 		double plotScale;
 		double reprojError;
 		MVO::SVD SVDMethod;
+		MVO::TRIANGULATION triangulationMethod;
 	};
 	
 	public:
@@ -91,10 +97,10 @@ class MVO{
 	bool scale_propagation(Eigen::Matrix3d& R, Eigen::Vector3d& t,
 						   std::vector<bool>& inlier, std::vector<bool>& outlier);
 	bool findPoseFrom3DPoints(Eigen::Matrix3d &R, Eigen::Vector3d &t, std::vector<int>& inlier, std::vector<int>& outlier);
-	void constructDepth(const std::vector<Eigen::Vector3d> x_prev, const std::vector<Eigen::Vector3d> x_curr, 
+	void constructDepth(const std::vector<cv::Point2f> uv_prev, const std::vector<cv::Point2f> uv_curr, 
                         const Eigen::Matrix3d R, const Eigen::Vector3d t, 
                         std::vector<Eigen::Vector3d> &X_prev, std::vector<Eigen::Vector3d> &X_curr, 
-                        std::vector<double> &lambda_prev, std::vector<double> &lambda_curr);
+                        std::vector<bool> &inlier);
 	void update3DPoints(const Eigen::Matrix3d& R, const Eigen::Vector3d& t,
 						const std::vector<bool>& inlier, const std::vector<bool>& outlier,
 						Eigen::Matrix4d& T, Eigen::Matrix4d& Toc, Eigen::Vector4d& Poc);

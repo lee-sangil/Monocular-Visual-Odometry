@@ -27,6 +27,7 @@
 #include <eigen3/Eigen/Core>
 #include <eigen3/Eigen/Dense>
 #include <eigen3/Eigen/SVD>
+#include <eigen3/Eigen/QR>
 #include <eigen3/Eigen/LU>
 #include <eigen3/Eigen/Eigen>
 #include <eigen3/unsupported/Eigen/MatrixFunctions>
