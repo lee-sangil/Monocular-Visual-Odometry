@@ -96,18 +96,18 @@ void lsi::sortImageAndImu(const std::vector<double> timeImu, const std::vector<d
 	std::vector<sensor> sensorArray;
 	std::vector<int> idIMU(timeImu.size(),1), idRGB(timeRgb.size(),2);
 
-	for( unsigned int i = 0; i < timeImu.size(); i++){
+	for( uint32_t i = 0; i < timeImu.size(); i++){
 		sensor data = sensor(timeImu[i],1);
 		sensorArray.push_back(data);
 	}
-	for( unsigned int i = 0; i < timeRgb.size(); i++){
+	for( uint32_t i = 0; i < timeRgb.size(); i++){
 		sensor data = sensor(timeRgb[i],2);
 		sensorArray.push_back(data);
 	}
 
 	std::sort(sensorArray.begin(), sensorArray.end(), [](const sensor &a, const sensor &b){return a.time < b.time;});
 
-	for( unsigned int i = 0; i < sensorArray.size(); i++){
+	for( uint32_t i = 0; i < sensorArray.size(); i++){
 		sensorID.push_back(sensorArray[i].id);
 	}
 }

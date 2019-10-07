@@ -69,7 +69,7 @@ Feature.num: 500
 Feature.thInlier: 6
 
 # Min. feature distance between
-Feature.min_px_dist: 7
+Feature.min_px_dist: 12
 
 # Bucket safety region (px)
 Bucket.safety: 20
@@ -114,7 +114,7 @@ Triangulation.Method: 0
 #--------------------------------------------------------------------------------------------
 
 # Size of point
-Landmark.nScale: 10
+Landmark.nScale: 5
 
 # Publishing rate
 Landmark.nPubRate: 5
