@@ -63,7 +63,7 @@ LiDAR.T: [-0.4822433, -0.0082169, 0.4185907]
 #--------------------------------------------------------------------------------------------
 
 # Number of features
-Feature.num: 500
+Feature.num: 600
 
 # Number of features matching per image 
 Feature.thInlier: 6
@@ -83,7 +83,7 @@ Bucket.cols: 8
 #--------------------------------------------------------------------------------------------
 
 # Iteration
-RANSAC.iterMax: 1000
+RANSAC.iterMax: 100
 
 # Min. number of samples
 RANSAC.nSample: 2
