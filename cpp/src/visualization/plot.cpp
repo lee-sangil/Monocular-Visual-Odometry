@@ -29,9 +29,13 @@ void MVO::plot(){
 	cv::Mat traj = cv::Mat::zeros(600,600,CV_8UC3);
 
 	// feature points
+	Eigen::Vector4d point;
 	for( int i = 0; i < this->nFeature; i++ ){
+		point = this->TocRec.back().inverse() * this->features[i].point_init;
 		if( this->features[i].is_3D_init )
-			cv::circle(traj, cv::Point(300 + this->params.plotScale * this->features[i].point(0), 300 - this->params.plotScale * this->features[i].point(2)), 1, cv::Scalar(255,255,255), CV_FILLED);
+			cv::circle(traj, cv::Point(300 + this->params.plotScale * point(0), 300 - this->params.plotScale * point(2)), 1, cv::Scalar(128,128,128), CV_FILLED);
+		if( this->features[i].is_3D_reconstructed)
+			cv::circle(traj, cv::Point(300 + this->params.plotScale * this->features[i].point(0), 300 - this->params.plotScale * this->features[i].point(2)), 1, cv::Scalar(0,255,0), CV_FILLED);
 	}
 
 	Eigen::Matrix4d currTco = this->TocRec.back().inverse();

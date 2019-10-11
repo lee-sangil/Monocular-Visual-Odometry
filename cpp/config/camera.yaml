@@ -101,7 +101,7 @@ RANSAC.thDistOut: 5
 Scale.height: 1.5
 
 # Min. Reprojection error
-Scale.error: 2
+Scale.error: 1
 
 # SVD Methods: Jacobi(0), BDC(1), OpenCV(2), Eigen(3: recommended)
 SVD.Method: 3
@@ -114,7 +114,7 @@ Triangulation.Method: 0
 #--------------------------------------------------------------------------------------------
 
 # Size of point
-Landmark.nScale: 5
+Landmark.nScale: 10
 
 # Publishing rate
 Landmark.nPubRate: 5

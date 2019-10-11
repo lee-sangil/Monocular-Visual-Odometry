@@ -39,6 +39,7 @@
 #include <opencv2/features2d/features2d.hpp>
 #include <opencv2/video.hpp>
 #include <opencv2/imgproc.hpp>
+#include <opencv2/calib3d.hpp>
 #include <boost/filesystem.hpp>
 
 typedef struct Bucket{

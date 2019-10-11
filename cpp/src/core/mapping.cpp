@@ -78,6 +78,7 @@ bool MVO::calculate_motion()
     
         // Update 3D points
         this->update3DPoints(R, t, inlier, outlier, R_, t_, success, T, Toc, Poc); // overloading function
+        std::cout << "Update 3D Points with PnP, ";
     }else{
         std::cerr << "# Find pose from PnP: " << lsi::toc() << std::endl;
 
@@ -90,6 +91,7 @@ bool MVO::calculate_motion()
         }
 
         this->update3DPoints(R_, t_, inlier, outlier, T, Toc, Poc); // overloading function
+        std::cout << "Update 3D Points with Essential Constraint, ";
     }
 
     /**** use both PnP and essential 3d reconstruction - modified****/
@@ -250,22 +252,37 @@ bool MVO::findPoseFrom3DPoints(Eigen::Matrix3d &R, Eigen::Vector3d &t, std::vect
             objectPoints.emplace_back(features[idx[i]].point_init(0), features[idx[i]].point_init(1), features[idx[i]].point_init(2));
             imagePoints.emplace_back(features[idx[i]].uv.back().x, features[idx[i]].uv.back().y); // return last element of uv
         }
-        cv::Mat r_vec, t_vec;
-        bool success = cv::solvePnPRansac(objectPoints, imagePoints, this->params.Kcv, cv::noArray(),
-                                          r_vec, t_vec, true, 1e3,
-                                          this->params.reprojError, 0.999, idxInlier, cv::SOLVEPNP_AP3P);
-        if (!success){
-            success = cv::solvePnPRansac(objectPoints, imagePoints, this->params.Kcv, cv::noArray(),
-                                              r_vec, t_vec, true, 1e3,
-                                              2 * params.reprojError, 0.999, idxInlier, cv::SOLVEPNP_AP3P);
-        }
+
+        // r_vec = cv::Mat::zeros(3,1,CV_32F);
+        // t_vec = cv::Mat::zeros(3,1,CV_32F);
+
+        R = this->TocRec.back().block(0,0,3,3).transpose();
+        t = -R * this->TocRec.back().block(0,3,3,1);
+
+        cv::Mat R_, r_vec, t_vec;
+        cv::eigen2cv(R, R_);
+        cv::eigen2cv(t, t_vec);
+        cv::Rodrigues(R_, r_vec);
+        
+        cv::solvePnPRefineLM(objectPoints, imagePoints, this->params.Kcv, cv::noArray(), r_vec, t_vec, cv::TermCriteria(cv::TermCriteria::EPS + cv::TermCriteria::COUNT, 100, 1e-7));
+
+        // bool success = cv::solvePnP(objectPoints, imagePoints, this->params.Kcv, cv::noArray(), r_vec, t_vec, true, cv::SOLVEPNP_ITERATIVE);
+
+        // bool success = cv::solvePnPRansac(objectPoints, imagePoints, this->params.Kcv, cv::noArray(),
+        //                                   r_vec, t_vec, false, 1e3,
+        //                                   this->params.reprojError, 0.6, idxInlier, cv::SOLVEPNP_AP3P);
+        // if (!success){
+        //     success = cv::solvePnPRansac(objectPoints, imagePoints, this->params.Kcv, cv::noArray(),
+        //                                       r_vec, t_vec, false, 1e3,
+        //                                       2 * params.reprojError, 0.6, idxInlier, cv::SOLVEPNP_AP3P);
+        // }
         std::cerr << "## Solve PnP: " << lsi::toc() << std::endl;
 
         cv::Mat R_cv;
         cv::Rodrigues(r_vec, R_cv);
         cv::cv2eigen(R_cv, R);
         cv::cv2eigen(t_vec, t);
-
+        
         idxOutlier.clear();
         if( idxInlier.empty() ){
             for (int i = 0; i < (int)nPoint; i++)
@@ -278,7 +295,7 @@ bool MVO::findPoseFrom3DPoints(Eigen::Matrix3d &R, Eigen::Vector3d &t, std::vect
                     idxOutlier.push_back(i);
             }
         }
-        flag = success;
+        flag = true;
     }
     else{
         idxInlier.clear();
@@ -577,76 +594,15 @@ bool MVO::scale_propagation(Eigen::Matrix3d &R, Eigen::Vector3d &t, std::vector<
             || inlier.size() < (std::size_t)this->params.thInlier || scale == 0)
         {
             std::cerr << "There are a few SCALE FACTOR INLIERS" << std::endl;
-            idx.clear();
-            for (uint32_t i = 0; i < features.size(); i++){
-                if (features[i].is_3D_init)
-                    idx.push_back(i);
-            }
-            nPoint = idx.size();
 
-            // Use RANSAC to find suitable scale
-            if (nPoint > (uint32_t)this->params.thInlier)
-            {
-                std::vector<cv::Point3f> objectPoints;
-                std::vector<cv::Point2f> imagePoints;
-                Eigen::Vector3d Eigen_point;
-                for (uint32_t i = 0; i < nPoint; i++){
-                    Eigen_point = ( T_.inverse() * this->features[idx[i]].point ).block(0,0,3,1);
-                    objectPoints.emplace_back( Eigen_point(0), Eigen_point(1), Eigen_point(2) );
-                    imagePoints.push_back( this->features[idx[i]].uv.back() ); // return last element of uv
-                }
-                cv::Mat r_vec, t_vec;
-                std::vector<int> idxInlier;
-                bool success = cv::solvePnPRansac( objectPoints, imagePoints, this->params.Kcv, cv::noArray(),
-                                                    r_vec,  t_vec, false, 1e3, 
-                                                    this->params.reprojError, 0.999, idxInlier, cv::SOLVEPNP_AP3P);
-                if (!success){
-                    cv::solvePnPRansac( objectPoints, imagePoints, this->params.Kcv, cv::noArray(),
-                                                    r_vec,  t_vec, false, 1e3, 
-                                                    2 * this->params.reprojError, 0.999, idxInlier, cv::SOLVEPNP_AP3P);
-                }
+            inlier.clear();
+            outlier.clear();
 
-                Eigen::Vector3d r_vec_, t_vec_;
-                cv::cv2eigen(r_vec, r_vec_);
-                cv::cv2eigen(t_vec, t_vec_);
-                
-                Eigen::Matrix4d temp_T;
-                temp_T.setIdentity();
-                temp_T.block(0,0,3,3) = skew(r_vec_).exp();
-                temp_T.block(0,3,3,1) = t_vec_;
-                temp_T = this->TRec[this->step-1].inverse() * temp_T; 
-                R = temp_T.block(0,0,3,3);
-                t = temp_T.block(0,3,3,1);
+            scale = (this->TRec[this->step-1].block(0,0,3,1)).norm();
 
-                if( idxInlier.empty() ){
-                    for (int i = 0; i < (int)nPoint; i++){
-                        outlier.push_back(true);
-                        inlier.push_back(false);
-                    }
-                }else{
-                    for (int i = 0, it = 0; i < (int)nPoint; i++){
-                        if (idxInlier[it] == i){
-                            it++;
-                            inlier.push_back(true);
-                        }else
-                            inlier.push_back(false);
-                    }
-                    outlier = inlier;
-                    outlier.flip();
-                }
-
-                flag = success;
-            }
-            else{
-                inlier.clear();
-                outlier.clear();
-
-                scale = (this->TRec[this->step-1].block(0,0,3,1)).norm();
-
-                // Update scale
-                t = scale * t;
-                flag = false;
-            }
+            // Update scale
+            t = scale * t;
+            flag = false;
         }
         else{
             // Update scale
