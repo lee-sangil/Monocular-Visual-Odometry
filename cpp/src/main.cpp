@@ -98,6 +98,8 @@ int main(int argc, char * argv[]){
 		length = sensorID.size();
 	}
 	
+	std::cout << "Press S to stop/restart or Q to quit." << std::endl;
+
 	int it_imu = 0, it_rgb = 0;
 	for( int it = 0; it < length && bRun; it++ ){
 
@@ -115,8 +117,9 @@ int main(int argc, char * argv[]){
 				chk::getImgTUMdataset(dirRgb, image);
 
 				lsi::tic();
+				std::cout << "                                                                                                        " << '\r';
 				vo->run(image);
-				std::cout << "Iteration: " << it_rgb << ", Execution time: " << lsi::toc()/1e3 << "ms" << std::endl;
+				std::cout << "Iteration: " << it_rgb << ", Execution time: " << lsi::toc()/1e3 << "ms";
 				vo->plot();
 
 				it_rgb++;
@@ -129,15 +132,29 @@ int main(int argc, char * argv[]){
 			case 'Q':
 				bRun = false;
 				break;
-			default:
+			case 's':
+			case 'S':
+				while( true ){
+					char key = cv::waitKey(0);
+					if( key == 's' || key == 'S' ){
+						break;
+					}else if( key == 'q' || key == 'Q' ){
+						bRun = false;
+						break;
+					}
+				}
 				break;
 		}
 	}
 
 	if( statusLogger.is_open() ) statusLogger.close();
 
-	std::cout << "All done." << std::endl;
-	cv::waitKey(0);
-
-	return 0;
+	std::cout << std::endl << "Press Q again to quit." << std::endl;
+	while( true ){
+		switch (cv::waitKey(0)) {
+			case 'q':	// press q to quit
+			case 'Q':
+				return 0;
+		}
+	}
 }
