@@ -39,7 +39,7 @@ bool MVO::update_features(){
                 this->features[i].uv.push_back(points[i]);
                 this->features[i].is_matched = true;
                 
-                if( cv::norm(this->features[i].uv.front() - this->features[i].uv.back()) > this->params.min_px_dist ){
+                if( cv::norm(this->features[i].uv.front() - this->features[i].uv.back()) > this->params.px_wide ){
                     this->features[i].is_wide = true;
                 }else{
                     this->features[i].is_wide = false;

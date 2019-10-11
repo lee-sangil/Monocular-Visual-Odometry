@@ -70,6 +70,7 @@ MVO::MVO(std::string yaml):MVO(){
 
     this->params.thInlier =         fSettings["Feature.thInlier"];
     this->params.min_px_dist =      fSettings["Feature.min_px_dist"];
+    this->params.px_wide =          fSettings["Feature.px_wide"];
 
     // RANSAC parameter
     this->params.ransacCoef_scale_prop.iterMax =        fSettings["RANSAC.iterMax"];
@@ -128,6 +129,20 @@ MVO::MVO(std::string yaml):MVO(){
             break;
         case 1:
             this->params.triangulationMethod = MVO::TRIANGULATION::LLS;
+            break;
+        default:
+            abort();
+    }
+
+    switch( fSettings["PNP.Method"] ){
+        case 0:
+            this->params.pnpMethod = MVO::PNP::LM;
+            break;
+        case 1:
+            this->params.pnpMethod = MVO::PNP::ITERATIVE;
+            break;
+        case 2:
+            this->params.pnpMethod = MVO::PNP::AP3P;
             break;
         default:
             abort();

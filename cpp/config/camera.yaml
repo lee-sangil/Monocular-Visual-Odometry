@@ -68,8 +68,11 @@ Feature.num: 600
 # Number of features matching per image 
 Feature.thInlier: 6
 
-# Min. feature distance between
-Feature.min_px_dist: 12
+# Min. feature distance between for extraction
+Feature.min_px_dist: 15
+
+# Min. feature distance between for reconstruction
+Feature.px_wide: 25
 
 # Bucket safety region (px)
 Bucket.safety: 20
@@ -103,11 +106,14 @@ Scale.height: 1.5
 # Min. Reprojection error
 Scale.error: 1
 
-# SVD Methods: Jacobi(0), BDC(1), OpenCV(2), Eigen(3: recommended)
-SVD.Method: 3
-
 # SVD Methods: mid-point(0: recommended), linear least square(1)
 Triangulation.Method: 0
+
+# From above, if 1 is chosen: Jacobi(0), BDC(1), OpenCV(2), Eigen(3: recommended)
+SVD.Method: 3
+
+# Reconstruction method: LM(0), Iterative(1), AP3P Ransac(2)
+PnP.Method: 0
 
 #--------------------------------------------------------------------------------------------
 # Display Parameters (tunable).

@@ -20,6 +20,12 @@ class MVO{
 		LLS
 	};
 	
+	enum PNP{
+		LM,
+		ITERATIVE,
+		AP3P
+	};
+
 	struct RansacCoef{
 		int iterMax = 1e4;
 		double minPtNum = 5;
@@ -44,6 +50,7 @@ class MVO{
 		
 		int thInlier = 5;
 		double min_px_dist = 7.0;
+		double px_wide = 12.0;
 
 		// Statistical model
 		double var_theta = std::pow(90.0 / 1241.0 / 2, 2);
@@ -56,6 +63,7 @@ class MVO{
 		double reprojError;
 		MVO::SVD SVDMethod;
 		MVO::TRIANGULATION triangulationMethod;
+		MVO::PNP pnpMethod;
 	};
 	
 	public:

@@ -263,19 +263,31 @@ bool MVO::findPoseFrom3DPoints(Eigen::Matrix3d &R, Eigen::Vector3d &t, std::vect
         cv::eigen2cv(R, R_);
         cv::eigen2cv(t, t_vec);
         cv::Rodrigues(R_, r_vec);
-        
-        cv::solvePnPRefineLM(objectPoints, imagePoints, this->params.Kcv, cv::noArray(), r_vec, t_vec, cv::TermCriteria(cv::TermCriteria::EPS + cv::TermCriteria::COUNT, 100, 1e-7));
 
-        // bool success = cv::solvePnP(objectPoints, imagePoints, this->params.Kcv, cv::noArray(), r_vec, t_vec, true, cv::SOLVEPNP_ITERATIVE);
-
-        // bool success = cv::solvePnPRansac(objectPoints, imagePoints, this->params.Kcv, cv::noArray(),
-        //                                   r_vec, t_vec, false, 1e3,
-        //                                   this->params.reprojError, 0.6, idxInlier, cv::SOLVEPNP_AP3P);
-        // if (!success){
-        //     success = cv::solvePnPRansac(objectPoints, imagePoints, this->params.Kcv, cv::noArray(),
-        //                                       r_vec, t_vec, false, 1e3,
-        //                                       2 * params.reprojError, 0.6, idxInlier, cv::SOLVEPNP_AP3P);
-        // }
+        switch( this->params.pnpMethod ){
+            case MVO::PNP::ITERATIVE : {
+                bool success = cv::solvePnP(objectPoints, imagePoints, this->params.Kcv, cv::noArray(), r_vec, t_vec, true, cv::SOLVEPNP_ITERATIVE);
+                flag = success;
+                break;
+            }
+            case MVO::PNP::LM : {
+                cv::solvePnPRefineLM(objectPoints, imagePoints, this->params.Kcv, cv::noArray(), r_vec, t_vec, cv::TermCriteria(cv::TermCriteria::EPS + cv::TermCriteria::COUNT, 100, 1e-7));
+                flag = true;
+                break;
+            }
+            case MVO::PNP::AP3P : {
+                bool success = cv::solvePnPRansac(objectPoints, imagePoints, this->params.Kcv, cv::noArray(),
+                                                r_vec, t_vec, false, 1e3,
+                                                this->params.reprojError, 0.6, idxInlier, cv::SOLVEPNP_AP3P);
+                if (!success){
+                    success = cv::solvePnPRansac(objectPoints, imagePoints, this->params.Kcv, cv::noArray(),
+                                                r_vec, t_vec, false, 1e3,
+                                                2 * params.reprojError, 0.6, idxInlier, cv::SOLVEPNP_AP3P);
+                }
+                flag = success;
+                break;
+            }
+        }
         std::cerr << "## Solve PnP: " << lsi::toc() << std::endl;
 
         cv::Mat R_cv;
@@ -295,7 +307,6 @@ bool MVO::findPoseFrom3DPoints(Eigen::Matrix3d &R, Eigen::Vector3d &t, std::vect
                     idxOutlier.push_back(i);
             }
         }
-        flag = true;
     }
     else{
         idxInlier.clear();
