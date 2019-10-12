@@ -72,7 +72,7 @@ Feature.thInlier: 6
 Feature.min_px_dist: 15
 
 # Min. feature distance between for reconstruction
-Feature.px_wide: 25
+Feature.px_wide: 5
 
 # Bucket safety region (px)
 Bucket.safety: 20
@@ -113,7 +113,7 @@ Triangulation.Method: 0
 SVD.Method: 3
 
 # Reconstruction method: LM(0), Iterative(1), AP3P Ransac(2)
-PnP.Method: 0
+PnP.Method: 1
 
 #--------------------------------------------------------------------------------------------
 # Display Parameters (tunable).
@@ -124,3 +124,5 @@ Landmark.nScale: 10
 
 # Publishing rate
 Landmark.nPubRate: 5
+
+Debug.updateInitPoints: 1

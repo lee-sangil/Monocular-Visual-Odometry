@@ -240,7 +240,7 @@ void MVO::add_feature(){
             newFeature.is_3D_reconstructed = false; // triangulation completion
             newFeature.is_3D_init = false; // scale-compensated
             newFeature.point_init.setZero(4,1); // scale-compensated 3-dim homogeneous point in the global coordinates
-            newFeature.point_var = this->params.var_point;
+            newFeature.point_var = 0;
 
             this->features.push_back(newFeature);
             this->nFeature++;

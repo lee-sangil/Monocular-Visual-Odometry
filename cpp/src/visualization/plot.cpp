@@ -29,12 +29,13 @@ void MVO::plot(){
 	cv::Mat traj = cv::Mat::zeros(600,600,CV_8UC3);
 
 	// feature points
-	double plotScale;
-	int n = 0;
-	for( int i = (int) this->TRec.size()-1; i >= std::max( (int) this->TRec.size()-10, 0 ); i--, n++ ){
-		plotScale += std::min(std::max(this->TRec[i].block(0,3,3,1).norm(), 0.01), 100.0);
-	}
-	plotScale = n/plotScale;
+	// double plotScale;
+	// int n = 0;
+	// for( int i = (int) this->TRec.size()-1; i >= std::max( (int) this->TRec.size()-10, 0 ); i--, n++ ){
+	// 	plotScale += std::min(std::max(this->TRec[i].block(0,3,3,1).norm(), 0.01), 100.0);
+	// }
+	// plotScale = n/plotScale;
+	double plotScale = this->params.plotScale;
 	
 	Eigen::Vector4d point;
 	for( int i = 0; i < this->nFeature; i++ ){
@@ -56,6 +57,5 @@ void MVO::plot(){
 		// prevTco = nextTco;
 	}
 	cv::circle(traj, cv::Point(300, 300), 3, cv::Scalar(0,0,255), 3);
-
 	cv::imshow("Trajectory", traj);
 }

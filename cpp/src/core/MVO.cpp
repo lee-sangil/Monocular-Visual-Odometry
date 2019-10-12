@@ -105,6 +105,7 @@ MVO::MVO(std::string yaml):MVO(){
     this->params.reprojError =      fSettings["Scale.error"];
     this->params.plotScale =        fSettings["Landmark.nScale"]; // in px
     this->params.initScale =        1;
+    this->params.updateInitPoint =  fSettings["Debug.updateInitPoints"];
     
     switch( fSettings["SVD.Method"] ){
         case 0:
@@ -147,6 +148,11 @@ MVO::MVO(std::string yaml):MVO(){
         default:
             abort();
     }
+    cv::namedWindow("MVO");
+    cv::moveWindow("MVO", 20, 20);
+
+    cv::namedWindow("Trajectory");
+    cv::moveWindow("Trajectory", 640, 20);
     // this->eigenSolver = new Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd>(this->bucket.max_features);
 }
 

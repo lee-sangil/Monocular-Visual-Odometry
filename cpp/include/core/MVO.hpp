@@ -64,6 +64,7 @@ class MVO{
 		MVO::SVD SVDMethod;
 		MVO::TRIANGULATION triangulationMethod;
 		MVO::PNP pnpMethod;
+		int updateInitPoint;
 	};
 	
 	public:
