@@ -63,7 +63,7 @@ LiDAR.T: [-0.4822433, -0.0082169, 0.4185907]
 #--------------------------------------------------------------------------------------------
 
 # Number of features
-Feature.num: 600
+Feature.num: 500
 
 # Number of features matching per image 
 Feature.thInlier: 6
@@ -86,16 +86,16 @@ Bucket.cols: 8
 #--------------------------------------------------------------------------------------------
 
 # Iteration
-RANSAC.iterMax: 100
+RANSAC.iterMax: 1000
 
 # Min. number of samples
-RANSAC.nSample: 2
+RANSAC.nSample: 1
 
 # Inlier ratio
-RANSAC.thInlrRatio: 0.99
+RANSAC.thInlrRatio: 0.9
 
 # Inlier threshold
-RANSAC.thDist: 0.3
+RANSAC.thDist: 0.5
 
 # Rejection threshold
 RANSAC.thDistOut: 1
@@ -120,14 +120,14 @@ PnP.Method: 0
 #--------------------------------------------------------------------------------------------
 
 # Size of point
-Landmark.nScale: 5
+Landmark.nScale: 10
 
 # Publishing rate
 Landmark.nPubRate: 5
 
 
 # Initialized 3D points are updated(1) for each frame or not(0)
-Debug.updateInitPoints: 1
+Debug.updateInitPoints: 0
 
 # Mapping option: no scaling(0), only essential constraint(1), only PnP(2), both essential and pnp(3)
-Debug.mappingOptions: 3
+Debug.mappingOptions: 1

@@ -747,36 +747,34 @@ double MVO::ransac(const std::vector<cv::Point3f> &x, const std::vector<cv::Poin
 
     std::vector<uint32_t> sampleIdx;
     std::vector<cv::Point3f> x_sample, y_sample;
+    std::vector<double> dist;
+    dist.reserve(x.size());
 
-    int iterNUM = 1e8;
-    std::size_t max_inlier = 0;
+    int iterNUM = 1e5;
+    uint32_t max_inlier = 0;
+    double InlrRatio, val;
 
-    int it = 0;
-
-    while (it < std::min(ransacCoef.iterMax, iterNUM))
-    {
+    for( int it = 0; it < std::min(ransacCoef.iterMax, iterNUM); it++ ){
         // 1. fit using random points
         if (ransacCoef.weight.size() > 0)
             sampleIdx = randweightedpick(ransacCoef.weight, ransacCoef.minPtNum);
         else
             sampleIdx = randperm(ptNum, ransacCoef.minPtNum);
 
-        int tempIdx = 0;
         x_sample.clear();
         y_sample.clear();
-        for (uint32_t i = 0; i < sampleIdx.size(); i++)
-        {
-            tempIdx = sampleIdx[i];
-            x_sample.push_back(x[tempIdx]);
-            y_sample.push_back(y[tempIdx]);
+        for (uint32_t i = 0; i < sampleIdx.size(); i++){
+            x_sample.push_back(x[sampleIdx[i]]);
+            y_sample.push_back(y[sampleIdx[i]]);
         }
-        double f1 = calculate_scale(x_sample, y_sample);
-        std::vector<double> dist1 = calculate_scale_error(f1, x, y);
+
+        val = calculate_scale(x_sample, y_sample);
+        calculate_scale_error(val, x, y, dist);
+
         std::vector<bool> in1;
         uint32_t nInlier = 0;
-        for (uint32_t i = 0; i < dist1.size(); i++)
-        {
-            if( dist1[i] < ransacCoef.thDist ){
+        for (uint32_t i = 0; i < dist.size(); i++){
+            if( dist[i] < ransacCoef.thDist ){
                 in1.push_back( true );
                 nInlier++;
             }else{
@@ -784,25 +782,20 @@ double MVO::ransac(const std::vector<cv::Point3f> &x, const std::vector<cv::Poin
             }
         }
 
-        if (nInlier > max_inlier)
-        {
+        if (nInlier > max_inlier){
             max_inlier = nInlier;
             inlier = in1;
-            double InlrRatio = (double)max_inlier / (double)ptNum + 1e-16;
+            InlrRatio = (double)max_inlier / (double)ptNum + 1e-16;
             iterNUM = static_cast<int>(std::floor(std::log(1 - ransacCoef.thInlrRatio) / std::log(1 - std::pow(InlrRatio, ransacCoef.minPtNum))));
         }
-        it++;
     }
-    std::cerr << "Ransac iterations: " << it << std::endl;
+    std::cerr << "Ransac iterations: " << std::min(ransacCoef.iterMax, iterNUM) << std::endl;
 
-    if (max_inlier == 0)
-    {
+    if (max_inlier == 0){
         inlier.clear();
         outlier.clear();
         return 0;
-    }
-    else
-    {
+    }else{
         x_sample.clear();
         y_sample.clear();
         for (uint32_t i = 0; i < inlier.size(); i++){
@@ -811,9 +804,8 @@ double MVO::ransac(const std::vector<cv::Point3f> &x, const std::vector<cv::Poin
                 y_sample.push_back(y[i]);
             }
         }
-        double f1 = calculate_scale(x_sample, y_sample);
-
-        std::vector<double> dist = calculate_scale_error(f1, x, y);
+        val = calculate_scale(x_sample, y_sample);
+        calculate_scale_error(val, x, y, dist);
 
         inlier.clear();
         outlier.clear();
@@ -821,17 +813,17 @@ double MVO::ransac(const std::vector<cv::Point3f> &x, const std::vector<cv::Poin
             inlier.push_back(dist[i] < ransacCoef.thDist);
             outlier.push_back(dist[i] > ransacCoef.thDistOut);
         }
-
-        return f1;
+        return val;
     }
 }
 
 std::vector<uint32_t> MVO::randperm(uint32_t ptNum, int minPtNum){
-    std::vector<uint32_t> result;
+    std::vector<uint32_t> vector;
     for (uint32_t i = 0; i < ptNum; i++)
-        result.push_back(i);
-    std::random_shuffle(result.begin(), result.begin() + minPtNum);
-    return result;
+        vector.push_back(i);
+    std::random_shuffle(vector.begin(), vector.end());
+    std::vector<uint32_t> sample(vector.begin(), vector.begin()+minPtNum);
+    return sample;
 }
 
 std::vector<uint32_t> MVO::randweightedpick(const std::vector<double> &h, int n /*=1*/){
@@ -839,25 +831,19 @@ std::vector<uint32_t> MVO::randweightedpick(const std::vector<double> &h, int n 
     int s_under;
     double sum, rand_num;
     std::vector<double> H = h;
-    //std::list<double> H;
-    // std::copy(h.cbegin(), h.cend(), std::back_inserter(H));
     std::vector<double> Hs, Hsc;
     std::vector<uint32_t> result;
 
     n = std::min(std::max(1, n), u);
     std::vector<int> HI(u, 0);          // vector with #u ints.
-    std::iota(HI.begin(), HI.end(), 1); // Fill with 1, ..., u.
-
-    // std::transform(H.begin(), H.end(), Hs.begin(),
-    // [](double elem) -> double{ return elem/});
-
-    for (int i = 0; i < n; i++)
-    {
+    std::iota(HI.begin(), HI.end(), 0); // Fill with 0, ..., u-1.
+    
+    for (int i = 0; i < n; i++){
         // initial variables
         Hs.clear();
         Hsc.clear();
         // random weight
-        sum = std::accumulate(H.begin(), H.end(), 0);
+        sum = std::accumulate(H.begin(), H.end(), 0.0);
         std::transform(H.begin(), H.end(), std::back_inserter(Hs),
                        std::bind(std::multiplies<double>(), std::placeholders::_1, 1 / sum)); // divdie elements in H with the value of sum
         std::partial_sum(Hs.begin(), Hs.end(), std::back_inserter(Hsc), std::plus<double>()); // cummulative sum.
@@ -877,16 +863,14 @@ std::vector<uint32_t> MVO::randweightedpick(const std::vector<double> &h, int n 
 
 double MVO::calculate_scale(const std::vector<cv::Point3f> &pt1, const std::vector<cv::Point3f> &pt2){
     double sum = 0;
-    for (uint32_t i = 0; i < pt1.size(); i++)
-    {
+    for (uint32_t i = 0; i < pt1.size(); i++){
         sum += (pt1[i].x * pt2[i].x + pt1[i].y * pt2[i].y + pt1[i].z * pt2[i].z) / (pt1[i].x * pt1[i].x + pt1[i].y * pt1[i].y + pt1[i].z * pt1[i].z + 1e-10);
     }
     return sum / pt1.size();
 }
 
-std::vector<double> MVO::calculate_scale_error(double scale, const std::vector<cv::Point3f> &pt1, const std::vector<cv::Point3f> &pt2){
-    std::vector<double> dist;
+void MVO::calculate_scale_error(const double scale, const std::vector<cv::Point3f> &pt1, const std::vector<cv::Point3f> &pt2, std::vector<double>& dist){
+    dist.clear();
     for (uint32_t i = 0; i < pt1.size(); i++)
         dist.push_back(cv::norm(pt2[i] - scale * pt1[i]));
-    return dist;
 }

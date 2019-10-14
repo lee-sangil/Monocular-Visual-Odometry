@@ -126,7 +126,7 @@ class MVO{
 				MVO::RansacCoef ransacCoef,
 				std::vector<bool>& inlier, std::vector<bool>& outlier);
 	static double calculate_scale(const std::vector<cv::Point3f>& pt1, const std::vector<cv::Point3f>& pt2);
-	static std::vector<double> calculate_scale_error(double scale, const std::vector<cv::Point3f>& pt1, const std::vector<cv::Point3f>& pt2);
+	static void calculate_scale_error(const double scale, const std::vector<cv::Point3f>& pt1, const std::vector<cv::Point3f>& pt2, std::vector<double>& dist);
 	static std::vector<uint32_t> randperm(uint32_t ptNum, int minPtNum);
 	static std::vector<uint32_t> randweightedpick(const std::vector<double>& h, int n = 1);
 
