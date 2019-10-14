@@ -106,6 +106,7 @@ MVO::MVO(std::string yaml):MVO(){
     this->params.plotScale =        fSettings["Landmark.nScale"]; // in px
     this->params.initScale =        1;
     this->params.updateInitPoint =  fSettings["Debug.updateInitPoints"];
+    this->params.mappingOption =    fSettings["Debug.mappingOptions"];
     
     switch( fSettings["SVD.Method"] ){
         case 0:

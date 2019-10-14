@@ -40,72 +40,81 @@ bool MVO::calculate_motion()
     std::vector<bool> inlier, outlier;
 	std::vector<int> idxInlier, idxOutlier;
     
-    /**** no mapping and scaling ****/
-    // T.setIdentity();
-    // T.block(0,0,3,3) = R_.transpose(); 
-    // T.block(0,3,3,1) = -R_.transpose()*t_;
-    // Toc = this->TocRec.back() * T;
-    // Poc = Toc.block(0,3,4,1);
+    switch (this->params.mappingOption) {
+        /**** no mapping and scaling ****/
+        // T.setIdentity();
+        // T.block(0,0,3,3) = R_.transpose(); 
+        // T.block(0,3,3,1) = -R_.transpose()*t_;
+        // Toc = this->TocRec.back() * T;
+        // Poc = Toc.block(0,3,4,1);
 
-    // TRec.push_back(T);
-    // TocRec.push_back(Toc);
-    // PocRec.push_back(Poc);
-    // return true;
+        // TRec.push_back(T);
+        // TocRec.push_back(Toc);
+        // PocRec.push_back(Poc);
+        // return true;
 
-    /**** mapping without scaling ****/
-    // this->update3DPoints(R_, t_, inlier, outlier, T, Toc, Poc);
-    // return true;
+    case 0:
+        /**** mapping without scaling ****/
+        this->update3DPoints(R_, t_, inlier, outlier, T, Toc, Poc);
+        break;
 
-    /**** mapping and scaling with essential 3d reconstruction only ****/
-    // this->scale_propagation(R_ ,t_, inlier, outlier);
-    // std::cout << "Essential 3D error: " << this->calcReconstructionError(R_, t_) << std::endl;
-    // this->update3DPoints(R_, t_, inlier, outlier, T, Toc, Poc); // overloading function
-
-    /**** mapping and scaling with PnP only ****/
-    // if( this->scale_initialized == true ){
-    //     this->findPoseFrom3DPoints(R, t, idxInlier, idxOutlier);
-    // }else{
-    //     R = R_;
-    //     t = t_;
-    // }
-    // this->update3DPoints(R, t, inlier, outlier, R_, t_, false, T, Toc, Poc); // overloading function
-
-    /**** use both PnP and essential 3d reconstruction - original****/
-    if (this->findPoseFrom3DPoints(R, t, idxInlier, idxOutlier)){
-        std::cerr << "# Find pose from PnP: " << lsi::toc() << std::endl;
-        std::clog << "PnP 3D error: " << this->calcReconstructionError(R, t) << std::endl;
-
-        // Update 3D points
-        bool success = this->scale_propagation(R_, t_, inlier, outlier);
-    
-        // Update 3D points
-        this->update3DPoints(R, t, inlier, outlier, R_, t_, success, T, Toc, Poc); // overloading function
-        std::cout << "Update 3D Points with PnP, ";
-    }else{
-        std::cerr << "# Find pose from PnP: " << lsi::toc() << std::endl;
-
-        // Update 3D points
-        bool success = this->scale_propagation(R_ ,t_, inlier, outlier);
-    
-        if (!success){
-            std::cerr << "There are few inliers matching scale." << std::endl;
-            return false;
-        }
-        std::clog << "Essential 3D error: " << this->calcReconstructionError(R_, t_) << std::endl;
-
+    case 1:
+        /**** mapping and scaling with essential 3d reconstruction only ****/
+        this->scale_propagation(R_ ,t_, inlier, outlier);
+        std::cout << "Essential 3D error: " << this->calcReconstructionError(R_, t_) << std::endl;
         this->update3DPoints(R_, t_, inlier, outlier, T, Toc, Poc); // overloading function
-        std::cout << "Update 3D Points with Essential Constraint, ";
+        break;
+
+    case 2:
+        /**** mapping and scaling with PnP only ****/
+        if( this->scale_initialized == true ){
+            this->findPoseFrom3DPoints(R, t, idxInlier, idxOutlier);
+        }else{
+            R = R_;
+            t = t_;
+        }
+        this->update3DPoints(R, t, inlier, outlier, R_, t_, false, T, Toc, Poc); // overloading function
+        break;
+
+    case 3:
+        /**** use both PnP and essential 3d reconstruction - original****/
+        if (this->findPoseFrom3DPoints(R, t, idxInlier, idxOutlier)){
+            std::cerr << "# Find pose from PnP: " << lsi::toc() << std::endl;
+            std::clog << "PnP 3D error: " << this->calcReconstructionError(R, t) << std::endl;
+
+            // Update 3D points
+            bool success = this->scale_propagation(R_, t_, inlier, outlier);
+        
+            // Update 3D points
+            this->update3DPoints(R, t, inlier, outlier, R_, t_, success, T, Toc, Poc); // overloading function
+            std::cout << "Update 3D Points with PnP, ";
+        }else{
+            std::cerr << "# Find pose from PnP: " << lsi::toc() << std::endl;
+
+            // Update 3D points
+            bool success = this->scale_propagation(R_ ,t_, inlier, outlier);
+        
+            if (!success){
+                std::cerr << "There are few inliers matching scale." << std::endl;
+                return false;
+            }
+            std::clog << "Essential 3D error: " << this->calcReconstructionError(R_, t_) << std::endl;
+
+            this->update3DPoints(R_, t_, inlier, outlier, T, Toc, Poc); // overloading function
+            std::cout << "Update 3D Points with Essential Constraint, ";
+        }
+        break;
+
+        /**** use both PnP and essential 3d reconstruction - modified****/
+        // if( this->scale_initialized == true ){
+        //     this->findPoseFrom3DPoints(R, t, idxInlier, idxOutlier);
+        //     this->update3DPoints(R, t, inlier, outlier, R_, t_, false, T, Toc, Poc); // overloading function
+        // }else{
+        //     this->scale_propagation(R_, t_, inlier, outlier);
+        //     this->update3DPoints(R_, t_, inlier, outlier, T, Toc, Poc); // overloading function
+        // }
     }
 
-    /**** use both PnP and essential 3d reconstruction - modified****/
-    // if( this->scale_initialized == true ){
-    //     this->findPoseFrom3DPoints(R, t, idxInlier, idxOutlier);
-    //     this->update3DPoints(R, t, inlier, outlier, R_, t_, false, T, Toc, Poc); // overloading function
-    // }else{
-    //     this->scale_propagation(R_, t_, inlier, outlier);
-    //     this->update3DPoints(R_, t_, inlier, outlier, T, Toc, Poc); // overloading function
-    // }
-    
     /**** ****/
     if (this->nFeature3DReconstructed < this->params.thInlier){
         std::cerr << "There are few inliers reconstructed in 3D." << std::endl;
@@ -651,7 +660,6 @@ bool MVO::scale_propagation(Eigen::Matrix3d &R, Eigen::Vector3d &t, std::vector<
 
             scale = ransac(P1_exp, P1_ini, this->params.ransacCoef_scale_prop, inlier, outlier);
             this->nFeatureInlier = std::count(inlier.begin(), inlier.end(), true);
-
         }
 
         // Use the previous scale, if the scale cannot be found

@@ -95,10 +95,10 @@ RANSAC.nSample: 2
 RANSAC.thInlrRatio: 0.99
 
 # Inlier threshold
-RANSAC.thDist: 1
+RANSAC.thDist: 0.3
 
 # Rejection threshold
-RANSAC.thDistOut: 5
+RANSAC.thDistOut: 1
 
 # Vehicel height
 Scale.height: 1.5
@@ -120,9 +120,14 @@ PnP.Method: 0
 #--------------------------------------------------------------------------------------------
 
 # Size of point
-Landmark.nScale: 10
+Landmark.nScale: 5
 
 # Publishing rate
 Landmark.nPubRate: 5
 
+
+# Initialized 3D points are updated(1) for each frame or not(0)
 Debug.updateInitPoints: 1
+
+# Mapping option: no scaling(0), only essential constraint(1), only PnP(2), both essential and pnp(3)
+Debug.mappingOptions: 3

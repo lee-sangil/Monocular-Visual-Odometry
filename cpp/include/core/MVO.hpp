@@ -65,6 +65,7 @@ class MVO{
 		MVO::TRIANGULATION triangulationMethod;
 		MVO::PNP pnpMethod;
 		int updateInitPoint;
+		int mappingOption;
 	};
 	
 	public:

@@ -75,8 +75,8 @@ void MVO::klt_tracker(std::vector<cv::Point2f>& fwd_pts, std::vector<bool>& vali
     currPyr.clear();
     std::cerr << "### Prepare variables: " << lsi::toc() << std::endl;
 
-    cv::buildOpticalFlowPyramid(this->prev_image, prevPyr, cv::Size(21,21), 2, true);
-    cv::buildOpticalFlowPyramid(this->cur_image, currPyr, cv::Size(21,21), 2, true);
+    cv::buildOpticalFlowPyramid(this->prev_image, prevPyr, cv::Size(21,21), 3, true);
+    cv::buildOpticalFlowPyramid(this->cur_image, currPyr, cv::Size(21,21), 3, true);
     std::cerr << "### Build pyramids: " << lsi::toc() << std::endl;
 
     cv::Mat status, err;
@@ -174,100 +174,90 @@ void MVO::add_feature(){
     uint32_t nInBucket = idxBelongToBucket.size();
     
     // Try to find a seperate feature
-    double filterSize = 5.0;
     cv::Mat crop_image;
     std::vector<cv::Point2f> keypoints;
 
-    while( true ){
-
-        if( filterSize < 3.0 ){
-            this->bucket.saturated(row,col) = 0.0;
-            // std::cout << "Feature cannot be found!" << std::endl;
-            return;
-        }
-
-        crop_image = this->cur_image(roi);
-        cv::goodFeaturesToTrack(crop_image, keypoints, 50, 0.01, 2.0, cv::noArray(), 3, true);
-        
-        if( keypoints.size() == 0 ){
-            this->bucket.saturated(row,col) = 0.0;
-            // std::cout << "Feature cannot be found!" << std::endl;
-            return;
-        }else{
-            for( uint32_t l = 0; l < keypoints.size(); l++ ){
-                keypoints[l].x = keypoints[l].x + roi.x - 1;
-                keypoints[l].y = keypoints[l].y + roi.y - 1;
-            }
-        }
-
-        bool success;
-        double dist, minDist, maxMinDist = 0;
-        cv::Point2f bestKeypoint;
+    crop_image = this->cur_image(roi);
+    cv::goodFeaturesToTrack(crop_image, keypoints, 50, 0.1, 2.0, cv::noArray(), 3, true);
+    
+    if( keypoints.size() == 0 ){
+        this->bucket.saturated(row,col) = 0.0;
+        // std::cout << "Feature cannot be found!" << std::endl;
+        return;
+    }else{
         for( uint32_t l = 0; l < keypoints.size(); l++ ){
-            success = true;
-            minDist = 1e9; // enough-large number
-            for( uint32_t f = 0; f < nInBucket; f++ ){
-                dist = cv::norm(keypoints[l] - this->features[idxBelongToBucket[f]].uv.back());
-                
-                if( dist < minDist )
-                    minDist = dist;
-                
-                if( dist < this->params.min_px_dist ){
-                    success = false;
-                    break;
-                }
-            }
-            if( success ){
-                if( minDist > maxMinDist){
-                    maxMinDist = minDist;
-                    bestKeypoint = keypoints[l];
-                }
+            keypoints[l].x = keypoints[l].x + roi.x - 1;
+            keypoints[l].y = keypoints[l].y + roi.y - 1;
+        }
+    }
+
+    bool success;
+    double dist, minDist, maxMinDist = 0;
+    cv::Point2f bestKeypoint;
+    for( uint32_t l = 0; l < keypoints.size(); l++ ){
+        success = true;
+        minDist = 1e9; // enough-large number
+        for( uint32_t f = 0; f < nInBucket; f++ ){
+            dist = cv::norm(keypoints[l] - this->features[idxBelongToBucket[f]].uv.back());
+            
+            if( dist < minDist )
+                minDist = dist;
+            
+            if( dist < this->params.min_px_dist ){
+                success = false;
+                break;
             }
         }
-        
-        if( maxMinDist > 0.0 ){
-            // Add new feature to VO object
-            Feature newFeature;
-
-            newFeature.id = Feature::new_feature_id; // unique id of the feature
-            newFeature.frame_init = this->step; // frame step when the feature is created
-            newFeature.uv.emplace_back(bestKeypoint.x, bestKeypoint.y); // uv point in pixel coordinates
-            newFeature.life = 1; // the number of frames in where the feature is observed
-            newFeature.bucket = cv::Point(row, col); // the location of bucket where the feature belong to
-            newFeature.point.setZero(4,1); // 3-dim homogeneous point in the local coordinates
-            newFeature.is_matched = false; // matched between both frame
-            newFeature.is_wide = false; // verify whether features btw the initial and current are wide enough
-            newFeature.is_2D_inliered = false; // belong to major (or meaningful) movement
-            newFeature.is_3D_reconstructed = false; // triangulation completion
-            newFeature.is_3D_init = false; // scale-compensated
-            newFeature.point_init.setZero(4,1); // scale-compensated 3-dim homogeneous point in the global coordinates
-            newFeature.point_var = 0;
-
-            this->features.push_back(newFeature);
-            this->nFeature++;
-
-            Feature::new_feature_id++;
-
-            // Update bucket
-            this->bucket.mass(row, col)++;
-
-            cv::eigen2cv(this->bucket.mass, this->bucket.cvMass);
-            cv::GaussianBlur(this->bucket.cvMass, this->bucket.cvProb, cv::Size(21,21), 3.0);
-            cv::cv2eigen(this->bucket.cvProb, this->bucket.prob);
-
-            this->bucket.prob.array() += 0.05;
-            this->bucket.prob = this->bucket.prob.cwiseInverse();
-
-            // Assign high weight for ground
-            for( int i = 0; i < this->bucket.prob.rows(); i++ ){
-                // weight.block(i,0,1,weight.cols()) /= std::pow(weight.rows(),2);
-                this->bucket.prob.block(i,0,1,this->bucket.prob.cols()) *= i+1;
-            }            
-            // std::cout << "Feature is added!" << std::endl;
-
-            return;
+        if( success ){
+            if( minDist > maxMinDist){
+                maxMinDist = minDist;
+                bestKeypoint = keypoints[l];
+            }
         }
-        filterSize = filterSize - 2;
+    }
+    
+    if( maxMinDist > 0.0 ){
+        // Add new feature to VO object
+        Feature newFeature;
+
+        newFeature.id = Feature::new_feature_id; // unique id of the feature
+        newFeature.frame_init = this->step; // frame step when the feature is created
+        newFeature.uv.emplace_back(bestKeypoint.x, bestKeypoint.y); // uv point in pixel coordinates
+        newFeature.life = 1; // the number of frames in where the feature is observed
+        newFeature.bucket = cv::Point(row, col); // the location of bucket where the feature belong to
+        newFeature.point.setZero(4,1); // 3-dim homogeneous point in the local coordinates
+        newFeature.is_matched = false; // matched between both frame
+        newFeature.is_wide = false; // verify whether features btw the initial and current are wide enough
+        newFeature.is_2D_inliered = false; // belong to major (or meaningful) movement
+        newFeature.is_3D_reconstructed = false; // triangulation completion
+        newFeature.is_3D_init = false; // scale-compensated
+        newFeature.point_init.setZero(4,1); // scale-compensated 3-dim homogeneous point in the global coordinates
+        newFeature.point_var = 0;
+
+        this->features.push_back(newFeature);
+        this->nFeature++;
+
+        Feature::new_feature_id++;
+
+        // Update bucket
+        this->bucket.mass(row, col)++;
+
+        cv::eigen2cv(this->bucket.mass, this->bucket.cvMass);
+        cv::GaussianBlur(this->bucket.cvMass, this->bucket.cvProb, cv::Size(21,21), 3.0);
+        cv::cv2eigen(this->bucket.cvProb, this->bucket.prob);
+
+        this->bucket.prob.array() += 0.05;
+        this->bucket.prob = this->bucket.prob.cwiseInverse();
+
+        // Assign high weight for ground
+        for( int i = 0; i < this->bucket.prob.rows(); i++ ){
+            // weight.block(i,0,1,weight.cols()) /= std::pow(weight.rows(),2);
+            this->bucket.prob.block(i,0,1,this->bucket.prob.cols()) *= i+1;
+        }            
+        // std::cout << "Feature is added!" << std::endl;
+    }else{
+        this->bucket.saturated(row,col) = 0.0;
+        // std::cout << "Feature cannot be found!" << std::endl;
     }
 }
 

@@ -19,7 +19,6 @@ void MVO::plot(){
 	// feature points
 	for( int i = 0; i < this->nFeature; i++ ){
 		cv::circle(img, cv::Point(this->features[i].uv.back().x, this->features[i].uv.back().y), 3, cv::Scalar(0,255,0), 1);
-		// cv::rectangle(img, cv::Point(11+12*i,460), cv::Point(20+12*i,470), this->param.cmap[i],(this->sgm.isObserved[i])?-1:1);
 	}
 	cv::imshow("MVO", img);
 
@@ -41,19 +40,18 @@ void MVO::plot(){
 	for( uint32_t i = 0; i < this->features_dead.size(); i++ ){
 		if( this->features_dead[i].is_3D_init ){
 			point = this->TocRec.back().inverse() * this->features_dead[i].point_init;
-			cv::circle(traj, cv::Point(300 + plotScale * point(0), 300 - plotScale * point(2)), 2, cv::Scalar(128,128,128));
+			cv::circle(traj, cv::Point(300 + plotScale * point(0), 300 - plotScale * point(2)), 1, cv::Scalar(128,128,128), CV_FILLED);
 		}
 	}
 	for( uint32_t i = 0; i < this->features.size(); i++ ){
 		if( this->features[i].is_3D_init){
 			point = this->TocRec.back().inverse() * this->features[i].point_init;
+			cv::circle(traj, cv::Point(300 + plotScale * point(0), 300 - plotScale * point(2)), 1, cv::Scalar(128,128,128), CV_FILLED);
 			if( this->features[i].is_3D_reconstructed )
-				cv::circle(traj, cv::Point(300 + plotScale * point(0), 300 - plotScale * point(2)), 2, cv::Scalar(0,255,0));
-			else
-				cv::circle(traj, cv::Point(300 + plotScale * point(0), 300 - plotScale * point(2)), 2, cv::Scalar(128,128,128));
+				cv::circle(traj, cv::Point(300 + plotScale * point(0), 300 - plotScale * point(2)), 3, cv::Scalar(0,255,0));
 		}
 		if( this->features[i].is_3D_reconstructed)
-			cv::circle(traj, cv::Point(300 + plotScale * this->features[i].point(0), 300 - plotScale * this->features[i].point(2)), 2, cv::Scalar(0,255,0), CV_FILLED);
+			cv::circle(traj, cv::Point(300 + plotScale * this->features[i].point(0), 300 - plotScale * this->features[i].point(2)), 3, cv::Scalar(0,255,0), CV_FILLED);
 	}
 
 	Eigen::Matrix4d currTco = this->TocRec.back().inverse();
@@ -64,7 +62,6 @@ void MVO::plot(){
 		nextTco = currTco * this->TocRec[i+1];
 		cv::line(traj, cv::Point2f(300 + plotScale * prevTco(0,3), 300 - plotScale * prevTco(2,3)), 
 						cv::Point2f(300 + plotScale * nextTco(0,3), 300 - plotScale * nextTco(2,3)), cv::Scalar(0,0,255), 2);
-		// prevTco = nextTco;
 	}
 	cv::circle(traj, cv::Point(300, 300), 3, cv::Scalar(0,0,255), 3);
 	cv::imshow("Trajectory", traj);
