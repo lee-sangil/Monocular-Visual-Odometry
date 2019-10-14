@@ -112,6 +112,7 @@ void MVO::delete_dead_features(){
 
     for( uint32_t i = 0; i < this->features.size(); ){
         if( this->features[i].life <= 0 ){
+            this->features_dead.push_back(this->features[i]);
             this->features.erase(this->features.begin()+i);
         }else{
             i++;

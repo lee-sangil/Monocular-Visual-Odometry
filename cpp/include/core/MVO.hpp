@@ -117,6 +117,8 @@ class MVO{
 						const std::vector<bool>& inlier, const std::vector<bool>& outlier,
 						const Eigen::Matrix3d& R_E, const Eigen::Vector3d& t_E, const bool& success_E,
 						Eigen::Matrix4d& T, Eigen::Matrix4d& Toc, Eigen::Vector4d& Poc);
+	double calcReconstructionError(Eigen::Matrix4d& Toc);
+	double calcReconstructionError(Eigen::Matrix3d& R, Eigen::Vector3d& t);
 
 	// RANSAC
 	static double ransac(const std::vector<cv::Point3f>& x, const std::vector<cv::Point3f>& y,
@@ -126,7 +128,7 @@ class MVO{
 	static std::vector<double> calculate_scale_error(double scale, const std::vector<cv::Point3f>& pt1, const std::vector<cv::Point3f>& pt2);
 	static std::vector<uint32_t> randperm(uint32_t ptNum, int minPtNum);
 	static std::vector<uint32_t> randweightedpick(const std::vector<double>& h, int n = 1);
-	
+
 	private:
 
 	int step;
@@ -141,6 +143,7 @@ class MVO{
 	std::vector<Feature> features;
 	std::vector<Feature> features_temp;
 	std::vector<Feature> features_backup;
+	std::vector<Feature> features_dead; // for debugging with plot
 
 	bool scale_initialized;
 

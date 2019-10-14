@@ -27,8 +27,8 @@ bool MVO::calculate_motion()
     // this->verify_solutions(R_, t_);
 
     std::cerr << "# Verify unique pose: " << lsi::toc() << std::endl;
-    std::cerr << "R diag: " << R_.diagonal().transpose() << std::endl;
-    std::cerr << "t: " << t_.transpose() << std::endl;
+    // std::cerr << "R diag: " << R_.diagonal().transpose() << std::endl;
+    // std::cerr << "t: " << t_.transpose() << std::endl;
 
     /**************************************************
      * Mapping
@@ -39,7 +39,7 @@ bool MVO::calculate_motion()
     Eigen::Vector4d Poc;
     std::vector<bool> inlier, outlier;
 	std::vector<int> idxInlier, idxOutlier;
-
+    
     /**** no mapping and scaling ****/
     // T.setIdentity();
     // T.block(0,0,3,3) = R_.transpose(); 
@@ -58,6 +58,7 @@ bool MVO::calculate_motion()
 
     /**** mapping and scaling with essential 3d reconstruction only ****/
     // this->scale_propagation(R_ ,t_, inlier, outlier);
+    // std::cout << "Essential 3D error: " << this->calcReconstructionError(R_, t_) << std::endl;
     // this->update3DPoints(R_, t_, inlier, outlier, T, Toc, Poc); // overloading function
 
     /**** mapping and scaling with PnP only ****/
@@ -72,6 +73,7 @@ bool MVO::calculate_motion()
     /**** use both PnP and essential 3d reconstruction - original****/
     if (this->findPoseFrom3DPoints(R, t, idxInlier, idxOutlier)){
         std::cerr << "# Find pose from PnP: " << lsi::toc() << std::endl;
+        std::clog << "PnP 3D error: " << this->calcReconstructionError(R, t) << std::endl;
 
         // Update 3D points
         bool success = this->scale_propagation(R_, t_, inlier, outlier);
@@ -89,6 +91,7 @@ bool MVO::calculate_motion()
             std::cerr << "There are few inliers matching scale." << std::endl;
             return false;
         }
+        std::clog << "Essential 3D error: " << this->calcReconstructionError(R_, t_) << std::endl;
 
         this->update3DPoints(R_, t_, inlier, outlier, T, Toc, Poc); // overloading function
         std::cout << "Update 3D Points with Essential Constraint, ";
@@ -273,18 +276,18 @@ bool MVO::findPoseFrom3DPoints(Eigen::Matrix3d &R, Eigen::Vector3d &t, std::vect
                 break;
             }
             case MVO::PNP::LM : {
-                cv::solvePnPRefineLM(objectPoints, imagePoints, this->params.Kcv, cv::noArray(), r_vec, t_vec, cv::TermCriteria(cv::TermCriteria::EPS + cv::TermCriteria::COUNT, 100, 1e-7));
+                cv::solvePnPRefineLM(objectPoints, imagePoints, this->params.Kcv, cv::noArray(), r_vec, t_vec, cv::TermCriteria(cv::TermCriteria::EPS + cv::TermCriteria::COUNT, 1e3, 1));
                 flag = true;
                 break;
             }
             case MVO::PNP::AP3P : {
                 bool success = cv::solvePnPRansac(objectPoints, imagePoints, this->params.Kcv, cv::noArray(),
                                                 r_vec, t_vec, false, 1e3,
-                                                this->params.reprojError, 0.6, idxInlier, cv::SOLVEPNP_AP3P);
+                                                this->params.reprojError, 0.99, idxInlier, cv::SOLVEPNP_AP3P);
                 if (!success){
                     success = cv::solvePnPRansac(objectPoints, imagePoints, this->params.Kcv, cv::noArray(),
                                                 r_vec, t_vec, false, 1e3,
-                                                2 * this->params.reprojError, 0.6, idxInlier, cv::SOLVEPNP_AP3P);
+                                                2 * this->params.reprojError, 0.99, idxInlier, cv::SOLVEPNP_AP3P);
                 }
                 flag = success;
                 break;
@@ -456,23 +459,27 @@ void MVO::update3DPoints(const Eigen::Matrix3d &R, const Eigen::Vector3d &t,
     Poc = Toc.block(0,3,4,1);
 
     int len;
-    double cur_var, prv_var, new_var;
+    double cur_var, prv_var, new_var, diffX;
     for( uint32_t i = 0; i < this->features.size(); i++ ){
         if( this->features[i].is_3D_reconstructed ){
             this->features[i].point.block(0,0,3,1) *= scale;
 
             len = this->features[i].uv.size();
+            cur_var = 5/(cv::norm(this->features[i].uv[len-2] - this->features[i].uv.back()));
             if( this->features[i].is_3D_init ){
                 if( this->params.updateInitPoint ){
-                    cur_var = 1/(cv::norm(this->features[i].uv[len-2] - this->features[i].uv.back()));
-                    prv_var = this->features[i].point_var;
-                    new_var = 1 / ( (1 / prv_var) + (1 / cur_var) );
-                    this->features[i].point_init = new_var/cur_var * Toc * this->features[i].point + new_var/prv_var * this->features[i].point_init;
-                    this->features[i].point_var = new_var;
+                    diffX = (Toc * this->features[i].point - this->features[i].point_init).norm();
+                    if( diffX < this->features[i].point_var){
+                        prv_var = this->features[i].point_var;
+                        new_var = 1 / ( (1 / prv_var) + (1 / cur_var) );
+                        
+                        this->features[i].point_init = new_var/cur_var * Toc * this->features[i].point + new_var/prv_var * this->features[i].point_init;
+                        this->features[i].point_var = new_var;
+                    }
                 }
             }else if( this->features[i].is_wide ){
                 this->features[i].point_init = Toc * this->features[i].point;
-                this->features[i].point_var = 1/(cv::norm(this->features[i].uv[len-2] - this->features[i].uv.back()));
+                this->features[i].point_var = cur_var;
                 this->features[i].is_3D_init = true;
             }
         }
@@ -503,23 +510,27 @@ void MVO::update3DPoints(const Eigen::Matrix3d &R, const Eigen::Vector3d &t,
         double scale = t_E.norm();
 
         int len;
-        double cur_var, prv_var, new_var;
+        double cur_var, prv_var, new_var, diffX;
         for( uint32_t i = 0; i < this->features.size(); i++ ){
             if( this->features[i].is_3D_reconstructed ){
                 this->features[i].point.block(0,0,3,1) *= scale;
 
                 len = this->features[i].uv.size();
+                cur_var = 5/(cv::norm(this->features[i].uv[len-2] - this->features[i].uv.back()));
                 if( this->features[i].is_3D_init ){
                     if( this->params.updateInitPoint ){
-                        cur_var = 1/(cv::norm(this->features[i].uv[len-2] - this->features[i].uv.back()));
-                        prv_var = this->features[i].point_var;
-                        new_var = 1 / ( (1 / prv_var) + (1 / cur_var) );
-                        this->features[i].point_init = new_var/cur_var * Toc * this->features[i].point + new_var/prv_var * this->features[i].point_init;
-                        this->features[i].point_var = new_var;
+                        diffX = (Toc * this->features[i].point - this->features[i].point_init).norm();
+                        if( diffX < this->features[i].point_var){
+                            prv_var = this->features[i].point_var;
+                            new_var = 1 / ( (1 / prv_var) + (1 / cur_var) );
+                            
+                            this->features[i].point_init = new_var/cur_var * Toc * this->features[i].point + new_var/prv_var * this->features[i].point_init;
+                            this->features[i].point_var = new_var;
+                        }
                     }
                 }else if( this->features[i].is_wide ){
                     this->features[i].point_init = Toc * this->features[i].point;
-                    this->features[i].point_var = 1/(cv::norm(this->features[i].uv[len-2] - this->features[i].uv.back()));
+                    this->features[i].point_var = cur_var;
                     this->features[i].is_3D_init = true;
                 }
             }
@@ -552,24 +563,29 @@ void MVO::update3DPoints(const Eigen::Matrix3d &R, const Eigen::Vector3d &t,
         std::vector<bool> inliers;
         this->constructDepth(uv_prev, uv_curr, Rinv, tinv, X_prev, X_curr, inliers);
 
-        double cur_var, prv_var, new_var;
+        double cur_var, prv_var, new_var, diffX;
         for (uint32_t i = 0; i < nPoint; i++){
             // 2d inliers
             if(inliers[i]){
                 len = this->features[idx2D[i]].uv.size();
+                cur_var = 5/(cv::norm(this->features[idx2D[i]].uv[len-2] - this->features[idx2D[i]].uv.back()));
                 this->features[idx2D[i]].point = (Eigen::Vector4d() << X_curr[i], 1).finished();
 				this->features[idx2D[i]].is_3D_reconstructed = true;
                 
                 if( this->features[idx2D[i]].is_3D_init ){
                     if( this->params.updateInitPoint ){
-                        cur_var = 1/(cv::norm(this->features[idx2D[i]].uv[len-2] - this->features[idx2D[i]].uv.back()));
-                        prv_var = this->features[idx2D[i]].point_var;
-                        new_var = 1 / ( (1 / prv_var) + (1 / cur_var) );
-                        this->features[idx2D[i]].point_init = new_var/cur_var * Toc * this->features[idx2D[i]].point + new_var/prv_var * this->features[idx2D[i]].point_init;
+                        diffX = (Toc * this->features[idx2D[i]].point - this->features[idx2D[i]].point_init).norm();
+                        if( diffX < this->features[idx2D[i]].point_var){
+                            prv_var = this->features[idx2D[i]].point_var;
+                            new_var = 1 / ( (1 / prv_var) + (1 / cur_var) );
+                            
+                            this->features[idx2D[i]].point_init = new_var/cur_var * Toc * this->features[idx2D[i]].point + new_var/prv_var * this->features[idx2D[i]].point_init;
+                            this->features[idx2D[i]].point_var = new_var;
+                        }
                     }
                 }else if( this->features[idx2D[i]].is_wide ){
                     this->features[idx2D[i]].point_init = Toc * this->features[idx2D[i]].point;
-                    this->features[idx2D[i]].point_var = 1/(cv::norm(this->features[idx2D[i]].uv[len-2] - this->features[idx2D[i]].uv.back()));
+                    this->features[idx2D[i]].point_var = cur_var;
                     this->features[idx2D[i]].is_3D_init = true;
                 }
             } // if(lambda_prev > 0 && lambda_curr > 0)
@@ -616,6 +632,8 @@ bool MVO::scale_propagation(Eigen::Matrix3d &R, Eigen::Vector3d &t, std::vector<
             std::vector<cv::Point3f> P1_exp;
             Eigen::Vector3d Eigen_point;
             Eigen::Vector4d temp_point;
+            this->params.ransacCoef_scale_prop.weight.clear();
+            
             for (uint32_t i = 0; i < nPoint; i++){
                 temp_point = this->features[idx[i]].point;
 
@@ -628,7 +646,7 @@ bool MVO::scale_propagation(Eigen::Matrix3d &R, Eigen::Vector3d &t, std::vector<
                 P1_exp.emplace_back(Eigen_point(0), Eigen_point(1), Eigen_point(2));
                 
                 // RANSAC weight
-                this->params.ransacCoef_scale_prop.weight.push_back( std::atan( -temp_point(2)/10 + 3 ) + 3.141592 / 2 );
+                this->params.ransacCoef_scale_prop.weight.push_back( std::atan( -temp_point(2)/5 + 3 ) + 3.141592 / 2 );
             }
 
             scale = ransac(P1_exp, P1_ini, this->params.ransacCoef_scale_prop, inlier, outlier);
@@ -693,6 +711,25 @@ bool MVO::scale_propagation(Eigen::Matrix3d &R, Eigen::Vector3d &t, std::vector<
         return false;
     else
         return flag;
+}
+
+double MVO::calcReconstructionError(Eigen::Matrix4d& Toc){
+    std::vector<double> error;
+    error.reserve(this->features.size());
+    for( uint32_t i = 0; i < this->features.size(); i++ ){
+        error.push_back((Toc * this->features[i].point - this->features[i].point_init).norm());
+    }
+    std::sort(error.begin(), error.end());
+    return error[std::floor(error.size()/4)];
+}
+
+double MVO::calcReconstructionError(Eigen::Matrix3d& R, Eigen::Vector3d& t){
+    Eigen::Matrix4d Toc;
+    Toc.block(0,0,3,3) = R;
+    Toc.block(0,3,3,1) = t;
+    Toc(3,3) = 1;
+
+    return this->calcReconstructionError(Toc);
 }
 
 double MVO::ransac(const std::vector<cv::Point3f> &x, const std::vector<cv::Point3f> &y,

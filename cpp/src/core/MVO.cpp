@@ -196,8 +196,6 @@ void MVO::set_image(cv::Mat& image){
 
 void MVO::run(cv::Mat& image){
     std::cerr << "============ Iteration: " << this->step << " ============" << std::endl;
-    std::cerr << lsi::toc() << std::endl;
-
     this->set_image(image);
     std::cerr << "# Grab image: " << lsi::toc() << std::endl;
     this->refresh();
