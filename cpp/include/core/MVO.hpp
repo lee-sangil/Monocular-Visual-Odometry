@@ -132,7 +132,7 @@ class MVO{
 
 	private:
 
-	int step;
+	uint32_t step;
 	
 	cv::Mat undist_image;
 	cv::Mat cur_image;

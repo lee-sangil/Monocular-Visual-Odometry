@@ -4,7 +4,7 @@
 #include "core/time.hpp"
 
 MVO::MVO(){
-    this->step = 0;
+    this->step = -1;
     this->scale_initialized = false;
     this->cvClahe = cv::createCLAHE();
 
@@ -107,7 +107,7 @@ MVO::MVO(std::string yaml):MVO(){
     this->params.initScale =        1;
     this->params.updateInitPoint =  fSettings["Debug.updateInitPoints"];
     this->params.mappingOption =    fSettings["Debug.mappingOptions"];
-    
+
     switch( fSettings["SVD.Method"] ){
         case 0:
             this->params.SVDMethod = MVO::SVD::JACOBI;
@@ -153,7 +153,7 @@ MVO::MVO(std::string yaml):MVO(){
     cv::moveWindow("MVO", 20, 20);
 
     cv::namedWindow("Trajectory");
-    cv::moveWindow("Trajectory", 640, 20);
+    cv::moveWindow("Trajectory", 1280, 20);
     // this->eigenSolver = new Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd>(this->bucket.max_features);
 }
 
@@ -196,7 +196,8 @@ void MVO::set_image(cv::Mat& image){
 }
 
 void MVO::run(cv::Mat& image){
-    std::cerr << "============ Iteration: " << this->step << " ============" << std::endl;
+    
+    std::cerr << "============ Iteration: " << ++this->step << " ============" << std::endl;
     this->set_image(image);
     std::cerr << "# Grab image: " << lsi::toc() << std::endl;
     this->refresh();
@@ -212,8 +213,6 @@ void MVO::run(cv::Mat& image){
     //     this->backup();
     // else if( this->scale_initialized )
     //     this->reload();
-
-    this->step++;
 }
 
 ptsROI_t MVO::get_points()

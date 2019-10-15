@@ -89,7 +89,7 @@ int main(int argc, char * argv[]){
 
 	std::string dirRgb;
 	cv::Mat image;
-	bool bRun = true;
+	bool bRun = true, bStep = false;
 	int length;
 
 	if( Parser::hasOption("-fl") ){
@@ -98,7 +98,7 @@ int main(int argc, char * argv[]){
 		length = sensorID.size();
 	}
 	
-	std::cout << "Press S to stop/restart or Q to quit." << std::endl;
+	std::cout << "Press S to process a one frame, Q to quit, or W to restart." << std::endl;
 
 	int it_imu = 0, it_rgb = 0;
 	for( int it = 0; it < length && bRun; it++ ){
@@ -126,6 +126,21 @@ int main(int argc, char * argv[]){
 				break;
 		}
 
+		if( bStep ){
+			while(true){
+				char key = cv::waitKey(0);
+				if( key == 's' || key == 'S' ){
+					break;
+				}else if( key == 'q' || key == 'Q' ){
+					bRun = false;
+					break;
+				}else if( key == 'w' || key == 'W' ){
+					bStep = false;
+					break;
+				}
+			}
+		}
+
 		//KeyBoard Process
 		switch (cv::waitKey(1)) {
 			case 'q':	// press q to quit
@@ -134,27 +149,12 @@ int main(int argc, char * argv[]){
 				break;
 			case 's':
 			case 'S':
-				while( true ){
-					char key = cv::waitKey(0);
-					if( key == 's' || key == 'S' ){
-						break;
-					}else if( key == 'q' || key == 'Q' ){
-						bRun = false;
-						break;
-					}
-				}
+				bStep = true;
 				break;
 		}
 	}
 
 	if( statusLogger.is_open() ) statusLogger.close();
-
-	std::cout << std::endl << "Press Q again to quit." << std::endl;
-	while( true ){
-		switch (cv::waitKey(0)) {
-			case 'q':	// press q to quit
-			case 'Q':
-				return 0;
-		}
-	}
+	std::cout << std::endl;
+	return 0;
 }

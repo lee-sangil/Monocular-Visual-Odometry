@@ -44,14 +44,18 @@ void MVO::plot(){
 		}
 	}
 	for( uint32_t i = 0; i < this->features.size(); i++ ){
-		if( this->features[i].is_3D_init){
+		if( this->features[i].is_3D_init ){
 			point = this->TocRec.back().inverse() * this->features[i].point_init;
 			cv::circle(traj, cv::Point(300 + plotScale * point(0), 300 - plotScale * point(2)), 1, cv::Scalar(128,128,128), CV_FILLED);
-			if( this->features[i].is_3D_reconstructed )
-				cv::circle(traj, cv::Point(300 + plotScale * point(0), 300 - plotScale * point(2)), 3, cv::Scalar(0,255,0));
+			if( this->features[i].is_3D_reconstructed ){
+				if( this->features[i].frame_init < this->step )
+					cv::circle(traj, cv::Point(300 + plotScale * point(0), 300 - plotScale * point(2)), 3, cv::Scalar(0,255,0));
+				else
+					cv::circle(traj, cv::Point(300 + plotScale * point(0), 300 - plotScale * point(2)), 3, cv::Scalar(128,128,0));
+			}
 		}
 		if( this->features[i].is_3D_reconstructed)
-			cv::circle(traj, cv::Point(300 + plotScale * this->features[i].point(0), 300 - plotScale * this->features[i].point(2)), 3, cv::Scalar(0,255,0), CV_FILLED);
+			cv::circle(traj, cv::Point(300 + plotScale * this->features[i].point(0), 300 - plotScale * this->features[i].point(2)), 2, cv::Scalar(0,255,0), CV_FILLED);
 	}
 
 	Eigen::Matrix4d currTco = this->TocRec.back().inverse();

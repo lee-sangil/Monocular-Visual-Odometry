@@ -27,20 +27,20 @@ IMU.nG: 9.8082
 Camera.fps: 15
 
 # Camera image resolution
-Camera.width: 1280
-Camera.height: 800
+Camera.width: 1241
+Camera.height: 376
 
 # Camera intrinsics
-Camera.fx: 1.1736e+03
-Camera.fy: 1.1828e+03
-Camera.cx: 614.9016
-Camera.cy: 442.7584
+Camera.fx: 7.188560e+02
+Camera.fy: 7.188560e+02
+Camera.cx: 6.071928e+02
+Camera.cy: 1.852157e+02
 
-Camera.k1: -0.4360
-Camera.k2: 0.1530
-Camera.p1: -0.0016
-Camera.p2: 5.9379e-05
-Camera.k3: 0
+Camera.k1: 0
+Camera.k2: 0 
+Camera.p1: 0 
+Camera.p2: 0 
+Camera.k3: 0 
 
 # Camera extrinsics [B:IMU,C0:cam0]
 Camera.T_BC0: !!opencv-matrix
@@ -63,7 +63,7 @@ LiDAR.T: [-0.4822433, -0.0082169, 0.4185907]
 #--------------------------------------------------------------------------------------------
 
 # Number of features
-Feature.num: 800
+Feature.num: 500
 
 # Number of features matching per image 
 Feature.thInlier: 6
@@ -113,14 +113,14 @@ Triangulation.Method: 0
 SVD.Method: 3
 
 # Reconstruction method: LM(0), Iterative(1), AP3P Ransac(2)
-PnP.Method: 1
+PnP.Method: 2
 
 #--------------------------------------------------------------------------------------------
 # Display Parameters (tunable).
 #--------------------------------------------------------------------------------------------
 
 # Size of point
-Landmark.nScale: 5
+Landmark.nScale: 1
 
 # Publishing rate
 Landmark.nPubRate: 5
@@ -129,4 +129,4 @@ Landmark.nPubRate: 5
 Debug.updateInitPoints: 1
 
 # Mapping option: no scaling(0), only essential constraint(1), only PnP(2), both essential and pnp(3)
-Debug.mappingOptions: 3
+Debug.mappingOptions: 1

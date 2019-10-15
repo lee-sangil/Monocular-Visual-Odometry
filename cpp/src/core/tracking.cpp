@@ -16,7 +16,6 @@ bool MVO::extract_features(){
         // Add features to the number of the lost features
         this->add_features();
         std::cerr << "# Add features: " << lsi::toc() << std::endl;
-        std::cerr << "nFeatures = " << this->nFeature << std::endl;
         
         return true;
     }
@@ -39,7 +38,7 @@ bool MVO::update_features(){
                 this->features[i].uv.push_back(points[i]);
                 this->features[i].is_matched = true;
                 
-                if( cv::norm(this->features[i].uv.front() - this->features[i].uv.back()) > this->params.px_wide ){
+                if( cv::norm(this->features[i].uv[this->features[i].uv.size()-2] - this->features[i].uv.back()) > this->params.px_wide ){
                     this->features[i].is_wide = true;
                 }else{
                     this->features[i].is_wide = false;
@@ -92,7 +91,7 @@ void MVO::klt_tracker(std::vector<cv::Point2f>& fwd_pts, std::vector<bool>& vali
     validity.reserve(this->nFeature);
     for( int i = 0; i < this->nFeature; i++ ){
         bool border_invalid = (fwd_pts[i].x < 0) | (fwd_pts[i].x > this->params.imSize.width) | (fwd_pts[i].y < 0) | (fwd_pts[i].y > this->params.imSize.height);
-        bool error_valid = cv::norm(pts[i] - bwd_pts[i]) < std::min( cv::norm(pts[i] - fwd_pts[i])/5.0, 2.0);
+        bool error_valid = cv::norm(pts[i] - bwd_pts[i]) < 1;//std::min( cv::norm(pts[i] - fwd_pts[i])/5.0, 1.0);
         validity.push_back(!border_invalid & error_valid);
         // bool valid = ~border_invalid & status.at<uchar>(i);// & err.at<float>(i) < std::min( cv::norm(pts[i] - fwd_pts[i])/5.0, 2.0);
         // validity.push_back(valid);
@@ -221,7 +220,7 @@ void MVO::add_feature(){
         Feature newFeature;
 
         newFeature.id = Feature::new_feature_id; // unique id of the feature
-        newFeature.frame_init = this->step; // frame step when the feature is created
+        newFeature.frame_init = 0; // frame step when the 3d point is initialized
         newFeature.uv.emplace_back(bestKeypoint.x, bestKeypoint.y); // uv point in pixel coordinates
         newFeature.life = 1; // the number of frames in where the feature is observed
         newFeature.bucket = cv::Point(row, col); // the location of bucket where the feature belong to
@@ -282,12 +281,11 @@ bool MVO::calculate_essential()
     idx.clear();
 
     for (uint32_t i = 0; i < this->features.size(); i++)
-    {
         if (this->features[i].is_matched)
             idx.push_back(i);
-    }
 
     uint32_t nInlier = idx.size();
+    std::cerr << "nFeatureMatched: " << (double) nInlier / this->nFeature * 100 << '%' << std::endl;
 
     std::vector<cv::Point2f> points1;
     std::vector<cv::Point2f> points2;
@@ -300,11 +298,11 @@ bool MVO::calculate_essential()
     {
         len = this->features[idx[i]].uv.size();
         points1.push_back(this->features[idx[i]].uv[len - 2]); // second to latest
-        points2.push_back(this->features[idx[i]].uv.back());                             // latest
+        points2.push_back(this->features[idx[i]].uv.back());   // latest
     }
 
     cv::Mat inlier_mat;
-    this->essentialMat = cv::findEssentialMat(points1, points2, focal, principle_point, cv::RANSAC, 0.999, 0.5, inlier_mat);
+    this->essentialMat = cv::findEssentialMat(points1, points2, focal, principle_point, cv::RANSAC, 0.999, 0.4, inlier_mat);
     std::cerr << "# Calculate essential: " << lsi::toc() << std::endl;
 
     Eigen::Matrix3d U,V;
@@ -364,7 +362,7 @@ bool MVO::calculate_essential()
         }
     }
     this->nFeature2DInliered = inlier_cnt;
-    std::cerr << "nFeature2DInliered: " << this->nFeature2DInliered << std::endl;
+    std::cerr << "nFeature2DInliered: " << (double) this->nFeature2DInliered / this->nFeature * 100 << '%' << std::endl;
 
     if (this->nFeature2DInliered < this->params.thInlier)
     {
