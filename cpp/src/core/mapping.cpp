@@ -77,14 +77,15 @@ bool MVO::calculate_motion()
         break;
 
     case 3:
-        /**** use both PnP and essential 3d reconstruction - original****/
+        /**** use both PnP and essential 3d reconstruction - original ****/
         if (this->findPoseFrom3DPoints(R, t, idxInlier, idxOutlier)){
             std::cerr << "# Find pose from PnP: " << lsi::toc() << std::endl;
             std::cerr << "PnP 3D error: " << this->calcReconstructionError(R, t) << std::endl;
 
             // Update 3D points
             bool success = this->scale_propagation(R_, t_, inlier, outlier);
-        
+            std::cerr << "# Find scale from Essential: " << lsi::toc() << std::endl;
+            
             // Update 3D points
             this->update3DPoints(R, t, inlier, outlier, R_, t_, success, T, Toc, Poc); // overloading function
             std::cout << "Update 3D Points with PnP, ";
@@ -93,7 +94,8 @@ bool MVO::calculate_motion()
 
             // Update 3D points
             bool success = this->scale_propagation(R_ ,t_, inlier, outlier);
-        
+            std::cerr << "# Find scale from Essential: " << lsi::toc() << std::endl;
+
             if (!success){
                 std::cerr << "There are few inliers matching scale." << std::endl;
                 return false;
@@ -105,14 +107,31 @@ bool MVO::calculate_motion()
         }
         break;
 
-        /**** use both PnP and essential 3d reconstruction - modified****/
-        // if( this->scale_initialized == true ){
-        //     this->findPoseFrom3DPoints(R, t, idxInlier, idxOutlier);
-        //     this->update3DPoints(R, t, inlier, outlier, R_, t_, false, T, Toc, Poc); // overloading function
-        // }else{
-        //     this->scale_propagation(R_, t_, inlier, outlier);
-        //     this->update3DPoints(R_, t_, inlier, outlier, T, Toc, Poc); // overloading function
-        // }
+    case 4:
+        /**** use both PnP and essential 3d reconstruction - modified ****/
+        if( this->scale_propagation(R_, t_, inlier, outlier) ){
+            std::cerr << "# Find scale from Essential: " << lsi::toc() << std::endl;
+
+            R = R_;
+            t = t_;
+
+            this->findPoseFrom3DPoints(R, t, idxInlier, idxOutlier);
+            std::cerr << "# Find pose from PnP: " << lsi::toc() << std::endl;
+
+            // Update 3D points
+            this->update3DPoints(R, t, inlier, outlier, R_, t_, true, T, Toc, Poc);
+            std::cout << "Update 3D Points with PnP, ";
+        }else{
+            std::cerr << "# Find scale from Essential: " << lsi::toc() << std::endl;
+
+            this->findPoseFrom3DPoints(R, t, idxInlier, idxOutlier);
+            std::cerr << "# Find pose from PnP: " << lsi::toc() << std::endl;
+
+            // Update 3D points
+            this->update3DPoints(R, t, inlier, outlier, R_, t_, false, T, Toc, Poc);
+            std::cout << "Update 3D Points with Essential Constraint, ";
+        }
+        break;
     }
 
     // uint32_t reconButNotInit = 0 , reconAndInit = 0, initButNotRecon = 0;
@@ -281,14 +300,20 @@ bool MVO::findPoseFrom3DPoints(Eigen::Matrix3d &R, Eigen::Vector3d &t, std::vect
         // r_vec = cv::Mat::zeros(3,1,CV_32F);
         // t_vec = cv::Mat::zeros(3,1,CV_32F);
 
-        Eigen::Matrix3d R_prev = this->TocRec.back().block(0,0,3,3).transpose();
-        Eigen::Vector3d t_prev = -R_prev * this->TocRec.back().block(0,3,3,1);
-        Eigen::Vector3d speed_prev = this->TRec.back().block(0,3,3,1);
-
         cv::Mat R_, r_vec, t_vec;
-        cv::eigen2cv(R_prev, R_);
-        cv::eigen2cv((Eigen::Vector3d) (t_prev - speed_prev), t_vec);
-        cv::Rodrigues(R_, r_vec);
+        if( R.determinant() < .1){
+            Eigen::Matrix3d R_prev = this->TocRec.back().block(0,0,3,3).transpose();
+            Eigen::Vector3d t_prev = -R_prev * this->TocRec.back().block(0,3,3,1);
+            Eigen::Vector3d speed_prev = this->TRec.back().block(0,3,3,1);
+
+            cv::eigen2cv(R_prev, R_);
+            cv::eigen2cv((Eigen::Vector3d) (t_prev - speed_prev), t_vec);
+            cv::Rodrigues(R_, r_vec);
+        }else{
+            cv::eigen2cv(R, R_);
+            cv::eigen2cv(t, t_vec);
+            cv::Rodrigues(R_, r_vec);
+        }
 
         switch( this->params.pnpMethod ){
             case MVO::PNP::LM : {

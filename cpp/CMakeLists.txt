@@ -6,10 +6,10 @@ SET(DEBUG false)
 # Set our build type
 IF(${DEBUG})
   SET(CMAKE_BUILD_TYPE DEBUG)
-  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -pg -O0 -msse3")
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -pg -O0")
 ELSE()
   SET(CMAKE_BUILD_TYPE RELEASE)
-  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2 -fomit-frame-pointer -flto -fopenmp -msse3")
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2 -fomit-frame-pointer -flto -fopenmp")
 ENDIF()
 MESSAGE(STATUS "Build type: " ${CMAKE_BUILD_TYPE})
 
@@ -25,7 +25,7 @@ LIST(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake_modules/)
 
 # Include libraries
 find_package(Eigen3 REQUIRED)
-find_package(OpenCV 3.4.7 REQUIRED)
+find_package(OpenCV 3 REQUIRED)
 find_package(Boost 1.55.0 REQUIRED COMPONENTS system filesystem thread)
 
 message(${EIGEN3_INCLUDE_DIR})

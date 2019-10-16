@@ -49,9 +49,7 @@ void MVO::plot(){
 			cv::circle(traj, cv::Point(300 + plotScale * point(0), 300 - plotScale * point(2)), 1, cv::Scalar(128,128,128), CV_FILLED);
 			if( this->features[i].is_3D_reconstructed ){
 				if( this->features[i].frame_init < this->step )
-					cv::circle(traj, cv::Point(300 + plotScale * point(0), 300 - plotScale * point(2)), 3, cv::Scalar(0,255,0));
-				else
-					cv::circle(traj, cv::Point(300 + plotScale * point(0), 300 - plotScale * point(2)), 3, cv::Scalar(128,128,0));
+					cv::circle(traj, cv::Point(300 + plotScale * point(0), 300 - plotScale * point(2)), 3, cv::Scalar(0,200,255));
 			}
 		}
 		if( this->features[i].is_3D_reconstructed)
