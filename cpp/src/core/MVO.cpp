@@ -18,17 +18,10 @@ MVO::MVO(){
     // Initial position
     this->TRec.push_back(Eigen::Matrix4d::Identity());
     this->TocRec.push_back(Eigen::Matrix4d::Identity());
-    this->PocRec.push_back(Eigen::Vector4d::Zero());
-    this->PocRec[0](3) = 1;
+    this->PocRec.push_back((Eigen::Vector4d() << 0,0,0,1).finished());
 
     this->R_vec.reserve(4);
 	this->t_vec.reserve(4);
-
-    this->Identity3x3.create(3,3,CV_32FC1);
-    this->Identity3x3.setTo(0);
-    this->Identity3x3.at<float>(0,0) = 1;
-    this->Identity3x3.at<float>(1,1) = 1;
-    this->Identity3x3.at<float>(2,2) = 1;
 }
 
 MVO::MVO(std::string yaml):MVO(){
@@ -68,6 +61,8 @@ MVO::MVO(std::string yaml):MVO(){
     this->params.distCoeffs.insert(this->params.distCoeffs.end(), this->params.tangentialDistortion.begin(), this->params.tangentialDistortion.end());
     this->params.distCoeffs.insert(this->params.distCoeffs.begin(), this->params.radialDistortion.begin()+2, this->params.radialDistortion.end());
 
+    cv::initUndistortRectifyMap(this->params.Kcv, this->params.distCoeffs, cv::Mat(), this->params.Kcv, this->params.imSize, CV_32FC1, this->distMap1, this->distMap2);
+
     this->params.thInlier =         fSettings["Feature.thInlier"];
     this->params.min_px_dist =      fSettings["Feature.min_px_dist"];
     this->params.px_wide =          fSettings["Feature.px_wide"];
@@ -102,13 +97,26 @@ MVO::MVO(std::string yaml):MVO(){
 
     // 3D reconstruction
     this->params.vehicle_height =   fSettings["Scale.height"]; // in meter
-    this->params.reprojError =      fSettings["Scale.error"];
+    this->params.reprojError =      fSettings["PnP.threshold"];
     this->params.plotScale =        fSettings["Landmark.nScale"]; // in px
     this->params.initScale =        1;
     this->params.updateInitPoint =  fSettings["Debug.updateInitPoints"];
     this->params.mappingOption =    fSettings["Debug.mappingOptions"];
 
-    switch( fSettings["SVD.Method"] ){
+    this->eigenSolver = new Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd>();
+
+    switch( fSettings["Triangulation.Method"] ){
+        case 0:
+            this->params.triangulationMethod = MVO::TRIANGULATION::MIDP;
+            break;
+        case 1:
+            this->params.triangulationMethod = MVO::TRIANGULATION::LLS;
+            break;
+        default:
+            abort();
+    }
+    
+    switch( fSettings["Triangulation.SVD"] ){
         case 0:
             this->params.SVDMethod = MVO::SVD::JACOBI;
             break;
@@ -120,17 +128,6 @@ MVO::MVO(std::string yaml):MVO(){
             break;
         case 3:
             this->params.SVDMethod = MVO::SVD::Eigen;
-            break;
-        default:
-            abort();
-    }
-
-    switch( fSettings["Triangulation.Method"] ){
-        case 0:
-            this->params.triangulationMethod = MVO::TRIANGULATION::MIDP;
-            break;
-        case 1:
-            this->params.triangulationMethod = MVO::TRIANGULATION::LLS;
             break;
         default:
             abort();
@@ -149,12 +146,12 @@ MVO::MVO(std::string yaml):MVO(){
         default:
             abort();
     }
+
     cv::namedWindow("MVO");
     cv::moveWindow("MVO", 20, 20);
 
     cv::namedWindow("Trajectory");
     cv::moveWindow("Trajectory", 1280, 20);
-    // this->eigenSolver = new Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd>(this->bucket.max_features);
 }
 
 void MVO::refresh(){
@@ -186,18 +183,20 @@ void MVO::reload(){
 }
 
 void MVO::set_image(cv::Mat& image){
-	this->prev_image = this->cur_image.clone();
+    this->prev_image = this->cur_image.clone();
+    cv::remap(image, this->undist_image, this->distMap1, this->distMap2, cv::INTER_AREA);
     
-    cv::undistort(image, this->temp_image, this->params.Kcv, this->params.distCoeffs);
     if( this->params.applyCLAHE )
-        cvClahe->apply(this->temp_image, this->cur_image);
+        cvClahe->apply(this->undist_image, this->cur_image);
     else
-        this->cur_image = this->temp_image.clone();
+        this->cur_image = this->undist_image.clone();
+
+    this->step++;
 }
 
 void MVO::run(cv::Mat& image){
     
-    std::cerr << "============ Iteration: " << ++this->step << " ============" << std::endl;
+    std::cerr << "============ Iteration: " << this->step << " ============" << std::endl;
     this->set_image(image);
     std::cerr << "# Grab image: " << lsi::toc() << std::endl;
     this->refresh();

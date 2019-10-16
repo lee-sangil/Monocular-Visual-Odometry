@@ -291,23 +291,23 @@ bool MVO::findPoseFrom3DPoints(Eigen::Matrix3d &R, Eigen::Vector3d &t, std::vect
         cv::Rodrigues(R_, r_vec);
 
         switch( this->params.pnpMethod ){
+            case MVO::PNP::LM : {
+                cv::solvePnPRefineLM(objectPoints, imagePoints, this->params.Kcv, cv::noArray(), r_vec, t_vec, cv::TermCriteria(cv::TermCriteria::EPS + cv::TermCriteria::COUNT, 1e3, this->params.reprojError));
+                flag = true;
+                break;
+            }
             case MVO::PNP::ITERATIVE : {
                 bool success = cv::solvePnP(objectPoints, imagePoints, this->params.Kcv, cv::noArray(), r_vec, t_vec, true, cv::SOLVEPNP_ITERATIVE);
                 flag = success;
                 break;
             }
-            case MVO::PNP::LM : {
-                cv::solvePnPRefineLM(objectPoints, imagePoints, this->params.Kcv, cv::noArray(), r_vec, t_vec, cv::TermCriteria(cv::TermCriteria::EPS + cv::TermCriteria::COUNT, 1e3, 1e-5));
-                flag = true;
-                break;
-            }
             case MVO::PNP::AP3P : {
                 bool success = cv::solvePnPRansac(objectPoints, imagePoints, this->params.Kcv, cv::noArray(),
-                                                r_vec, t_vec, false, 1e3,
+                                                r_vec, t_vec, true, 1e3,
                                                 this->params.reprojError, 0.99, idxInlier, cv::SOLVEPNP_AP3P);
                 if (!success){
                     success = cv::solvePnPRansac(objectPoints, imagePoints, this->params.Kcv, cv::noArray(),
-                                                r_vec, t_vec, false, 1e3,
+                                                r_vec, t_vec, true, 1e3,
                                                 2 * this->params.reprojError, 0.99, idxInlier, cv::SOLVEPNP_AP3P);
                 }
                 flag = success;
@@ -441,15 +441,10 @@ void MVO::constructDepth(const std::vector<cv::Point2f> uv_prev, const std::vect
                 }
                 case MVO::SVD::Eigen:{
                     Eigen::MatrixXd MtM_ = M_matrix.transpose()*M_matrix;
-                    this->eigenSolver = new Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd>(MtM_, Eigen::ComputeEigenvectors);
-                    // this->eigenSolver->compute(MtM_, Eigen::ComputeEigenvectors);
-                    // Eigen::VectorXd D = eig.eigenvalues().real();
+                    this->eigenSolver->compute(MtM_, Eigen::ComputeEigenvectors);
+
                     V = this->eigenSolver->eigenvectors();
                     idxMinEigen = 0;
-
-                    // std::cout << D.transpose() << std::endl;
-                    // D.minCoeff(&idxMinEigen);
-
                     break;
                 }
             }

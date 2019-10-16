@@ -99,7 +99,10 @@ int main(int argc, char * argv[]){
 	}
 	
 	std::cout << "# Key descriptions: " << std::endl;
-	std::cout << "- s: pause and process a one frame" << std::endl << "- w: restart" << std::endl << "- a/d: zoom point cloud" << std::endl << "- q: quit" << std::endl;
+	std::cout << "- s: pause and process a one frame" << std::endl << 
+	"- w: restart" << std::endl << 
+	"- a/d: zoom in/out on point cloud" << std::endl << 
+	"- q: quit" << std::endl;
 
 	int it_imu = 0, it_rgb = 0;
 	for( int it = 0; it < length && bRun; it++ ){

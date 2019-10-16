@@ -83,28 +83,34 @@ Bucket.cols: 8
 #--------------------------------------------------------------------------------------------
 
 # Iteration
-RANSAC.iterMax: 1e3
+RANSAC.iterMax: 1000
 
 # Min. number of samples
-RANSAC.nSample: 5
+RANSAC.nSample: 1
 
 # Inlier ratio
 RANSAC.thInlrRatio: 0.99
 
 # Inlier threshold
-RANSAC.thDist: 0.5
+RANSAC.thDist: 0.1
 
 # Rejection threshold
-RANSAC.thDistOut: 5
+RANSAC.thDistOut: 1
 
 # Vehicel height
 Scale.height: 1.5
 
-# Min. Reprojection error
-Scale.error: 1.0
+# SVD Methods: mid-point(0: recommended), linear least square(1)
+Triangulation.Method: 0
 
-# SVD Methods: Jacobi(0), BDC(1: recommended), OpenCV(2), Eigen(3)
-SVD.Method: 3
+# From above, if 1 is chosen: Jacobi(0), BDC(1), OpenCV(2), Eigen(3: recommended)
+Triangulation.SVD: 3
+
+# Reconstruction method: LM(0), Iterative(1), AP3P Ransac(2)
+PnP.Method: 2
+
+# Min. Reprojection error
+PnP.threshold: 1
 
 #--------------------------------------------------------------------------------------------
 # Display Parameters (tunable).
@@ -115,3 +121,9 @@ Landmark.nScale: 10
 
 # Publishing rate
 Landmark.nPubRate: 5
+
+# Initialized 3D points are updated(1) for each frame or not(0)
+Debug.updateInitPoints: 1
+
+# Mapping option: no scaling(0), only essential constraint(1), only PnP(2), both essential and pnp(3)
+Debug.mappingOptions: 3

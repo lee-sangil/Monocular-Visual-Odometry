@@ -69,7 +69,7 @@ class MVO{
 	};
 
 	public:
-	
+
 	Parameter params;
 	
 	public:
@@ -138,15 +138,15 @@ class MVO{
 
 	uint32_t step;
 	
-	cv::Mat undist_image;
-	cv::Mat cur_image;
 	cv::Mat prev_image;
-	cv::Mat temp_image;
+	cv::Mat cur_image;
+	cv::Mat undist_image;
+
 	cv::Ptr<cv::CLAHE> cvClahe;
+	cv::Mat distMap1, distMap2;
 
 	Bucket bucket;
 	std::vector<Feature> features;
-	std::vector<Feature> features_temp;
 	std::vector<Feature> features_backup;
 	std::vector<Feature> features_dead; // for debugging with plot
 
@@ -158,7 +158,6 @@ class MVO{
 	int nFeature3DReconstructed;
 	int nFeatureInlier;
 
-	cv::Mat Identity3x3;
 	cv::Mat essentialMat;
 	std::vector<Eigen::Matrix3d> R_vec;
 	std::vector<Eigen::Vector3d> t_vec;
