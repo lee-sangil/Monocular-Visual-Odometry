@@ -67,6 +67,10 @@ class MVO{
 		int updateInitPoint;
 		int mappingOption;
 	};
+
+	public:
+	
+	Parameter params;
 	
 	public:
 
@@ -167,8 +171,6 @@ class MVO{
 	std::vector<cv::Mat> prevPyramidTemplate, currPyramidTemplate;
 	Eigen::MatrixXd MapMatrixTemplate;
 	Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> * eigenSolver;
-
-	Parameter params;
 };
 
 #endif //__MVO_HPP__

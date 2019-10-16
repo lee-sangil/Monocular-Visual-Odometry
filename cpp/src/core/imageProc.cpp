@@ -17,7 +17,7 @@ void chk::downScaleImg(const cv::Mat& img, cv::Mat& img_lower){ // input : doubl
 
 void chk::getImageFile(const std::string& nameFile, std::vector<double>& timestampFile, std::vector<std::string>& file_contents){
 	std::ifstream file(nameFile);
-	std::cout << "Read: " << nameFile << std::endl;
+	std::cout << "- Read: " << nameFile << std::endl;
 	std::string str;
 	
 	while(std::getline(file,str)){
@@ -45,7 +45,7 @@ void chk::getImageFile(const std::string& nameFile, std::vector<double>& timesta
 
 void chk::getIMUFile(const std::string& nameFile, std::vector<double>& timestampFile, std::vector<std::array<double,6>>& file_contents){
 	std::ifstream file(nameFile);
-	std::cout << "Read: " << nameFile << std::endl;
+	std::cout << "- Read: " << nameFile << std::endl;
 	std::string str;
 	
 	while(std::getline(file,str)){
@@ -135,6 +135,6 @@ void chk::getImgTUMdataset(const std::string& imgFileName, cv::Mat& outputGreyIm
 	outputGreyImg = cv::imread(imgFileName, CV_8U);      // read a grayscale image
 
 	if( outputGreyImg.empty() )
-		std::cout << "Empty image!" << std::endl;
+		std::cout << "Error: empty image!" << std::endl;
 	
 }

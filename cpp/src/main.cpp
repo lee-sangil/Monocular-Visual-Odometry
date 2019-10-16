@@ -28,7 +28,7 @@ int main(int argc, char * argv[]){
 	if(!Parser::hasOption("-o") || outputDir == "") outputDir = "./";
 	if(!boost::filesystem::exists(outputDir)){
 		if( std::system((std::string("mkdir -p ") + outputDir).c_str()) == -1 ){
-			std::cerr << "Cannot make directory" << std::endl;
+			std::cerr << "Error: cannot make directory" << std::endl;
 			return 1;
 		}
 	}
@@ -52,7 +52,7 @@ int main(int argc, char * argv[]){
 		initFrame = Parser::getIntOption("-fi");
 	}
 	if( initFrame < 0 ){
-		std::cerr << "Init frame should not be smaller than zero" << std::endl;
+		std::cerr << "Error: init frame should not be smaller than zero" << std::endl;
 		return 1;
 	}
 
@@ -68,7 +68,7 @@ int main(int argc, char * argv[]){
 
 	chk::getImageFile(image_path.c_str(), timeRgb, rgbNameRaw);
 	chk::getIMUFile(imu_path.c_str(), timeImu, imuDataRaw);
-	std::cout << "Read successfully." << std::endl;
+	std::cout << "- Read successfully." << std::endl;
 
 	rgbNameRaw.erase(rgbNameRaw.begin(), rgbNameRaw.begin()+initFrame);
 	timeRgb.erase(timeRgb.begin(), timeRgb.begin()+initFrame);
@@ -98,7 +98,8 @@ int main(int argc, char * argv[]){
 		length = sensorID.size();
 	}
 	
-	std::cout << "Press S to process a one frame, Q to quit, or W to restart." << std::endl;
+	std::cout << "# Key descriptions: " << std::endl;
+	std::cout << "- s: pause and process a one frame" << std::endl << "- w: restart" << std::endl << "- a/d: zoom point cloud" << std::endl << "- q: quit" << std::endl;
 
 	int it_imu = 0, it_rgb = 0;
 	for( int it = 0; it < length && bRun; it++ ){
@@ -129,14 +130,22 @@ int main(int argc, char * argv[]){
 		if( bStep ){
 			while(true){
 				char key = cv::waitKey(0);
-				if( key == 's' || key == 'S' ){
+				if( key == 's' ){
 					break;
-				}else if( key == 'q' || key == 'Q' ){
+				}else if( key == 'q' ){
 					bRun = false;
 					break;
-				}else if( key == 'w' || key == 'W' ){
+				}else if( key == 'w' ){
 					bStep = false;
 					break;
+				}else if( key == 'a' ){
+					vo->params.plotScale *= 1.2;
+					vo->plot();
+					continue;
+				}else if( key == 'd' ){
+					vo->params.plotScale /= 1.2;
+					vo->plot();
+					continue;
 				}
 			}
 		}
@@ -144,12 +153,16 @@ int main(int argc, char * argv[]){
 		//KeyBoard Process
 		switch (cv::waitKey(1)) {
 			case 'q':	// press q to quit
-			case 'Q':
 				bRun = false;
 				break;
 			case 's':
-			case 'S':
 				bStep = true;
+				break;
+			case 'a':
+				vo->params.plotScale *= 1.2;
+				break;
+			case 'd':
+				vo->params.plotScale /= 1.2;
 				break;
 		}
 	}
