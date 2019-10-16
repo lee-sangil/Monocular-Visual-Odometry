@@ -99,16 +99,6 @@ void MVO::klt_tracker(std::vector<cv::Point2f>& fwd_pts, std::vector<bool>& vali
 }
 
 void MVO::delete_dead_features(){
-    // this->features_temp.clear();
-    // for( uint32_t i = 0; i < this->features.size(); i++){
-    //     if( this->features[i].life > 0 ){
-    //         this->features_temp.push_back(this->features[i]);
-    //     }
-    // }
-    // // this->features.swap(this->features_temp);
-    // this->nFeature = this->features_temp.size();
-    // std::cerr << "# Delete features with new vector: " << lsi::toc() << std::endl;
-
     for( uint32_t i = 0; i < this->features.size(); ){
         if( this->features[i].life <= 0 ){
             this->features_dead.push_back(this->features[i]);
