@@ -94,6 +94,7 @@ class MVO{
 	void reload();
 	void refresh();
 	void run(cv::Mat& image);
+	void run(cv::Mat& image, Eigen::MatrixXd& depth);
 	void plot();
 
 	// Feature operations
@@ -154,6 +155,7 @@ class MVO{
 	std::vector<Feature> features_dead; // for debugging with plot
 
 	bool scale_initialized;
+	bool groundtruth_provided;
 
 	int nFeature;
 	int nFeatureMatched;

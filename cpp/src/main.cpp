@@ -3,6 +3,17 @@
 #include "core/imageProc.hpp"
 #include "core/MVO.hpp"
 #include "core/time.hpp"
+#include <opencv2/imgcodecs.hpp>
+
+Eigen::MatrixXd read_binary(const char* filename, const int rows, const int cols){
+    Eigen::MatrixXd matrix(rows, cols);
+    std::ifstream in(filename, std::ios::in | std::ios::binary);
+    if(!in.is_open())
+        return matrix;
+    in.read(reinterpret_cast<char*>(matrix.data()), rows*cols*sizeof(double));
+    in.close();
+    return matrix;
+}
 
 int main(int argc, char * argv[]){
 
@@ -14,6 +25,7 @@ int main(int argc, char * argv[]){
 				"\tOptional -o: Output directory (default path: ./CamTrajectory.txt).\n"
 				"\tOptional -fi: initial frame (default: 0).\n"
 				"\tOptional -fl: length frame (default: eof).\n"
+				"\tOptional -gt: compare with ground-truth if exists (default: false).\n"
 				"Example: [./divo_dataset -c /path/to/setting.yaml -i /path/to/input_folder/ -o /path/to/output_folder/]" << std::endl;
         return 1;
     }
@@ -88,6 +100,7 @@ int main(int argc, char * argv[]){
 	statusLogger.open(outputDir + "CamTrajectory.txt");
 
 	std::string dirRgb;
+	std::ostringstream dirDepth;
 	cv::Mat image;
 	bool bRun = true, bStep = false;
 	int length;
@@ -122,7 +135,17 @@ int main(int argc, char * argv[]){
 
 				lsi::tic();
 				std::cout << "                                                                                                        " << '\r';
-				vo->run(image);
+
+				if( Parser::hasOption("-gt") ){
+					dirDepth.clear();
+					dirDepth << inputFile << "/sparse_depth/" << std::setfill('0') << std::setw(10) << it_rgb << ".bin";
+					Eigen::MatrixXd depth = read_binary(dirDepth.str().c_str(), vo->params.imSize.height, vo->params.imSize.width);
+					
+					vo->run(image, depth);
+				}else{
+					vo->run(image);
+				}
+				
 				std::cout << "Iteration: " << it_rgb << ", Execution time: " << lsi::toc()/1e3 << "ms";
 				vo->plot();
 

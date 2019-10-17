@@ -6,6 +6,7 @@
 MVO::MVO(){
     this->step = -1;
     this->scale_initialized = false;
+    this->groundtruth_provided = false;
     this->cvClahe = cv::createCLAHE();
 
     // Variables
@@ -222,6 +223,11 @@ void MVO::run(cv::Mat& image){
     //     this->backup();
     // else if( this->scale_initialized )
     //     this->reload();
+}
+
+void MVO::run(cv::Mat& image, Eigen::MatrixXd& depth){
+    this->groundtruth_provided = true;
+    this->run(image);
 }
 
 ptsROI_t MVO::get_points()
