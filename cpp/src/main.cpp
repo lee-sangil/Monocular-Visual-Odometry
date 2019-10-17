@@ -100,7 +100,6 @@ int main(int argc, char * argv[]){
 	statusLogger.open(outputDir + "CamTrajectory.txt");
 
 	std::string dirRgb;
-	std::ostringstream dirDepth;
 	cv::Mat image;
 	bool bRun = true, bStep = false;
 	int length;
@@ -137,8 +136,8 @@ int main(int argc, char * argv[]){
 				std::cout << "                                                                                                        " << '\r';
 
 				if( Parser::hasOption("-gt") ){
-					dirDepth.clear();
-					dirDepth << inputFile << "/sparse_depth/" << std::setfill('0') << std::setw(10) << it_rgb << ".bin";
+					std::ostringstream dirDepth;
+					dirDepth << inputFile << "full_depth/" << std::setfill('0') << std::setw(10) << it_rgb << ".bin";
 					Eigen::MatrixXd depth = read_binary(dirDepth.str().c_str(), vo->params.imSize.height, vo->params.imSize.width);
 					
 					vo->run(image, depth);

@@ -228,6 +228,7 @@ void MVO::run(cv::Mat& image){
 void MVO::run(cv::Mat& image, Eigen::MatrixXd& depth){
     this->groundtruth_provided = true;
     this->run(image);
+    std::cerr << "* Reconstruction error: " << this->calcReconstructionErrorGT(depth) << std::endl;
 }
 
 ptsROI_t MVO::get_points()

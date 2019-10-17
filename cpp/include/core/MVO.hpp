@@ -128,7 +128,8 @@ class MVO{
 						Eigen::Matrix4d& T, Eigen::Matrix4d& Toc, Eigen::Vector4d& Poc);
 	double calcReconstructionError(Eigen::Matrix4d& Toc);
 	double calcReconstructionError(Eigen::Matrix3d& R, Eigen::Vector3d& t);
-
+	double calcReconstructionErrorGT(Eigen::MatrixXd& depth);
+	
 	// RANSAC
 	static double ransac(const std::vector<cv::Point3f>& x, const std::vector<cv::Point3f>& y,
 				MVO::RansacCoef ransacCoef,
