@@ -338,6 +338,42 @@ bool MVO::findPoseFrom3DPoints(Eigen::Matrix3d &R, Eigen::Vector3d &t, std::vect
                 flag = success;
                 break;
             }
+            case MVO::PNP::EPNP : {
+                bool success = cv::solvePnPRansac(objectPoints, imagePoints, this->params.Kcv, cv::noArray(),
+                                                r_vec, t_vec, true, 1e3,
+                                                this->params.reprojError, 0.99, idxInlier, cv::SOLVEPNP_EPNP);
+                if (!success){
+                    success = cv::solvePnPRansac(objectPoints, imagePoints, this->params.Kcv, cv::noArray(),
+                                                r_vec, t_vec, true, 1e3,
+                                                2 * this->params.reprojError, 0.99, idxInlier, cv::SOLVEPNP_EPNP);
+                }
+                flag = success;
+                break;
+            }
+            case MVO::PNP::DLS : {
+                bool success = cv::solvePnPRansac(objectPoints, imagePoints, this->params.Kcv, cv::noArray(),
+                                                r_vec, t_vec, true, 1e3,
+                                                this->params.reprojError, 0.99, idxInlier, cv::SOLVEPNP_DLS);
+                if (!success){
+                    success = cv::solvePnPRansac(objectPoints, imagePoints, this->params.Kcv, cv::noArray(),
+                                                r_vec, t_vec, true, 1e3,
+                                                2 * this->params.reprojError, 0.99, idxInlier, cv::SOLVEPNP_DLS);
+                }
+                flag = success;
+                break;
+            }
+            case MVO::PNP::UPNP : {
+                bool success = cv::solvePnPRansac(objectPoints, imagePoints, this->params.Kcv, cv::noArray(),
+                                                r_vec, t_vec, true, 1e3,
+                                                this->params.reprojError, 0.99, idxInlier, cv::SOLVEPNP_UPNP);
+                if (!success){
+                    success = cv::solvePnPRansac(objectPoints, imagePoints, this->params.Kcv, cv::noArray(),
+                                                r_vec, t_vec, true, 1e3,
+                                                2 * this->params.reprojError, 0.99, idxInlier, cv::SOLVEPNP_UPNP);
+                }
+                flag = success;
+                break;
+            }
         }
         std::cerr << "## Solve PnP: " << lsi::toc() << std::endl;
 
@@ -382,17 +418,21 @@ void MVO::constructDepth(const std::vector<cv::Point2f> uv_prev, const std::vect
             Eigen::Matrix<double,3,3> A, A0, A1;
             Eigen::Vector3d b;
             
-            Eigen::Matrix<double,3,4> P0, P1;
-            P0 << this->params.K, Eigen::Vector3d::Zero();
-            P1 << this->params.K * R, this->params.K * t;
+            // Eigen::Matrix<double,3,4> P0, P1;
+            // P0 << this->params.K, Eigen::Vector3d::Zero();
+            // P1 << this->params.K * R, this->params.K * t;
 
             Eigen::Matrix3d M0, M1;
             Eigen::Vector3d c0, c1, u0, u1;
 
-            M0 = P0.block(0,0,3,3).inverse();
-            c0 = -M0*P0.block(0,3,3,1);
-            M1 = P1.block(0,0,3,3).inverse();
-            c1 = -M1*P1.block(0,3,3,1);
+            // M0 = P0.block(0,0,3,3).inverse();
+            // c0 = -M0*P0.block(0,3,3,1);
+            // M1 = P1.block(0,0,3,3).inverse();
+            // c1 = -M1*P1.block(0,3,3,1);
+            M0 = this->params.Kinv;
+            M1 = R.inverse() * this->params.Kinv;
+            // c0 = Eigen::Vector3d::Zero();
+            c1 = -R.inverse() * t;
 
             for( uint32_t i = 0; i < nPoint; i++ ){
                 u0 = M0 * (Eigen::Vector3d() << uv_prev[i].x, uv_prev[i].y, 1).finished();
@@ -402,7 +442,7 @@ void MVO::constructDepth(const std::vector<cv::Point2f> uv_prev, const std::vect
                 A1 = Eigen::Matrix3d::Identity() - u1 * u1.transpose() / (u1.cwiseProduct(u1)).sum();
 
                 A = A0 + A1;
-                b = A0 * c0 + A1 * c1;
+                b = A1 * c1;
 
                 X_prev.push_back(A.inverse() * b);
                 X_curr.push_back(R * X_prev.back() + t);

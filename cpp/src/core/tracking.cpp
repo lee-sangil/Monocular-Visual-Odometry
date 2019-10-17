@@ -253,19 +253,8 @@ void MVO::add_feature(){
 // haram
 bool MVO::calculate_essential()
 {
-    Eigen::Matrix3d K = this->params.K;
-
-    // below define should go in constructor and class member variable
-    double focal = (K(0, 0) + K(1, 1)) / 2;
-    cv::Point2f principle_point(K(0, 2), K(1, 2));
-    Eigen::Matrix3d W;
-    W << 0, -1, 0, 1, 0, 0, 0, 0, 1;
-
     if (this->step == 0)
         return true;
-
-    // Extract homogeneous 2D point which is matched with corresponding feature
-    // TODO: define of find function
 
     std::vector<uint32_t>& idx = this->idxTemplate;
     idx.clear();
@@ -292,7 +281,7 @@ bool MVO::calculate_essential()
     }
 
     cv::Mat inlier_mat;
-    this->essentialMat = cv::findEssentialMat(points1, points2, focal, principle_point, cv::RANSAC, 0.999, 0.4, inlier_mat);
+    this->essentialMat = cv::findEssentialMat(points1, points2, this->params.Kcv, cv::RANSAC, 0.999, 0.3, inlier_mat);
     std::cerr << "# Calculate essential: " << lsi::toc() << std::endl;
 
     Eigen::Matrix3d U,V;
@@ -331,6 +320,9 @@ bool MVO::calculate_essential()
     if (V.determinant() < 0)
         V.block(0, 2, 3, 1) = -V.block(0, 2, 3, 1);
 
+    Eigen::Matrix3d W;
+    W << 0, -1, 0, 1, 0, 0, 0, 0, 1;
+
     this->R_vec.clear();
     this->t_vec.clear();
     this->R_vec.push_back(U * W * V.transpose());
@@ -354,13 +346,10 @@ bool MVO::calculate_essential()
     this->nFeature2DInliered = inlier_cnt;
     std::cerr << "nFeature2DInliered: " << (double) this->nFeature2DInliered / this->nFeature * 100 << '%' << std::endl;
 
-    if (this->nFeature2DInliered < this->params.thInlier)
-    {
+    if (this->nFeature2DInliered < this->params.thInlier){
         std::cerr << " There are a few inliers matching features in 2D." << std::endl;
         return false;
-    }
-    else
-    {
+    }else{
         return true;
     }
 }

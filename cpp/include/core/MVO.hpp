@@ -23,7 +23,10 @@ class MVO{
 	enum PNP{
 		LM,
 		ITERATIVE,
-		AP3P
+		AP3P,
+		EPNP,
+		DLS,
+		UPNP
 	};
 
 	struct RansacCoef{
@@ -38,7 +41,7 @@ class MVO{
 	struct Parameter{
 		double fx, fy, cx, cy;
 		double k1, k2, p1, p2, k3;
-		Eigen::Matrix3d K;
+		Eigen::Matrix3d K, Kinv;
 		cv::Mat Kcv;
 		std::vector<double> radialDistortion;
 		std::vector<double> tangentialDistortion;

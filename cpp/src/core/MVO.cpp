@@ -50,6 +50,7 @@ MVO::MVO(std::string yaml):MVO(){
     this->params.K << this->params.fx, 0, this->params.cx,
 						0, this->params.fy, this->params.cy,
 						0, 0, 1;
+    this->params.Kinv = this->params.K.inverse();
     cv::eigen2cv(this->params.K, this->params.Kcv);
 
 	this->params.radialDistortion.push_back(params.k1);
@@ -142,6 +143,15 @@ MVO::MVO(std::string yaml):MVO(){
             break;
         case 2:
             this->params.pnpMethod = MVO::PNP::AP3P;
+            break;
+        case 3:
+            this->params.pnpMethod = MVO::PNP::EPNP;
+            break;
+        case 4:
+            this->params.pnpMethod = MVO::PNP::DLS;
+            break;
+        case 5:
+            this->params.pnpMethod = MVO::PNP::UPNP;
             break;
         default:
             abort();
