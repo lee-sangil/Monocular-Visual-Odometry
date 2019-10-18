@@ -98,10 +98,9 @@ MVO::MVO(std::string yaml):MVO(){
     this->currPyramidTemplate.reserve(10);
 
     // 3D reconstruction
+    this->params.initScale =        1;
     this->params.vehicle_height =   fSettings["Scale.height"]; // in meter
     this->params.reprojError =      fSettings["PnP.threshold"];
-    this->params.plotScale =        fSettings["Landmark.nScale"]; // in px
-    this->params.initScale =        1;
     this->params.updateInitPoint =  fSettings["Debug.updateInitPoints"];
     this->params.mappingOption =    fSettings["Debug.mappingOptions"];
 
@@ -163,6 +162,23 @@ MVO::MVO(std::string yaml):MVO(){
 
     cv::namedWindow("Trajectory");
     cv::moveWindow("Trajectory", 1280, 20);
+
+    this->params.view.heightDefault =   fSettings["viewCam.height"]; // in world coordinate
+    this->params.view.rollDefault =     (double) fSettings["viewCam.roll"] * PI/180; // radian
+    this->params.view.pitchDefault =    (double) fSettings["viewCam.pitch"] * PI/180; // radian
+    // this->params.view.rollDefault =     this->params.view.rollDefault * PI/180;
+    // this->params.view.pitchDefault =    this->params.view.pitchDefault * PI/180;
+    this->params.view.height =          this->params.view.heightDefault;
+    this->params.view.roll =            this->params.view.rollDefault;
+    this->params.view.pitch =           this->params.view.pitchDefault;
+    this->params.view.imSize = cv::Size(600,600);
+    this->params.view.K <<  300,   0, 300,
+						      0, 300, 300,
+						      0,   0,   1;
+    this->params.view.upperLeft =   cv::Point3d(-3,-2, 3);
+    this->params.view.upperRight =  cv::Point3d( 3,-2, 3);
+    this->params.view.lowerLeft =   cv::Point3d(-3, 2, 3);
+    this->params.view.lowerRight =  cv::Point3d( 3, 2, 3);
 }
 
 void MVO::refresh(){
@@ -207,6 +223,7 @@ void MVO::set_image(cv::Mat& image){
 
 void MVO::run(cv::Mat& image){
     
+    lsi::tic();
     std::cerr << "============ Iteration: " << this->step << " ============" << std::endl;
     this->set_image(image);
     std::cerr << "# Grab image: " << lsi::toc() << std::endl;

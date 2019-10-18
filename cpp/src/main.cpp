@@ -4,6 +4,8 @@
 #include "core/MVO.hpp"
 #include "core/time.hpp"
 #include <opencv2/imgcodecs.hpp>
+#define D_METER 5.0
+#define D_RADIAN PI/24
 
 Eigen::MatrixXd read_binary(const char* filename, const int rows, const int cols){
     Eigen::MatrixXd matrix(rows, cols);
@@ -112,8 +114,11 @@ int main(int argc, char * argv[]){
 	
 	std::cout << "# Key descriptions: " << std::endl;
 	std::cout << "- s: pause and process a one frame" << std::endl << 
-	"- w: restart" << std::endl << 
-	"- a/d: zoom in/out on point cloud" << std::endl << 
+	"- w: play continuously" << std::endl << 
+	"- a/d: control zoom in/out of view camera" << std::endl << 
+	"- h/l: control roll of view camera" << std::endl << 
+	"- j/k: control tilt of view camera" << std::endl << 
+	"- e: reset to default parameters of view camera" << std::endl << 
 	"- q: quit" << std::endl;
 
 	int it_imu = 0, it_rgb = 0;
@@ -132,14 +137,12 @@ int main(int argc, char * argv[]){
 				dirRgb.append(inputFile).append(rgbNameRaw[it_rgb]);
 				chk::getImgTUMdataset(dirRgb, image);
 
-				lsi::tic();
 				std::cout << "                                                                                                        " << '\r';
 
 				if( Parser::hasOption("-gt") ){
 					std::ostringstream dirDepth;
 					dirDepth << inputFile << "full_depth/" << std::setfill('0') << std::setw(10) << it_rgb << ".bin";
 					Eigen::MatrixXd depth = read_binary(dirDepth.str().c_str(), vo->params.imSize.height, vo->params.imSize.width);
-					
 					vo->run(image, depth);
 				}else{
 					vo->run(image);
@@ -164,11 +167,34 @@ int main(int argc, char * argv[]){
 					bStep = false;
 					break;
 				}else if( key == 'a' ){
-					vo->params.plotScale *= 1.2;
+					vo->params.view.height -= D_METER;
+					vo->params.view.height = std::max(vo->params.view.height,0.0);
 					vo->plot();
 					continue;
 				}else if( key == 'd' ){
-					vo->params.plotScale /= 1.2;
+					vo->params.view.height += D_METER;
+					vo->plot();
+					continue;
+				}else if( key == 'h' ){
+					vo->params.view.roll += D_RADIAN;
+					vo->plot();
+					continue;
+				}else if( key == 'j' ){
+					vo->params.view.pitch -= D_RADIAN;
+					vo->plot();
+					continue;
+				}else if( key == 'k' ){
+					vo->params.view.pitch += D_RADIAN;
+					vo->plot();
+					continue;
+				}else if( key == 'l' ){
+					vo->params.view.roll -= D_RADIAN;
+					vo->plot();
+					continue;
+				}else if( key == 'e' ){
+					vo->params.view.height =  vo->params.view.heightDefault;
+					vo->params.view.roll =    vo->params.view.rollDefault;
+					vo->params.view.pitch =   vo->params.view.pitchDefault;
 					vo->plot();
 					continue;
 				}
@@ -184,10 +210,28 @@ int main(int argc, char * argv[]){
 				bStep = true;
 				break;
 			case 'a':
-				vo->params.plotScale *= 1.2;
+				vo->params.view.height -= D_METER;
+				vo->params.view.height = std::max(vo->params.view.height,0.0);
 				break;
 			case 'd':
-				vo->params.plotScale /= 1.2;
+				vo->params.view.height += D_METER;
+				break;
+			case 'h':
+				vo->params.view.roll += D_RADIAN;
+				break;
+			case 'j':
+				vo->params.view.pitch -= D_RADIAN;
+				break;
+			case 'k':
+				vo->params.view.pitch += D_RADIAN;
+				break;
+			case 'l':
+				vo->params.view.roll -= D_RADIAN;
+				break;
+			case 'e':
+				vo->params.view.height =  vo->params.view.heightDefault;
+				vo->params.view.roll =    vo->params.view.rollDefault;
+				vo->params.view.pitch =   vo->params.view.pitchDefault;
 				break;
 		}
 	}

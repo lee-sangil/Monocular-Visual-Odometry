@@ -2,6 +2,7 @@
 #define __MVO_HPP__
 
 #include "core/common.hpp"
+#define PI 3.1415926536
 
 typedef  std::vector< std::tuple<cv::Point2f, Eigen::Vector3d> > ptsROI_t;
 
@@ -38,6 +39,21 @@ class MVO{
 		std::vector<double> weight;
 	};
 
+	struct ViewCam{
+		double height;
+		double roll;
+		double pitch;
+		double heightDefault = 20;
+		double rollDefault = -PI/2;
+		double pitchDefault = 0;
+		Eigen::Matrix3d R = Eigen::Matrix3d::Identity();
+		Eigen::Vector3d t = Eigen::Vector3d::Zero();
+		Eigen::Matrix3d K;
+		Eigen::Matrix<double,3,4> P;
+		cv::Size imSize;
+		cv::Point3d upperLeft, upperRight, lowerLeft, lowerRight;
+	};
+
 	struct Parameter{
 		double fx, fy, cx, cy;
 		double k1, k2, p1, p2, k3;
@@ -62,13 +78,15 @@ class MVO{
 		// 3D reconstruction
 		double vehicle_height;
 		double initScale;
-		double plotScale;
 		double reprojError;
 		MVO::SVD SVDMethod;
 		MVO::TRIANGULATION triangulationMethod;
 		MVO::PNP pnpMethod;
 		int updateInitPoint;
 		int mappingOption;
+
+		// drawing
+		MVO::ViewCam view;
 	};
 
 	public:
@@ -96,6 +114,7 @@ class MVO{
 	void run(cv::Mat& image);
 	void run(cv::Mat& image, Eigen::MatrixXd& depth);
 	void plot();
+	void updateView();
 
 	// Feature operations
 	void klt_tracker(std::vector<cv::Point2f>& points, std::vector<bool>& validity);
