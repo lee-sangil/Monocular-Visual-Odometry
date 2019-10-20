@@ -59,10 +59,9 @@ void MVO::plot(){
 			uv = this->params.view.P * point;
 			if( uv(2) > 1 ){
 				cv::circle(traj, cv::Point(uv(0)/uv(2), uv(1)/uv(2)), 1, cv::Scalar(128,128,128), CV_FILLED);
-				if( this->features[i].is_3D_reconstructed ){
+				if( this->features[i].is_3D_reconstructed )
 					if( this->features[i].frame_init < this->step )
 						cv::circle(traj, cv::Point(uv(0)/uv(2), uv(1)/uv(2)), 3, cv::Scalar(0,200,255));
-				}
 			}
 		}
 		if( this->features[i].is_3D_reconstructed){
@@ -104,5 +103,78 @@ void MVO::plot(){
 	cv::line(traj, cv::Point(uv2(0)/uv2(2), uv2(1)/uv2(2)), cv::Point(uv3(0)/uv3(2), uv3(1)/uv3(2)), cv::Scalar(0,0,255), 2);
 	cv::line(traj, cv::Point(uv3(0)/uv3(2), uv3(1)/uv3(2)), cv::Point(uv4(0)/uv4(2), uv4(1)/uv4(2)), cv::Scalar(0,0,255), 2);
 	cv::line(traj, cv::Point(uv4(0)/uv4(2), uv4(1)/uv4(2)), cv::Point(uv1(0)/uv1(2), uv1(1)/uv1(2)), cv::Scalar(0,0,255), 2);
+
+	// Horizontal Grid
+	Eigen::Vector3d uv_start, uv_end;
+	Eigen::Matrix4d Rco;
+	Rco = this->TocRec.back().inverse();
+	Rco.block(0,3,3,1) = Eigen::Vector3d::Zero();
+
+	// double s, y;
+	// Eigen::Matrix3d KRinv = (this->params.view.K * this->params.view.R).inverse();
+	// Eigen::Vector3d KRinv_row = KRinv.row(1);
+	// Eigen::Vector3d Kt = this->params.view.K * this->params.view.t;
+	// y = KRinv_row.transpose() * Kt;
+
+	// s = KRinv_row.transpose() * (Eigen::Vector3d() << 1,1,1).finished();
+	// s /= y;
+	// Eigen::Vector3d topLeftMargin = KRinv * ( (Eigen::Vector3d() << 1,1,1).finished() - Kt * s );
+	// topLeftMargin /= s;
+
+	// s = KRinv_row.transpose() * (Eigen::Vector3d() << this->params.view.imSize.width,1,1).finished();
+	// s /= y;
+	// Eigen::Vector3d topRightMargin = KRinv * ( (Eigen::Vector3d() << this->params.view.imSize.width,1,1).finished() - Kt * s );
+	// topRightMargin /= s;
+
+	// s = KRinv_row.transpose() * (Eigen::Vector3d() << this->params.view.imSize.width,this->params.view.imSize.height,1).finished();
+	// s /= y;
+	// Eigen::Vector3d bottomRightMargin = KRinv * ( (Eigen::Vector3d() << this->params.view.imSize.width,this->params.view.imSize.height,1).finished() - Kt * s);
+	// bottomRightMargin /= s;
+	
+	// s = KRinv_row.transpose() * (Eigen::Vector3d() << 1,this->params.view.imSize.height,1).finished();
+	// s /= y;
+	// Eigen::Vector3d bottomLeftMargin = KRinv * ( (Eigen::Vector3d() << 1,this->params.view.imSize.height,1).finished() - Kt * s);
+	// bottomLeftMargin /= s;
+
+	// for( int x = 0; x < bottomRightMargin(0) || x < topRightMargin(0); x+=10 ){
+	// 	uv_start = this->params.view.P * Rco * (Eigen::Vector4d() << x,0,topLeftMargin(2),1).finished();
+	// 	uv_end = this->params.view.P * Rco * (Eigen::Vector4d() << x,0,bottomRightMargin(2),1).finished();
+	// 	if( uv_start(2) > 0 && uv_end(2) > 0 )
+	// 		cv::line(traj, cv::Point(uv_start(0)/uv_start(2), uv_start(1)/uv_start(2)), cv::Point(uv_end(0)/uv_end(2), uv_end(1)/uv_end(2)), cv::Scalar(255,255,255), 1);
+	// }
+	// for( int x = 0; x > topLeftMargin(0) || x > bottomLeftMargin(0); x-=10 ){
+	// 	uv_start = this->params.view.P * Rco * (Eigen::Vector4d() << x,0,topLeftMargin(2),1).finished();
+	// 	uv_end = this->params.view.P * Rco * (Eigen::Vector4d() << x,0,bottomRightMargin(2),1).finished();
+	// 	if( uv_start(2) > 0 && uv_end(2) > 0 )
+	// 		cv::line(traj, cv::Point(uv_start(0)/uv_start(2), uv_start(1)/uv_start(2)), cv::Point(uv_end(0)/uv_end(2), uv_end(1)/uv_end(2)), cv::Scalar(255,255,255), 1);
+	// }
+
+	// for( int z = 0; z < topLeftMargin(0); z+=10 ){
+	// 	uv_start = this->params.view.P * Rco * (Eigen::Vector4d() << topLeftMargin(2),0,z,1).finished();
+	// 	uv_end = this->params.view.P * Rco * (Eigen::Vector4d() << bottomRightMargin(2),0,z,1).finished();
+	// 	if( uv_start(2) > 0 && uv_end(2) > 0 )
+	// 		cv::line(traj, cv::Point(uv_start(0)/uv_start(2), uv_start(1)/uv_start(2)), cv::Point(uv_end(0)/uv_end(2), uv_end(1)/uv_end(2)), cv::Scalar(255,255,255), 1);
+	// }
+	// for( int z = 0; z > bottomRightMargin(0); z-=10 ){
+	// 	uv_start = this->params.view.P * Rco * (Eigen::Vector4d() << topLeftMargin(2),0,z,1).finished();
+	// 	uv_end = this->params.view.P * Rco * (Eigen::Vector4d() << bottomRightMargin(2),0,z,1).finished();
+	// 	if( uv_start(2) > 0 && uv_end(2) > 0 )
+	// 		cv::line(traj, cv::Point(uv_start(0)/uv_start(2), uv_start(1)/uv_start(2)), cv::Point(uv_end(0)/uv_end(2), uv_end(1)/uv_end(2)), cv::Scalar(255,255,255), 1);
+	// }
+	
+	/* simple method */
+	// for( int x = -50; x <= 50; x+=10 ){
+	// 	uv_start = this->params.view.P * Rco * (Eigen::Vector4d() << x,0,50,1).finished();
+	// 	uv_end = this->params.view.P * Rco * (Eigen::Vector4d() << x,0,-50,1).finished();
+	// 	if( uv_start(2) > 0 || uv_end(2) > 0 )
+	// 		cv::line(traj, cv::Point(uv_start(0)/uv_start(2), uv_start(1)/uv_start(2)), cv::Point(uv_end(0)/uv_end(2), uv_end(1)/uv_end(2)), cv::Scalar(255,255,255), 1);
+	// }
+	// for( int z = -50; z <= 50; z+=10 ){
+	// 	uv_start = this->params.view.P * Rco * (Eigen::Vector4d() << 50,0,z,1).finished();
+	// 	uv_end = this->params.view.P * Rco * (Eigen::Vector4d() << -50,0,z,1).finished();
+	// 	if( uv_start(2) > 0 || uv_end(2) > 0 )
+	// 		cv::line(traj, cv::Point(uv_start(0)/uv_start(2), uv_start(1)/uv_start(2)), cv::Point(uv_end(0)/uv_end(2), uv_end(1)/uv_end(2)), cv::Scalar(255,255,255), 1);
+	// }
+
 	cv::imshow("Trajectory", traj);
 }

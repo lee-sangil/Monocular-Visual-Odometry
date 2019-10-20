@@ -168,7 +168,7 @@ int main(int argc, char * argv[]){
 					break;
 				}else if( key == 'a' ){
 					vo->params.view.height -= D_METER;
-					vo->params.view.height = std::max(vo->params.view.height,0.0);
+					vo->params.view.height = std::max(vo->params.view.height,1.0);
 					vo->plot();
 					continue;
 				}else if( key == 'd' ){
