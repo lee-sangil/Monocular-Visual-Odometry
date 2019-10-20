@@ -759,10 +759,12 @@ bool MVO::scale_propagation(const Eigen::Matrix3d &R, Eigen::Vector3d &t, std::v
             uv_curr = this->features[i].uv.back(); //latest feature
             point_curr = this->features[i].point;
             if (uv_curr.y > this->params.imSize.height * 0.5 
-                && uv_curr.y > this->params.imSize.height - 0.7 * uv_curr.x 
-                && uv_curr.y > this->params.imSize.height + 0.7 * (uv_curr.x - this->params.imSize.width)
-                && this->features[i].is_3D_reconstructed)
+            && uv_curr.y > this->params.imSize.height - 0.7 * uv_curr.x 
+            && uv_curr.y > this->params.imSize.height + 0.7 * (uv_curr.x - this->params.imSize.width)
+            && this->features[i].is_3D_reconstructed){
+                this->features[i].type = Type::Road;
                 y_vals_road.push_back(point_curr(1));
+            }
         }
         std::nth_element(y_vals_road.begin(), y_vals_road.begin() + y_vals_road.size()/2, y_vals_road.end());
         scale = this->params.vehicle_height / y_vals_road[y_vals_road.size()/2];

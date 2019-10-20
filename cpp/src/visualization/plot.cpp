@@ -49,8 +49,19 @@ void MVO::plot(){
 		if( this->features_dead[i].is_3D_init ){
 			point = this->TocRec.back().inverse() * this->features_dead[i].point_init;
 			uv = this->params.view.P * point;
-			if( uv(2) > 1 )
-				cv::circle(traj, cv::Point(uv(0)/uv(2), uv(1)/uv(2)), 1, cv::Scalar(128,128,128), CV_FILLED);
+			if( uv(2) > 1 ){
+				switch (this->features_dead[i].type){
+				case Type::Other:
+					cv::circle(traj, cv::Point(uv(0)/uv(2), uv(1)/uv(2)), 1, cv::Scalar(128,128,128), CV_FILLED);
+					break;
+				case Type::Road:
+					cv::circle(traj, cv::Point(uv(0)/uv(2), uv(1)/uv(2)), 1, cv::Scalar(128,128,200), CV_FILLED);
+					break;
+				case Type::Dynamic:
+					cv::circle(traj, cv::Point(uv(0)/uv(2), uv(1)/uv(2)), 1, cv::Scalar(200,128,128), CV_FILLED);
+					break;
+				}
+			}
 		}
 	}
 	for( uint32_t i = 0; i < this->features.size(); i++ ){
@@ -58,10 +69,19 @@ void MVO::plot(){
 			point = this->TocRec.back().inverse() * this->features[i].point_init;
 			uv = this->params.view.P * point;
 			if( uv(2) > 1 ){
-				cv::circle(traj, cv::Point(uv(0)/uv(2), uv(1)/uv(2)), 1, cv::Scalar(128,128,128), CV_FILLED);
-				if( this->features[i].is_3D_reconstructed )
-					if( this->features[i].frame_init < this->step )
-						cv::circle(traj, cv::Point(uv(0)/uv(2), uv(1)/uv(2)), 3, cv::Scalar(0,200,255));
+				switch (this->features[i].type){
+				case Type::Other:
+					cv::circle(traj, cv::Point(uv(0)/uv(2), uv(1)/uv(2)), 1, cv::Scalar(128,128,128), CV_FILLED);
+					break;
+				case Type::Road:
+					cv::circle(traj, cv::Point(uv(0)/uv(2), uv(1)/uv(2)), 1, cv::Scalar(128,128,200), CV_FILLED);
+					break;
+				case Type::Dynamic:
+					cv::circle(traj, cv::Point(uv(0)/uv(2), uv(1)/uv(2)), 1, cv::Scalar(200,128,128), CV_FILLED);
+					break;
+				}
+				if( this->features[i].is_3D_reconstructed && this->features[i].frame_init < this->step )
+					cv::circle(traj, cv::Point(uv(0)/uv(2), uv(1)/uv(2)), 3, cv::Scalar(0,200,255));
 			}
 		}
 		if( this->features[i].is_3D_reconstructed){

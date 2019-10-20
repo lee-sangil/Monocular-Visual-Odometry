@@ -42,6 +42,8 @@
 #include <opencv2/calib3d.hpp>
 #include <boost/filesystem.hpp>
 
+enum Type{Road,Other,Dynamic,};
+
 typedef struct Bucket{
 	int safety = 20;
 	int max_features = 400;
@@ -69,6 +71,7 @@ typedef struct Feature{
 	bool is_2D_inliered;
 	bool is_3D_reconstructed;
 	bool is_3D_init;
+	Type type;
 }Feature;
 
 #endif //__COMMON_HPP__
