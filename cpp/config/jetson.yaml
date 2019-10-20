@@ -63,13 +63,20 @@ LiDAR.T: [-0.4822433, -0.0082169, 0.4185907]
 #--------------------------------------------------------------------------------------------
 
 # Number of features
-Feature.num: 400
+Feature.num: 500
 
 # Number of features matching per image 
 Feature.thInlier: 6
 
-# Min. feature distance between
-Feature.min_px_dist: 7
+# Threshold ratio for keyframe, which is updated when nFeatureMatched < nFeature * ratio
+# if threshold is 1, keyframe effect is disappeared.
+Feature.thRatioKeyFrame: 0.8
+
+# Min. feature distance between for extraction
+Feature.min_px_dist: 15
+
+# Min. feature distance between for reconstruction
+Feature.px_wide: 5
 
 # Bucket safety region (px)
 Bucket.safety: 20
@@ -106,24 +113,25 @@ Triangulation.Method: 0
 # From above, if 1 is chosen: Jacobi(0), BDC(1), OpenCV(2), Eigen(3: recommended)
 Triangulation.SVD: 3
 
-# Reconstruction method: LM(0), Iterative(1), AP3P Ransac(2)
-PnP.Method: 2
+# Reconstruction method: LM(0), Iterative(1), AP3P Ransac(2), EPNP Ransac(3), DLS Ransac(4), UPNP Ransac(5)
+PnP.Method: 4
 
 # Min. Reprojection error
-PnP.threshold: 1
+PnP.threshold: 0.01
 
 #--------------------------------------------------------------------------------------------
 # Display Parameters (tunable).
 #--------------------------------------------------------------------------------------------
 
-# Size of point
-Landmark.nScale: 10
+# viewCam settings
+viewCam.height: 40
 
-# Publishing rate
-Landmark.nPubRate: 5
+# viewCam settings in degree
+viewCam.roll: 0
+viewCam.pitch: -45
 
 # Initialized 3D points are updated(1) for each frame or not(0)
 Debug.updateInitPoints: 1
 
-# Mapping option: no scaling(0), only essential constraint(1), only PnP(2), both essential and pnp(3)
-Debug.mappingOptions: 3
+# Mapping option: no scaling(0), only essential constraint(1), only PnP(2), both essential and pnp(3), both essential and pnp modified(4)
+Debug.mappingOptions: 1

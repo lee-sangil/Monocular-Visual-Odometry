@@ -1,14 +1,6 @@
 #include "core/MVO.hpp"
 
 void MVO::updateView(){
-	// feature points
-	// double plotScale;
-	// int n = 0;
-	// for( int i = (int) this->TRec.size()-1; i >= std::max( (int) this->TRec.size()-10, 0 ); i--, n++ ){
-	// 	plotScale += std::min(std::max(this->TRec[i].block(0,3,3,1).norm(), 0.01), 100.0);
-	// }
-	// plotScale = n/plotScale;
-
 	Eigen::Matrix3d rotx, rotz;
 	rotx << 1, 0, 0,
 			0, std::cos(this->params.view.pitch), -std::sin(this->params.view.pitch),
@@ -89,8 +81,8 @@ void MVO::plot(){
 	for( uint32_t i = 0; i < this->TocRec.size()-1; i++ ){
 		prevTco = currTco * this->TocRec[i];
 		nextTco = currTco * this->TocRec[i+1];
-		prevPos = prevTco.block(0,3,3,1);
-		nextPos = nextTco.block(0,3,3,1);
+		prevPos = prevTco.block(0,3,4,1);
+		nextPos = nextTco.block(0,3,4,1);
 		uv = this->params.view.P * prevPos;
 		uv_next = this->params.view.P * nextPos;
 		if( uv(2) > 1 && uv_next(2) > 1)

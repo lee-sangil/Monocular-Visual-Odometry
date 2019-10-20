@@ -5,6 +5,8 @@
 
 MVO::MVO(){
     this->step = -1;
+    this->key_step = 0;
+    this->next_key_step = 0;
     this->scale_initialized = false;
     this->groundtruth_provided = false;
     this->cvClahe = cv::createCLAHE();
@@ -66,6 +68,7 @@ MVO::MVO(std::string yaml):MVO(){
     cv::initUndistortRectifyMap(this->params.Kcv, this->params.distCoeffs, cv::Mat(), this->params.Kcv, this->params.imSize, CV_32FC1, this->distMap1, this->distMap2);
 
     this->params.thInlier =         fSettings["Feature.thInlier"];
+    this->params.thRatioKeyFrame =  fSettings["Feature.thRatioKeyFrame"];
     this->params.min_px_dist =      fSettings["Feature.min_px_dist"];
     this->params.px_wide =          fSettings["Feature.px_wide"];
 
@@ -219,6 +222,7 @@ void MVO::set_image(cv::Mat& image){
         this->cur_image = this->undist_image.clone();
 
     this->step++;
+    this->key_step = this->next_key_step;
 }
 
 void MVO::run(cv::Mat& image){
@@ -237,9 +241,6 @@ void MVO::run(cv::Mat& image){
 
     if( !std::all_of(success.begin(), success.end(), [](bool b){return b;}) )
         this->scale_initialized = false;
-    //     this->backup();
-    // else if( this->scale_initialized )
-    //     this->reload();
 }
 
 void MVO::run(cv::Mat& image, Eigen::MatrixXd& depth){

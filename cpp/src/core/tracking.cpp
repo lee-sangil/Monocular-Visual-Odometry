@@ -63,9 +63,8 @@ void MVO::klt_tracker(std::vector<cv::Point2f>& fwd_pts, std::vector<bool>& vali
     std::vector<cv::Point2f> pts, bwd_pts;
     pts.reserve(this->nFeature);
     bwd_pts.reserve(this->nFeature);
-    for( int i = 0; i < this->nFeature; i++ ){
+    for( int i = 0; i < this->nFeature; i++ )
         pts.push_back(this->features[i].uv.back());
-    }
     
     // Forward-backward error evaluation
     std::vector<cv::Mat>& prevPyr = this->prevPyramidTemplate;
@@ -83,13 +82,9 @@ void MVO::klt_tracker(std::vector<cv::Point2f>& fwd_pts, std::vector<bool>& vali
     cv::calcOpticalFlowPyrLK(currPyr, prevPyr, fwd_pts, bwd_pts, status, err);
     std::cerr << "### Calculate optical flows: " << lsi::toc() << std::endl;
     
-    // cv::calcOpticalFlowPyrLK(this->prev_image, this->cur_image, pts, fwd_pts, status, err, cv::Size(21,21), 2);
-    // cv::calcOpticalFlowPyrLK(this->cur_image, this->prev_image, fwd_pts, bwd_pts, status, err, cv::Size(21,21), 2);
-    // std::cerr << "### Calculate optical flows with build: " << lsi::toc() << std::endl;
-
     // Calculate bi-directional error( = validity ): validity = ~border_invalid & error_valid
-    validity.reserve(this->nFeature);
-    for( int i = 0; i < this->nFeature; i++ ){
+    validity.reserve(pts.size());
+    for( uint32_t i = 0; i < pts.size(); i++ ){
         bool border_invalid = (fwd_pts[i].x < 0) | (fwd_pts[i].x > this->params.imSize.width) | (fwd_pts[i].y < 0) | (fwd_pts[i].y > this->params.imSize.height);
         bool error_valid = cv::norm(pts[i] - bwd_pts[i]) < 1;//std::min( cv::norm(pts[i] - fwd_pts[i])/5.0, 1.0);
         validity.push_back(!border_invalid & error_valid);
@@ -256,28 +251,23 @@ bool MVO::calculate_essential()
     if (this->step == 0)
         return true;
 
-    std::vector<uint32_t>& idx = this->idxTemplate;
-    idx.clear();
-
-    for (uint32_t i = 0; i < this->features.size(); i++)
-        if (this->features[i].is_matched)
-            idx.push_back(i);
-
-    uint32_t nInlier = idx.size();
-    std::cerr << "nFeatureMatched: " << (double) nInlier / this->nFeature * 100 << '%' << std::endl;
-
     std::vector<cv::Point2f> points1;
     std::vector<cv::Point2f> points2;
-    points1.reserve(nInlier);
-    points2.reserve(nInlier);
+    points1.reserve(this->nFeature);
+    points2.reserve(this->nFeature);
 
-    // initialize the points here ... */
-    int len;
-    for (uint32_t i = 0; i < nInlier; i++)
-    {
-        len = this->features[idx[i]].uv.size();
-        points1.push_back(this->features[idx[i]].uv[len - 2]); // second to latest
-        points2.push_back(this->features[idx[i]].uv.back());   // latest
+    int key_idx;
+    for( int i = 0; i < this->nFeature; i++ ){
+        key_idx = this->features[i].life - 1 - (this->step - this->key_step);
+        if( key_idx >= 0 ){
+            points1.push_back(this->features[i].uv[key_idx]);
+            points2.push_back(this->features[i].uv.back());   // latest
+        }
+    }
+
+    if( points1.size() <= this->nFeature * this->params.thRatioKeyFrame ){
+        this->next_key_step = this->step;
+        std::cout << "key step: " << this->key_step << ' ' << std::endl;
     }
 
     cv::Mat inlier_mat;

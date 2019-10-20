@@ -65,9 +65,10 @@ class MVO{
 		cv::Size imSize;
 		bool applyCLAHE = false;
 
-		RansacCoef ransacCoef_scale_prop;
+		MVO::RansacCoef ransacCoef_scale_prop;
 		
 		int thInlier = 5;
+		double thRatioKeyFrame = 0.9;
 		double min_px_dist = 7.0;
 		double px_wide = 12.0;
 
@@ -128,10 +129,10 @@ class MVO{
 	// Calculations
 	bool calculate_essential();
 	bool calculate_motion();
-	bool verify_solutions(Eigen::Matrix3d& R, Eigen::Vector3d& t);
-	bool verify_solutions(std::vector<Eigen::Matrix3d>& R_vec, std::vector<Eigen::Vector3d>& t_vec,
+	bool verify_solutions(const Eigen::Matrix3d& R, const Eigen::Vector3d& t);
+	bool verify_solutions(const std::vector<Eigen::Matrix3d>& R_vec, const std::vector<Eigen::Vector3d>& t_vec,
 						  Eigen::Matrix3d& R, Eigen::Vector3d& t);
-	bool scale_propagation(Eigen::Matrix3d& R, Eigen::Vector3d& t,
+	bool scale_propagation(const Eigen::Matrix3d& R, Eigen::Vector3d& t,
 						   std::vector<bool>& inlier, std::vector<bool>& outlier);
 	bool findPoseFrom3DPoints(Eigen::Matrix3d &R, Eigen::Vector3d &t, std::vector<int>& inlier, std::vector<int>& outlier);
 	void constructDepth(const std::vector<cv::Point2f> uv_prev, const std::vector<cv::Point2f> uv_curr, 
@@ -161,6 +162,8 @@ class MVO{
 	private:
 
 	uint32_t step;
+	uint32_t key_step;
+	uint32_t next_key_step;
 	
 	cv::Mat prev_image;
 	cv::Mat cur_image;
