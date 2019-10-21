@@ -82,7 +82,7 @@ MVO::MVO(std::string yaml):MVO(){
     this->params.ransacCoef_scale.calculate_dist = MVO::calculate_scale_error;
     
     this->params.ransacCoef_plane.iterMax =        fSettings["RANSAC.iterMax"];
-    this->params.ransacCoef_plane.minPtNum =       fSettings["RANSAC.nSample"];
+    this->params.ransacCoef_plane.minPtNum =       3;
     this->params.ransacCoef_plane.thInlrRatio =    fSettings["RANSAC.thInlrRatio"];
     this->params.ransacCoef_plane.thDist =         fSettings["RANSAC.thDist"]; // standard deviation
     this->params.ransacCoef_plane.thDistOut =      fSettings["RANSAC.thDistOut"]; // three times of standard deviation

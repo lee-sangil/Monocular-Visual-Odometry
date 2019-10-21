@@ -4,6 +4,7 @@
 #include "core/MVO.hpp"
 #include "core/time.hpp"
 #include <opencv2/imgcodecs.hpp>
+#include <dirent.h>
 #define D_METER 5.0
 #define D_RADIAN PI/24
 
@@ -15,6 +16,81 @@ Eigen::MatrixXd read_binary(const char* filename, const int rows, const int cols
     in.read(reinterpret_cast<char*>(matrix.data()), rows*cols*sizeof(double));
     in.close();
     return matrix;
+}
+
+std::vector<double> oxtsReader(const char * filePath, const std::string & txtName){
+    std::string filename;
+    filename.append(filePath);
+    filename.append("/");
+    filename.append(txtName);
+    std::vector<double> Data;
+
+    std::ifstream openFile(filename.c_str());
+    if( !openFile.is_open() ){
+        std::cout << "text file open error" << std::endl;
+    }
+    else{
+        std::string line;
+        getline(openFile, line);
+        std::string token;
+        char * sz;
+        std::stringstream ss(line);
+
+        while (getline(ss, token, ' ')){
+            double temp = std::strtod(token.c_str(), & sz);
+            Data.push_back( temp );
+        }
+        
+        openFile.close();
+    }
+    return Data;
+}
+
+std::vector<double> computeVehicleSpeed( std::vector<std::vector<double> > oxtsData){
+    std::vector<double> speed;
+    double temp = 0; 
+    for (uint32_t i = 0; i < oxtsData.size(); i++){
+        temp = 0;
+        if (oxtsData[i].size()<30){
+            std::cout << "ERROR: # of data is less than 30, iter: " << i << " # of data: "<< oxtsData[i].size() << std::endl;
+        }
+        else{
+            temp = sqrt( pow(oxtsData[i][6],2)+pow(oxtsData[i][7],2) );
+            speed.push_back(temp);
+        }
+    }
+    return speed;
+}
+
+std::vector<std::vector<double> > directoryReader(const char * filePath){
+    std::vector<std::string> txtList;
+    DIR *pdir = NULL;
+    pdir = opendir (filePath);
+    struct dirent * pent = NULL;
+    std::vector<std::vector<double> > oxtsData;
+
+    if (pdir == NULL){
+        std::cout << "\n ERROR! OXTS dir could not be opened" << std::endl;
+        return oxtsData;
+    }
+
+    while ((pent = readdir(pdir))){
+        if (pent == NULL){
+            std::cout << "\n ERROR " << std::endl;
+            break;
+        }
+        std::string temp_str(pent->d_name);
+        txtList.push_back(temp_str);
+    }
+
+    sort(txtList.begin(), txtList.end());
+    txtList.erase(txtList.begin(),txtList.begin()+2);
+    
+    for (uint32_t i = 0; i < txtList.size(); i++){
+        std::vector<double> temp_data = oxtsReader(filePath, txtList[i]);
+        oxtsData.push_back( temp_data );
+    }
+    return oxtsData;
 }
 
 int main(int argc, char * argv[]){
@@ -142,8 +218,20 @@ int main(int argc, char * argv[]){
 				if( Parser::hasOption("-gt") ){
 					std::ostringstream dirDepth;
 					dirDepth << inputFile << "full_depth/" << std::setfill('0') << std::setw(10) << it_rgb << ".bin";
+
 					Eigen::MatrixXd depth = read_binary(dirDepth.str().c_str(), vo->params.imSize.height, vo->params.imSize.width);
+
 					vo->run(image, depth);
+				}else if( Parser::hasOption("-vel")){
+					std::string oxts_path;
+					oxts_path.append(inputFile).append("oxts/data/");
+					
+					std::vector<std::vector<double> > oxtsData;
+					std::vector<double> speed;
+					oxtsData = directoryReader(oxts_path.c_str());
+					speed = computeVehicleSpeed(oxtsData);
+
+					vo->run(image);
 				}else{
 					vo->run(image);
 				}

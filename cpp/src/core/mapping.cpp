@@ -302,11 +302,7 @@ bool MVO::findPoseFrom3DPoints(Eigen::Matrix3d &R, Eigen::Vector3d &t, std::vect
         }
 
         switch( this->params.pnpMethod ){
-            case MVO::PNP::LM : {
-                cv::solvePnPRefineLM(objectPoints, imagePoints, this->params.Kcv, cv::noArray(), r_vec, t_vec, cv::TermCriteria(cv::TermCriteria::EPS + cv::TermCriteria::COUNT, 1e3, this->params.reprojError));
-                flag = true;
-                break;
-            }
+            case MVO::PNP::LM : 
             case MVO::PNP::ITERATIVE : {
                 bool success = cv::solvePnP(objectPoints, imagePoints, this->params.Kcv, cv::noArray(), r_vec, t_vec, true, cv::SOLVEPNP_ITERATIVE);
                 flag = success;
@@ -677,14 +673,43 @@ bool MVO::scale_propagation(const Eigen::Matrix3d &R, Eigen::Vector3d &t, std::v
     inlier.clear();
     outlier.clear();
 
-    double scale = 0;
+    double scale = 0, scale_from_height = 0;
     bool flag;
-    Eigen::Matrix4d T_;
-    T_.setIdentity();
-    T_.block(0,0,3,3) = R;
-    T_.block(0,3,3,1) = t;
 
-    uint32_t nPoint;
+    // Initialization
+    // initialze scale, in the case of the first time
+    cv::Point2f uv_curr;
+    Eigen::Vector4d point_curr;
+    std::vector<cv::Point3f> roadCandidate;
+    std::vector<uint32_t> roadIdx;
+
+    for (int i = 0; i < nFeature; i++){
+        if( this->features[i].is_3D_reconstructed ){
+            uv_curr = this->features[i].uv.back(); //latest feature
+
+            if (uv_curr.y > this->params.imSize.height * 0.5 
+            && uv_curr.y > this->params.imSize.height - 0.7 * uv_curr.x 
+            && uv_curr.y > this->params.imSize.height + 0.7 * (uv_curr.x - this->params.imSize.width)){
+                point_curr = this->features[i].point;
+                roadCandidate.emplace_back(point_curr(0),point_curr(1),point_curr(2));
+                roadIdx.push_back(i);
+            }
+        }
+    }
+
+    std::vector<double> plane;
+    std::vector<bool> planeInlier, planeOutlier;
+    this->ransac<cv::Point3f, std::vector<double>>(roadCandidate, this->params.ransacCoef_plane, plane, planeInlier, planeOutlier);
+
+    for( uint32_t i = 0; i < planeInlier.size(); i++ ){
+        if( planeInlier[roadIdx[i]] )
+            this->features[roadIdx[i]].type = Type::Road;
+        else
+            this->features[roadIdx[i]].type = Type::Other;
+    }
+
+    scale_from_height = this->params.vehicle_height / std::abs(plane[3]);
+
     if (this->scale_initialized)
     {
         // Seek index of which feature is 3D reconstructed currently,
@@ -694,10 +719,15 @@ bool MVO::scale_propagation(const Eigen::Matrix3d &R, Eigen::Vector3d &t, std::v
             if( this->features[i].is_3D_reconstructed && this->features[i].is_3D_init)
                 idx.push_back(i);
         }
-        nPoint = idx.size();
+        uint32_t nPoint = idx.size();
 
         // Use RANSAC to find suitable scale
         if ( nPoint > this->params.ransacCoef_scale.minPtNum){
+            Eigen::Matrix4d T_;
+            T_.setIdentity();
+            T_.block(0,0,3,3) = R;
+            T_.block(0,3,3,1) = t;
+
             std::vector<std::pair<cv::Point3f,cv::Point3f>> Points;
             Eigen::Vector4d init_point, expt_point, curr_point;
             this->params.ransacCoef_scale.weight.clear();
@@ -738,39 +768,17 @@ bool MVO::scale_propagation(const Eigen::Matrix3d &R, Eigen::Vector3d &t, std::v
             flag = false;
         }
         else{
+            std::cerr << "scale_from_height: " << scale_from_height << ", " << "scale: " << scale << " " << std::endl;
+
             // Update scale
             t = scale * t;
             flag = true;
         }
 
-    }
-
-    // Initialization
-    // initialze scale, in the case of the first time
-    if (!this->scale_initialized){
-        cv::Point2f uv_curr;
-        Eigen::Vector4d point_curr;
-        std::vector<double> y_vals_road;
-        for (int i = 0; i < nFeature; i++){
-            uv_curr = this->features[i].uv.back(); //latest feature
-            point_curr = this->features[i].point;
-            if (uv_curr.y > this->params.imSize.height * 0.5 
-            && uv_curr.y > this->params.imSize.height - 0.7 * uv_curr.x 
-            && uv_curr.y > this->params.imSize.height + 0.7 * (uv_curr.x - this->params.imSize.width)
-            && this->features[i].is_3D_reconstructed){
-                this->features[i].type = Type::Road;
-                y_vals_road.push_back(point_curr(1));
-            }
-        }
-        std::nth_element(y_vals_road.begin(), y_vals_road.begin() + y_vals_road.size()/2, y_vals_road.end());
-        scale = this->params.vehicle_height / y_vals_road[y_vals_road.size()/2];
-
-        t = scale * t;
+    }else{
+        t = scale_from_height * t;
 
         this->nFeatureInlier = this->nFeature3DReconstructed;
-        inlier.clear();
-        for (uint32_t i = 0; i < this->features.size(); i++)
-            inlier.push_back( this->features[i].is_3D_reconstructed );
         flag = true;
     }
 
@@ -831,6 +839,7 @@ void MVO::ransac(const std::vector<DATA> &samples, const MVO::RansacCoef<DATA, F
         else
             sampleIdx = randperm(ptNum, ransacCoef.minPtNum);
 
+        sample.clear();
         for (uint32_t i = 0; i < sampleIdx.size(); i++){
             sample.push_back(samples[sampleIdx[i]]);
         }
@@ -940,9 +949,77 @@ void MVO::calculate_scale_error(const double& scale, const std::vector<std::pair
 
 void MVO::calculate_plane(const std::vector<cv::Point3f>& pts, std::vector<double>& plane){
     // need exact three points
-    // return plane's unit normal vector (a, b, c) and distance from origin (d)
+    // return plane's unit normal vector (a, b, c) and distance from origin (d): ax + by + cz + d = 0
     plane.clear();
-    Eigen::Vector3d x1, x2, x3;
+
+    if( pts.size() == 3 ){
+        Eigen::Vector3d a, b;
+        a << pts[1].x - pts[0].x, pts[1].y - pts[0].y, pts[1].z - pts[0].z;
+        b << pts[2].x - pts[0].x, pts[2].y - pts[0].y, pts[2].z - pts[0].z;
+        
+        Eigen::Vector3d n = a.cross(b);
+        n /= n.norm();
+
+        double d = - n(0)*pts[0].x - n(1)*pts[0].y - n(2)*pts[0].z;
+        plane.push_back(n(0));
+        plane.push_back(n(1));
+        plane.push_back(n(2));
+        plane.push_back(d);
+
+    }else{
+        cv::Point3f centroid(0,0,0);
+        for( uint32_t i = 0; i < pts.size(); i++ ){
+            centroid.x += pts[i].x;
+            centroid.y += pts[i].y;
+            centroid.z += pts[i].z;
+        }
+        centroid.x = centroid.x/pts.size();
+        centroid.y = centroid.y/pts.size();
+        centroid.z = centroid.z/pts.size();
+
+        double xx = 0, xy = 0, xz = 0, yy = 0, yz = 0, zz = 0;
+        for( uint32_t i = 0; i < pts.size(); i++ ){
+            cv::Point3f r = pts[i] - centroid;
+            xx += r.x * r.x;
+            xy += r.x * r.y;
+            xz += r.x * r.z;
+            yy += r.y * r.y;
+            yz += r.y * r.z;
+            zz += r.z * r.z;
+        }
+
+        double det_x = yy*zz - yz*yz;
+        double det_y = xx*zz - xz*xz;
+        double det_z = xx*yy - xy*xy;
+
+        double max = std::max(std::max(det_x, det_y), det_z);
+
+        if( max > 0 ){
+            Eigen::Vector3d n;
+            if( max == det_x )
+                n << det_x, xz*yz - xy*zz, xy*yz - xz*yy;
+            else if( max == det_y )
+                n << xz*yz - xy*zz, det_y, xy*xz - yz*xx;
+            else if( max == det_z )
+                n << xy*yz - xz*yy, xy*xz - yz*xx, det_z;
+
+            double norm = n.norm();
+            n /= norm;
+            
+            double d;
+            d = - n(0)*centroid.x - n(1)*centroid.y - n(2)*centroid.z;
+
+            plane.push_back(n(0));
+            plane.push_back(n(1));
+            plane.push_back(n(2));
+            plane.push_back(d);
+        }else{
+            plane.push_back(0);
+            plane.push_back(0);
+            plane.push_back(0);
+            plane.push_back(0);
+        }
+    }
 }
 
 void MVO::calculate_plane_error(const std::vector<double>& plane, const std::vector<cv::Point3f>& pts, std::vector<double>& dist){
