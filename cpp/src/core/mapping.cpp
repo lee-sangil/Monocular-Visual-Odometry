@@ -3,6 +3,8 @@
 #include "core/numerics.hpp"
 #include "core/time.hpp"
 
+double scale_reference;
+
 bool MVO::calculate_motion()
 {
     if (this->step == 0)
@@ -709,6 +711,7 @@ bool MVO::scale_propagation(const Eigen::Matrix3d &R, Eigen::Vector3d &t, std::v
     }
 
     scale_from_height = this->params.vehicle_height / std::abs(plane[3]);
+    ::scale_reference = scale_from_height;
 
     if (this->scale_initialized)
     {
@@ -768,7 +771,7 @@ bool MVO::scale_propagation(const Eigen::Matrix3d &R, Eigen::Vector3d &t, std::v
             flag = false;
         }
         else{
-            std::cerr << "scale_from_height: " << scale_from_height << ", " << "scale: " << scale << " " << std::endl;
+            std::cerr << "@ scale_from_height: " << scale_from_height << ", " << "scale: " << scale << std::endl;
 
             // Update scale
             t = scale * t;
@@ -935,10 +938,19 @@ std::vector<uint32_t> MVO::randweightedpick(const std::vector<double> &h, int n 
 void MVO::calculate_scale(const std::vector<std::pair<cv::Point3f,cv::Point3f>> &pts, double& scale){
     double sum = 0;
     for (uint32_t i = 0; i < pts.size(); i++){
-        sum += (pts[i].first.x * pts[i].second.x + pts[i].first.y * pts[i].second.y + pts[i].first.z * pts[i].second.z) / 
-        (pts[i].first.x * pts[i].first.x + pts[i].first.y * pts[i].first.y + pts[i].first.z * pts[i].first.z + 1e-10);
+        sum += (pts[i].first.x * pts[i].second.x + pts[i].first.y * pts[i].second.y + pts[i].first.z * pts[i].second.z + ::scale_reference) / 
+        (pts[i].first.x * pts[i].first.x + pts[i].first.y * pts[i].first.y + pts[i].first.z * pts[i].first.z + 1);
     }
     scale = sum / pts.size();
+
+    // double num = 0, den = 0;
+    // for (uint32_t i = 0; i < pts.size(); i++){
+    //     num += (pts[i].first.x * pts[i].second.x + pts[i].first.y * pts[i].second.y + pts[i].first.z * pts[i].second.z);
+    //     den += (pts[i].first.x * pts[i].first.x + pts[i].first.y * pts[i].first.y + pts[i].first.z * pts[i].first.z);
+    // }
+    // scale = (num + pts.size() * ::scale_reference) / (den + pts.size());
+
+    // scale = ::scale_reference;
 }
 
 void MVO::calculate_scale_error(const double& scale, const std::vector<std::pair<cv::Point3f,cv::Point3f>> &pts, std::vector<double>& dist){
