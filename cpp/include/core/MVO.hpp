@@ -30,6 +30,7 @@ class MVO{
 		UPNP
 	};
 
+	template <typename DATA, typename FUNC>
 	struct RansacCoef{
 		int iterMax = 1e4;
 		double minPtNum = 5;
@@ -37,8 +38,8 @@ class MVO{
 		double thDist = 0.5;
 		double thDistOut = 5.0;
 		std::vector<double> weight;
-		std::function<void(const std::vector<cv::Point3f>&, const std::vector<cv::Point3f>&, double&)> calculate_func;
-		std::function<void(const double, const std::vector<cv::Point3f>&, const std::vector<cv::Point3f>&, std::vector<double>&)> calculate_dist;
+		std::function<void(const std::vector<DATA>&, FUNC&)> calculate_func;
+		std::function<void(const FUNC, const std::vector<DATA>&, std::vector<double>&)> calculate_dist;
 	};
 
 	struct ViewCam{
@@ -67,7 +68,8 @@ class MVO{
 		cv::Size imSize;
 		bool applyCLAHE = false;
 
-		MVO::RansacCoef ransacCoef_scale_prop;
+		MVO::RansacCoef<std::pair<cv::Point3f,cv::Point3f>, double> ransacCoef_scale;
+		MVO::RansacCoef<cv::Point3f, std::vector<double>> ransacCoef_plane;
 		
 		int thInlier = 5;
 		double thRatioKeyFrame = 0.9;
@@ -153,14 +155,15 @@ class MVO{
 	double calcReconstructionErrorGT(Eigen::MatrixXd& depth);
 	
 	// RANSAC
-	static double ransac(const std::vector<cv::Point3f>& x, const std::vector<cv::Point3f>& y,
-				MVO::RansacCoef ransacCoef,
-				std::vector<bool>& inlier, std::vector<bool>& outlier);
-	static void calculate_scale(const std::vector<cv::Point3f>& pt1, const std::vector<cv::Point3f>& pt2, double& scale);
-	static void calculate_scale_error(const double& scale, const std::vector<cv::Point3f>& pt1, const std::vector<cv::Point3f>& pt2, std::vector<double>& dist);
+	template <typename DATA, typename FUNC>
+	static void ransac(const std::vector<DATA>& sample, const MVO::RansacCoef<DATA, FUNC> ransacCoef, FUNC& val, std::vector<bool>& inlier, std::vector<bool>& outlier);
 	static std::vector<uint32_t> randperm(uint32_t ptNum, int minPtNum);
 	static std::vector<uint32_t> randweightedpick(const std::vector<double>& h, int n = 1);
-
+	static void calculate_scale(const std::vector<std::pair<cv::Point3f,cv::Point3f>>& pts, double& scale);
+	static void calculate_scale_error(const double& scale, const std::vector<std::pair<cv::Point3f,cv::Point3f>>& pts, std::vector<double>& dist);
+	static void calculate_plane(const std::vector<cv::Point3f>& pts, std::vector<double>& plane);
+	static void calculate_plane_error(const std::vector<double>& plane, const std::vector<cv::Point3f>& pts, std::vector<double>& dist);
+	
 	private:
 
 	uint32_t step;

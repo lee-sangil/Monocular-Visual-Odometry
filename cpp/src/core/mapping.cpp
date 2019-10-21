@@ -697,36 +697,33 @@ bool MVO::scale_propagation(const Eigen::Matrix3d &R, Eigen::Vector3d &t, std::v
         nPoint = idx.size();
 
         // Use RANSAC to find suitable scale
-        if ( nPoint > this->params.ransacCoef_scale_prop.minPtNum){
-            // std::vector<Eigen::Vector3d> P1_ini;
-            // std::vector<Eigen::Vector3d> P1_exp;
-            std::vector<cv::Point3f> P1_ini;
-            std::vector<cv::Point3f> P1_exp;
-            Eigen::Vector4d Eigen_point;
-            Eigen::Vector4d curr_point;
-            this->params.ransacCoef_scale_prop.weight.clear();
+        if ( nPoint > this->params.ransacCoef_scale.minPtNum){
+            std::vector<std::pair<cv::Point3f,cv::Point3f>> Points;
+            Eigen::Vector4d init_point, expt_point, curr_point;
+            this->params.ransacCoef_scale.weight.clear();
             
             for (uint32_t i = 0; i < nPoint; i++){
                 curr_point = this->features[idx[i]].point;
 
                 // Get initialized 3D point
-                Eigen_point = this->TocRec[this->key_step].inverse() * this->features[idx[i]].point_init;
-                P1_ini.emplace_back(Eigen_point(0), Eigen_point(1), Eigen_point(2));
+                init_point = this->TocRec[this->key_step].inverse() * this->features[idx[i]].point_init;
                 
                 // Get expected 3D point by transforming the coordinates of the observed 3d point
-                Eigen_point = T_.inverse() * curr_point;
-                P1_exp.emplace_back(Eigen_point(0), Eigen_point(1), Eigen_point(2));
+                expt_point = T_.inverse() * curr_point;
+
+                Points.emplace_back(cv::Point3f(expt_point(0),expt_point(1),expt_point(2)),
+                                    cv::Point3f(init_point(0),init_point(1),init_point(2)));
                 
                 // RANSAC weight
-                this->params.ransacCoef_scale_prop.weight.push_back( std::atan( -curr_point(2)/5 + 3 ) + PI / 2 );
+                this->params.ransacCoef_scale.weight.push_back( std::atan( -curr_point(2)/5 + 3 ) + PI / 2 );
             }
 
-            scale = ransac(P1_exp, P1_ini, this->params.ransacCoef_scale_prop, inlier, outlier);
+            this->ransac<std::pair<cv::Point3f,cv::Point3f>,double>(Points, this->params.ransacCoef_scale, scale, inlier, outlier);
             this->nFeatureInlier = std::count(inlier.begin(), inlier.end(), true);
         }
 
         // Use the previous scale, if the scale cannot be found
-        if (nPoint <= this->params.ransacCoef_scale_prop.minPtNum 
+        if (nPoint <= this->params.ransacCoef_scale.minPtNum 
             || inlier.size() < (std::size_t)this->params.thInlier || scale == 0)
         {
             std::cerr << "There are a few SCALE FACTOR INLIERS" << std::endl;
@@ -814,19 +811,18 @@ double MVO::calcReconstructionErrorGT(Eigen::MatrixXd& depth){
     return error[std::floor(error.size()/2)];
 }
 
-double MVO::ransac(const std::vector<cv::Point3f> &x, const std::vector<cv::Point3f> &y,
-                   MVO::RansacCoef ransacCoef,
-                   std::vector<bool> &inlier, std::vector<bool> &outlier){
-    uint32_t ptNum = x.size();
+template <typename DATA, typename FUNC>
+void MVO::ransac(const std::vector<DATA> &samples, const MVO::RansacCoef<DATA, FUNC> ransacCoef, FUNC& val, std::vector<bool> &inlier, std::vector<bool> &outlier){
+    uint32_t ptNum = samples.size();
 
     std::vector<uint32_t> sampleIdx;
-    std::vector<cv::Point3f> x_sample, y_sample;
+    std::vector<DATA> sample;
     std::vector<double> dist;
-    dist.reserve(x.size());
+    dist.reserve(ptNum);
 
     int iterNUM = 1e5;
     uint32_t max_inlier = 0;
-    double InlrRatio, val;
+    double InlrRatio;
 
     for( int it = 0; it < std::min(ransacCoef.iterMax, iterNUM); it++ ){
         // 1. fit using random points
@@ -835,15 +831,12 @@ double MVO::ransac(const std::vector<cv::Point3f> &x, const std::vector<cv::Poin
         else
             sampleIdx = randperm(ptNum, ransacCoef.minPtNum);
 
-        x_sample.clear();
-        y_sample.clear();
         for (uint32_t i = 0; i < sampleIdx.size(); i++){
-            x_sample.push_back(x[sampleIdx[i]]);
-            y_sample.push_back(y[sampleIdx[i]]);
+            sample.push_back(samples[sampleIdx[i]]);
         }
 
-        ransacCoef.calculate_func(x_sample, y_sample, val);
-        ransacCoef.calculate_dist(val, x, y, dist);
+        ransacCoef.calculate_func(sample, val);
+        ransacCoef.calculate_dist(val, samples, dist);
 
         std::vector<bool> in1;
         uint32_t nInlier = 0;
@@ -868,18 +861,14 @@ double MVO::ransac(const std::vector<cv::Point3f> &x, const std::vector<cv::Poin
     if (max_inlier == 0){
         inlier.clear();
         outlier.clear();
-        return 0;
     }else{
-        x_sample.clear();
-        y_sample.clear();
-        for (uint32_t i = 0; i < inlier.size(); i++){
-            if (inlier[i]){
-                x_sample.push_back(x[i]);
-                y_sample.push_back(y[i]);
-            }
-        }
-        ransacCoef.calculate_func(x_sample, y_sample, val);
-        ransacCoef.calculate_dist(val, x, y, dist);
+        sample.clear();
+        for (uint32_t i = 0; i < inlier.size(); i++)
+            if (inlier[i])
+                sample.push_back(samples[i]);
+        
+        ransacCoef.calculate_func(sample, val);
+        ransacCoef.calculate_dist(val, samples, dist);
 
         inlier.clear();
         outlier.clear();
@@ -887,7 +876,6 @@ double MVO::ransac(const std::vector<cv::Point3f> &x, const std::vector<cv::Poin
             inlier.push_back(dist[i] < ransacCoef.thDist);
             outlier.push_back(dist[i] > ransacCoef.thDistOut);
         }
-        return val;
     }
 }
 
@@ -935,16 +923,36 @@ std::vector<uint32_t> MVO::randweightedpick(const std::vector<double> &h, int n 
     return result;
 }
 
-void MVO::calculate_scale(const std::vector<cv::Point3f> &pt1, const std::vector<cv::Point3f> &pt2, double& scale){
+void MVO::calculate_scale(const std::vector<std::pair<cv::Point3f,cv::Point3f>> &pts, double& scale){
     double sum = 0;
-    for (uint32_t i = 0; i < pt1.size(); i++){
-        sum += (pt1[i].x * pt2[i].x + pt1[i].y * pt2[i].y + pt1[i].z * pt2[i].z) / (pt1[i].x * pt1[i].x + pt1[i].y * pt1[i].y + pt1[i].z * pt1[i].z + 1e-10);
+    for (uint32_t i = 0; i < pts.size(); i++){
+        sum += (pts[i].first.x * pts[i].second.x + pts[i].first.y * pts[i].second.y + pts[i].first.z * pts[i].second.z) / 
+        (pts[i].first.x * pts[i].first.x + pts[i].first.y * pts[i].first.y + pts[i].first.z * pts[i].first.z + 1e-10);
     }
-    scale = sum / pt1.size();
+    scale = sum / pts.size();
 }
 
-void MVO::calculate_scale_error(const double& scale, const std::vector<cv::Point3f> &pt1, const std::vector<cv::Point3f> &pt2, std::vector<double>& dist){
+void MVO::calculate_scale_error(const double& scale, const std::vector<std::pair<cv::Point3f,cv::Point3f>> &pts, std::vector<double>& dist){
     dist.clear();
-    for (uint32_t i = 0; i < pt1.size(); i++)
-        dist.push_back(cv::norm(pt2[i] - scale * pt1[i]));
+    for (uint32_t i = 0; i < pts.size(); i++)
+        dist.push_back(cv::norm(pts[i].second - scale * pts[i].first));
+}
+
+void MVO::calculate_plane(const std::vector<cv::Point3f>& pts, std::vector<double>& plane){
+    // need exact three points
+    // return plane's unit normal vector (a, b, c) and distance from origin (d)
+    plane.clear();
+    Eigen::Vector3d x1, x2, x3;
+}
+
+void MVO::calculate_plane_error(const std::vector<double>& plane, const std::vector<cv::Point3f>& pts, std::vector<double>& dist){
+    double norm = std::sqrt(std::pow(plane[0],2) + std::pow(plane[1],2) + std::pow(plane[2],2));
+    double a = plane[0]/norm;
+    double b = plane[1]/norm;
+    double c = plane[2]/norm;
+    double d = plane[3]/norm;
+
+    dist.clear();
+    for( uint32_t i = 0; i < pts.size(); i++ )
+        dist.push_back(std::abs(a * pts[i].x + b * pts[i].y + c * pts[i].z + d));
 }

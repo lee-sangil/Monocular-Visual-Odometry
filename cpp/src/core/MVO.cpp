@@ -73,14 +73,22 @@ MVO::MVO(std::string yaml):MVO(){
     this->params.px_wide =          fSettings["Feature.px_wide"];
 
     // RANSAC parameter
-    this->params.ransacCoef_scale_prop.iterMax =        fSettings["RANSAC.iterMax"];
-    this->params.ransacCoef_scale_prop.minPtNum =       fSettings["RANSAC.nSample"];
-    this->params.ransacCoef_scale_prop.thInlrRatio =    fSettings["RANSAC.thInlrRatio"];
-    this->params.ransacCoef_scale_prop.thDist =         fSettings["RANSAC.thDist"]; // standard deviation
-    this->params.ransacCoef_scale_prop.thDistOut =      fSettings["RANSAC.thDistOut"]; // three times of standard deviation
-    this->params.ransacCoef_scale_prop.calculate_func = MVO::calculate_scale;
-    this->params.ransacCoef_scale_prop.calculate_dist = MVO::calculate_scale_error;
+    this->params.ransacCoef_scale.iterMax =        fSettings["RANSAC.iterMax"];
+    this->params.ransacCoef_scale.minPtNum =       fSettings["RANSAC.nSample"];
+    this->params.ransacCoef_scale.thInlrRatio =    fSettings["RANSAC.thInlrRatio"];
+    this->params.ransacCoef_scale.thDist =         fSettings["RANSAC.thDist"]; // standard deviation
+    this->params.ransacCoef_scale.thDistOut =      fSettings["RANSAC.thDistOut"]; // three times of standard deviation
+    this->params.ransacCoef_scale.calculate_func = MVO::calculate_scale;
+    this->params.ransacCoef_scale.calculate_dist = MVO::calculate_scale_error;
     
+    this->params.ransacCoef_plane.iterMax =        fSettings["RANSAC.iterMax"];
+    this->params.ransacCoef_plane.minPtNum =       fSettings["RANSAC.nSample"];
+    this->params.ransacCoef_plane.thInlrRatio =    fSettings["RANSAC.thInlrRatio"];
+    this->params.ransacCoef_plane.thDist =         fSettings["RANSAC.thDist"]; // standard deviation
+    this->params.ransacCoef_plane.thDistOut =      fSettings["RANSAC.thDistOut"]; // three times of standard deviation
+    this->params.ransacCoef_plane.calculate_func = MVO::calculate_plane;
+    this->params.ransacCoef_plane.calculate_dist = MVO::calculate_plane_error;
+
     // Bucket
     this->bucket = Bucket();
     this->bucket.safety =           fSettings["Bucket.safety"];
@@ -171,8 +179,6 @@ MVO::MVO(std::string yaml):MVO(){
     this->params.view.heightDefault =   fSettings["viewCam.height"]; // in world coordinate
     this->params.view.rollDefault =     (double) fSettings["viewCam.roll"] * PI/180; // radian
     this->params.view.pitchDefault =    (double) fSettings["viewCam.pitch"] * PI/180; // radian
-    // this->params.view.rollDefault =     this->params.view.rollDefault * PI/180;
-    // this->params.view.pitchDefault =    this->params.view.pitchDefault * PI/180;
     this->params.view.height =          this->params.view.heightDefault;
     this->params.view.roll =            this->params.view.rollDefault;
     this->params.view.pitch =           this->params.view.pitchDefault;
