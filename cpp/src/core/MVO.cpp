@@ -78,6 +78,8 @@ MVO::MVO(std::string yaml):MVO(){
     this->params.ransacCoef_scale_prop.thInlrRatio =    fSettings["RANSAC.thInlrRatio"];
     this->params.ransacCoef_scale_prop.thDist =         fSettings["RANSAC.thDist"]; // standard deviation
     this->params.ransacCoef_scale_prop.thDistOut =      fSettings["RANSAC.thDistOut"]; // three times of standard deviation
+    this->params.ransacCoef_scale_prop.calculate_func = MVO::calculate_scale;
+    this->params.ransacCoef_scale_prop.calculate_dist = MVO::calculate_scale_error;
     
     // Bucket
     this->bucket = Bucket();

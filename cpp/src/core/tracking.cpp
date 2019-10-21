@@ -260,7 +260,7 @@ bool MVO::calculate_essential()
     int key_idx;
     for( int i = 0; i < this->nFeature; i++ ){
         key_idx = this->features[i].life - 1 - (this->step - this->key_step);
-        if( key_idx >= 0 ){
+        if( key_idx >= 0 && this->features[i].type != Type::Dynamic ){
             points1.push_back(this->features[i].uv[key_idx]);
             points2.push_back(this->features[i].uv.back());   // latest
         }
@@ -272,7 +272,7 @@ bool MVO::calculate_essential()
     }
 
     cv::Mat inlier_mat;
-    this->essentialMat = cv::findEssentialMat(points1, points2, this->params.Kcv, cv::RANSAC, 0.999, 0.3, inlier_mat);
+    this->essentialMat = cv::findEssentialMat(points1, points2, this->params.Kcv, cv::RANSAC, 0.999, 0.5, inlier_mat);
     std::cerr << "# Calculate essential: " << lsi::toc() << std::endl;
 
     Eigen::Matrix3d U,V;
@@ -332,6 +332,8 @@ bool MVO::calculate_essential()
         if (inlier_mat.at<char>(i)){
             this->features[i].is_2D_inliered = true;
             inlier_cnt++;
+        }else{
+            // this->features[i].type = Type::Dynamic;
         }
     }
     this->nFeature2DInliered = inlier_cnt;

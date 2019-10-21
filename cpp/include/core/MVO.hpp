@@ -37,6 +37,8 @@ class MVO{
 		double thDist = 0.5;
 		double thDistOut = 5.0;
 		std::vector<double> weight;
+		std::function<void(const std::vector<cv::Point3f>&, const std::vector<cv::Point3f>&, double&)> calculate_func;
+		std::function<void(const double, const std::vector<cv::Point3f>&, const std::vector<cv::Point3f>&, std::vector<double>&)> calculate_dist;
 	};
 
 	struct ViewCam{
@@ -154,8 +156,8 @@ class MVO{
 	static double ransac(const std::vector<cv::Point3f>& x, const std::vector<cv::Point3f>& y,
 				MVO::RansacCoef ransacCoef,
 				std::vector<bool>& inlier, std::vector<bool>& outlier);
-	static double calculate_scale(const std::vector<cv::Point3f>& pt1, const std::vector<cv::Point3f>& pt2);
-	static void calculate_scale_error(const double scale, const std::vector<cv::Point3f>& pt1, const std::vector<cv::Point3f>& pt2, std::vector<double>& dist);
+	static void calculate_scale(const std::vector<cv::Point3f>& pt1, const std::vector<cv::Point3f>& pt2, double& scale);
+	static void calculate_scale_error(const double& scale, const std::vector<cv::Point3f>& pt1, const std::vector<cv::Point3f>& pt2, std::vector<double>& dist);
 	static std::vector<uint32_t> randperm(uint32_t ptNum, int minPtNum);
 	static std::vector<uint32_t> randweightedpick(const std::vector<double>& h, int n = 1);
 

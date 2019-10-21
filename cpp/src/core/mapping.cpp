@@ -744,7 +744,6 @@ bool MVO::scale_propagation(const Eigen::Matrix3d &R, Eigen::Vector3d &t, std::v
             // Update scale
             t = scale * t;
             flag = true;
-
         }
 
     }
@@ -843,8 +842,8 @@ double MVO::ransac(const std::vector<cv::Point3f> &x, const std::vector<cv::Poin
             y_sample.push_back(y[sampleIdx[i]]);
         }
 
-        val = calculate_scale(x_sample, y_sample);
-        calculate_scale_error(val, x, y, dist);
+        ransacCoef.calculate_func(x_sample, y_sample, val);
+        ransacCoef.calculate_dist(val, x, y, dist);
 
         std::vector<bool> in1;
         uint32_t nInlier = 0;
@@ -879,8 +878,8 @@ double MVO::ransac(const std::vector<cv::Point3f> &x, const std::vector<cv::Poin
                 y_sample.push_back(y[i]);
             }
         }
-        val = calculate_scale(x_sample, y_sample);
-        calculate_scale_error(val, x, y, dist);
+        ransacCoef.calculate_func(x_sample, y_sample, val);
+        ransacCoef.calculate_dist(val, x, y, dist);
 
         inlier.clear();
         outlier.clear();
@@ -936,15 +935,15 @@ std::vector<uint32_t> MVO::randweightedpick(const std::vector<double> &h, int n 
     return result;
 }
 
-double MVO::calculate_scale(const std::vector<cv::Point3f> &pt1, const std::vector<cv::Point3f> &pt2){
+void MVO::calculate_scale(const std::vector<cv::Point3f> &pt1, const std::vector<cv::Point3f> &pt2, double& scale){
     double sum = 0;
     for (uint32_t i = 0; i < pt1.size(); i++){
         sum += (pt1[i].x * pt2[i].x + pt1[i].y * pt2[i].y + pt1[i].z * pt2[i].z) / (pt1[i].x * pt1[i].x + pt1[i].y * pt1[i].y + pt1[i].z * pt1[i].z + 1e-10);
     }
-    return sum / pt1.size();
+    scale = sum / pt1.size();
 }
 
-void MVO::calculate_scale_error(const double scale, const std::vector<cv::Point3f> &pt1, const std::vector<cv::Point3f> &pt2, std::vector<double>& dist){
+void MVO::calculate_scale_error(const double& scale, const std::vector<cv::Point3f> &pt1, const std::vector<cv::Point3f> &pt2, std::vector<double>& dist){
     dist.clear();
     for (uint32_t i = 0; i < pt1.size(); i++)
         dist.push_back(cv::norm(pt2[i] - scale * pt1[i]));
