@@ -51,7 +51,7 @@ void MVO::plot(){
 			uv = this->params.view.P * point;
 			if( uv(2) > 1 ){
 				switch (this->features_dead[i].type){
-				case Type::Other:
+				case Type::Common:
 					cv::circle(traj, cv::Point(uv(0)/uv(2), uv(1)/uv(2)), 1, cv::Scalar(128,128,128), CV_FILLED);
 					break;
 				case Type::Road:
@@ -70,7 +70,7 @@ void MVO::plot(){
 			uv = this->params.view.P * point;
 			if( uv(2) > 1 ){
 				switch (this->features[i].type){
-				case Type::Other:
+				case Type::Common:
 					cv::circle(traj, cv::Point(uv(0)/uv(2), uv(1)/uv(2)), 1, cv::Scalar(128,128,128), CV_FILLED);
 					break;
 				case Type::Road:

@@ -42,7 +42,7 @@
 #include <opencv2/calib3d.hpp>
 #include <boost/filesystem.hpp>
 
-enum Type{Road,Other,Dynamic,};
+enum Type{Common,Dynamic,Road,};
 
 typedef struct Bucket{
 	int safety = 20;
@@ -66,6 +66,7 @@ typedef struct Feature{
 	Eigen::Vector4d point;
 	Eigen::Vector4d point_init;
 	double point_var;
+	bool is_alive;
 	bool is_matched;
 	bool is_wide;
 	bool is_2D_inliered;

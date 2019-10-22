@@ -46,7 +46,7 @@ bool MVO::update_features(){
                 this->nFeatureMatched++;
 
             }else
-                this->features[i].life = 0;
+                this->features[i].is_alive = false;
         }
 
         if( this->nFeatureMatched < this->params.thInlier ){
@@ -95,9 +95,13 @@ void MVO::klt_tracker(std::vector<cv::Point2f>& fwd_pts, std::vector<bool>& vali
 
 void MVO::delete_dead_features(){
     for( uint32_t i = 0; i < this->features.size(); ){
-        if( this->features[i].life <= 0 ){
-            this->features_dead.push_back(this->features[i]);
+        if( this->features[i].is_alive == false ){
+            if( this->features[i].life > 2 ){
+                this->features_dead.push_back(this->features[i]);
+                std::cout << "features_dead increase, ";
+            }
             this->features.erase(this->features.begin()+i);
+            std::cout << "features decreases" << std::endl;
         }else{
             i++;
         }
@@ -210,6 +214,7 @@ void MVO::add_feature(){
         newFeature.life = 1; // the number of frames in where the feature is observed
         newFeature.bucket = cv::Point(row, col); // the location of bucket where the feature belong to
         newFeature.point.setZero(4,1); // 3-dim homogeneous point in the local coordinates
+        newFeature.is_alive = true;
         newFeature.is_matched = false; // matched between both frame
         newFeature.is_wide = false; // verify whether features btw the initial and current are wide enough
         newFeature.is_2D_inliered = false; // belong to major (or meaningful) movement
@@ -217,7 +222,7 @@ void MVO::add_feature(){
         newFeature.is_3D_init = false; // scale-compensated
         newFeature.point_init.setZero(4,1); // scale-compensated 3-dim homogeneous point in the global coordinates
         newFeature.point_var = 0;
-        newFeature.type = Type::Other;
+        newFeature.type = Type::Common;
 
         this->features.push_back(newFeature);
         this->nFeature++;
@@ -266,10 +271,10 @@ bool MVO::calculate_essential()
         }
     }
 
-    if( points1.size() <= this->nFeature * this->params.thRatioKeyFrame ){
+    if( points1.size() <= this->nFeature * this->params.thRatioKeyFrame )
         this->next_key_step = this->step;
-        std::cout << "key step: " << this->key_step << ' ' << std::endl;
-    }
+    //     std::cout << "key step: " << this->key_step << ' ' << std::endl;
+    // }
 
     cv::Mat inlier_mat;
     this->essentialMat = cv::findEssentialMat(points1, points2, this->params.Kcv, cv::RANSAC, 0.999, 0.5, inlier_mat);

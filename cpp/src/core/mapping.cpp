@@ -707,7 +707,7 @@ bool MVO::scale_propagation(const Eigen::Matrix3d &R, Eigen::Vector3d &t, std::v
         if( planeInlier[roadIdx[i]] )
             this->features[roadIdx[i]].type = Type::Road;
         else
-            this->features[roadIdx[i]].type = Type::Other;
+            this->features[roadIdx[i]].type = Type::Common;
     }
 
     scale_from_height = this->params.vehicle_height / std::abs(plane[3]);
