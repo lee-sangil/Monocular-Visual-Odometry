@@ -4,6 +4,22 @@
 #include "core/time.hpp"
 
 double scale_reference;
+double scale_reference_weight;
+
+void MVO::run(cv::Mat& image, Eigen::MatrixXd& depth){
+    this->groundtruth_provided = true;
+    this->run(image);
+    std::cerr << "* Reconstruction error: " << this->calcReconstructionErrorGT(depth) << std::endl;
+}
+
+void MVO::run(cv::Mat& image, double timestamp, double speed){
+    this->speed_provided = true;
+    this->timestamp = timestamp;
+
+    ::scale_reference = speed * (this->timestamp - this->key_timestamp);
+    std::cerr << "scale_reference: " << ::scale_reference << std::endl;
+    this->run(image);
+}
 
 bool MVO::calculate_motion()
 {
@@ -678,40 +694,44 @@ bool MVO::scale_propagation(const Eigen::Matrix3d &R, Eigen::Vector3d &t, std::v
     double scale = 0, scale_from_height = 0;
     bool flag;
 
+    ::scale_reference_weight = this->params.weightScaleRef;
+
     // Initialization
     // initialze scale, in the case of the first time
-    cv::Point2f uv_curr;
-    Eigen::Vector4d point_curr;
-    std::vector<cv::Point3f> roadCandidate;
-    std::vector<uint32_t> roadIdx;
+    if( !this->speed_provided ){
+        cv::Point2f uv_curr;
+        Eigen::Vector4d point_curr;
+        std::vector<cv::Point3f> roadCandidate;
+        std::vector<uint32_t> roadIdx;
 
-    for (int i = 0; i < nFeature; i++){
-        if( this->features[i].is_3D_reconstructed ){
-            uv_curr = this->features[i].uv.back(); //latest feature
+        for (int i = 0; i < nFeature; i++){
+            if( this->features[i].is_3D_reconstructed ){
+                uv_curr = this->features[i].uv.back(); //latest feature
 
-            if (uv_curr.y > this->params.imSize.height * 0.5 
-            && uv_curr.y > this->params.imSize.height - 0.7 * uv_curr.x 
-            && uv_curr.y > this->params.imSize.height + 0.7 * (uv_curr.x - this->params.imSize.width)){
-                point_curr = this->features[i].point;
-                roadCandidate.emplace_back(point_curr(0),point_curr(1),point_curr(2));
-                roadIdx.push_back(i);
+                if (uv_curr.y > this->params.imSize.height * 0.5 
+                && uv_curr.y > this->params.imSize.height - 0.7 * uv_curr.x 
+                && uv_curr.y > this->params.imSize.height + 0.7 * (uv_curr.x - this->params.imSize.width)){
+                    point_curr = this->features[i].point;
+                    roadCandidate.emplace_back(point_curr(0),point_curr(1),point_curr(2));
+                    roadIdx.push_back(i);
+                }
             }
         }
+
+        std::vector<double> plane;
+        std::vector<bool> planeInlier, planeOutlier;
+        this->ransac<cv::Point3f, std::vector<double>>(roadCandidate, this->params.ransacCoef_plane, plane, planeInlier, planeOutlier);
+
+        for( uint32_t i = 0; i < roadIdx.size(); i++ ){
+            if( planeInlier[roadIdx[i]] )
+                this->features[roadIdx[i]].type = Type::Road;
+            else
+                this->features[roadIdx[i]].type = Type::Common;
+        }
+
+        scale_from_height = this->params.vehicle_height / std::abs(plane[3]);
+        ::scale_reference = scale_from_height;
     }
-
-    std::vector<double> plane;
-    std::vector<bool> planeInlier, planeOutlier;
-    this->ransac<cv::Point3f, std::vector<double>>(roadCandidate, this->params.ransacCoef_plane, plane, planeInlier, planeOutlier);
-
-    for( uint32_t i = 0; i < planeInlier.size(); i++ ){
-        if( planeInlier[roadIdx[i]] )
-            this->features[roadIdx[i]].type = Type::Road;
-        else
-            this->features[roadIdx[i]].type = Type::Common;
-    }
-
-    scale_from_height = this->params.vehicle_height / std::abs(plane[3]);
-    ::scale_reference = scale_from_height;
 
     if (this->scale_initialized)
     {
@@ -756,8 +776,8 @@ bool MVO::scale_propagation(const Eigen::Matrix3d &R, Eigen::Vector3d &t, std::v
         }
 
         // Use the previous scale, if the scale cannot be found
-        if (nPoint <= this->params.ransacCoef_scale.minPtNum 
-            || inlier.size() < (std::size_t)this->params.thInlier || scale == 0)
+        if (::scale_reference_weight >= 0 && (nPoint <= this->params.ransacCoef_scale.minPtNum 
+            || inlier.size() < (std::size_t)this->params.thInlier || scale == 0))
         {
             std::cerr << "There are a few SCALE FACTOR INLIERS" << std::endl;
 
@@ -769,8 +789,8 @@ bool MVO::scale_propagation(const Eigen::Matrix3d &R, Eigen::Vector3d &t, std::v
             // Update scale
             t = scale * t;
             flag = false;
-        }
-        else{
+
+        }else{
             std::cerr << "@ scale_from_height: " << scale_from_height << ", " << "scale: " << scale << std::endl;
 
             // Update scale
@@ -936,12 +956,16 @@ std::vector<uint32_t> MVO::randweightedpick(const std::vector<double> &h, int n 
 }
 
 void MVO::calculate_scale(const std::vector<std::pair<cv::Point3f,cv::Point3f>> &pts, double& scale){
-    double sum = 0;
-    for (uint32_t i = 0; i < pts.size(); i++){
-        sum += (pts[i].first.x * pts[i].second.x + pts[i].first.y * pts[i].second.y + pts[i].first.z * pts[i].second.z + ::scale_reference) / 
-        (pts[i].first.x * pts[i].first.x + pts[i].first.y * pts[i].first.y + pts[i].first.z * pts[i].first.z + 1);
+    if( ::scale_reference_weight < 0 ){
+        scale = ::scale_reference;
+    }else{
+        double sum = 0;
+        for (uint32_t i = 0; i < pts.size(); i++){
+            sum += (pts[i].first.x * pts[i].second.x + pts[i].first.y * pts[i].second.y + pts[i].first.z * pts[i].second.z + ::scale_reference_weight * ::scale_reference) / 
+            (pts[i].first.x * pts[i].first.x + pts[i].first.y * pts[i].first.y + pts[i].first.z * pts[i].first.z + ::scale_reference_weight + 1e-10);
+        }
+        scale = sum / pts.size();
     }
-    scale = sum / pts.size();
 
     // double num = 0, den = 0;
     // for (uint32_t i = 0; i < pts.size(); i++){
@@ -949,8 +973,6 @@ void MVO::calculate_scale(const std::vector<std::pair<cv::Point3f,cv::Point3f>> 
     //     den += (pts[i].first.x * pts[i].first.x + pts[i].first.y * pts[i].first.y + pts[i].first.z * pts[i].first.z);
     // }
     // scale = (num + pts.size() * ::scale_reference) / (den + pts.size());
-
-    // scale = ::scale_reference;
 }
 
 void MVO::calculate_scale_error(const double& scale, const std::vector<std::pair<cv::Point3f,cv::Point3f>> &pts, std::vector<double>& dist){

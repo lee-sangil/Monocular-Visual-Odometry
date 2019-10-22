@@ -9,6 +9,7 @@ MVO::MVO(){
     this->next_key_step = 0;
     this->scale_initialized = false;
     this->groundtruth_provided = false;
+    this->speed_provided = false;
     this->cvClahe = cv::createCLAHE();
 
     // Variables
@@ -67,6 +68,8 @@ MVO::MVO(std::string yaml):MVO(){
 
     cv::initUndistortRectifyMap(this->params.Kcv, this->params.distCoeffs, cv::Mat(), this->params.Kcv, this->params.imSize, CV_32FC1, this->distMap1, this->distMap2);
 
+    // this->descriptor = cv::BRISK::create();
+
     this->params.thInlier =         fSettings["Feature.thInlier"];
     this->params.thRatioKeyFrame =  fSettings["Feature.thRatioKeyFrame"];
     this->params.min_px_dist =      fSettings["Feature.min_px_dist"];
@@ -113,6 +116,8 @@ MVO::MVO(std::string yaml):MVO(){
     // 3D reconstruction
     this->params.initScale =        1;
     this->params.vehicle_height =   fSettings["Scale.height"]; // in meter
+    this->params.weightScaleRef =   fSettings["Scale.referenceWeight"];
+	this->params.weightScaleReg =   fSettings["Scale.regularizationWeight"];
     this->params.reprojError =      fSettings["PnP.threshold"];
     this->params.updateInitPoint =  fSettings["Debug.updateInitPoints"];
     this->params.mappingOption =    fSettings["Debug.mappingOptions"];
@@ -236,8 +241,8 @@ void MVO::set_image(cv::Mat& image){
 void MVO::run(cv::Mat& image){
     
     lsi::tic();
-    std::cerr << "============ Iteration: " << this->step << " ============" << std::endl;
     this->set_image(image);
+    std::cerr << "============ Iteration: " << this->step << " ============" << std::endl;
     std::cerr << "# Grab image: " << lsi::toc() << std::endl;
     this->refresh();
 
@@ -249,12 +254,6 @@ void MVO::run(cv::Mat& image){
 
     if( !std::all_of(success.begin(), success.end(), [](bool b){return b;}) )
         this->scale_initialized = false;
-}
-
-void MVO::run(cv::Mat& image, Eigen::MatrixXd& depth){
-    this->groundtruth_provided = true;
-    this->run(image);
-    std::cerr << "* Reconstruction error: " << this->calcReconstructionErrorGT(depth) << std::endl;
 }
 
 ptsROI_t MVO::get_points()

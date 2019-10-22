@@ -18,10 +18,28 @@ Eigen::MatrixXd read_binary(const char* filename, const int rows, const int cols
     return matrix;
 }
 
+void timeReader(const char * filePath, std::vector<double>& timestamp){
+	std::ifstream openFile(filePath);
+    if( !openFile.is_open() ){
+        std::cout << "text file open error" << std::endl;
+    }
+    else{
+		std::string str;
+		int year, month, days, hours, minutes;
+		double seconds;
+        while(std::getline(openFile,str)){
+			if(str[0] != '#'){
+				sscanf(str.c_str(), "%04d-%02d-%02d %02d:%02d:%lf", &year, &month, &days, &hours, &minutes, &seconds);
+				timestamp.push_back(days*86400+hours*3600+minutes*60+seconds);
+			}
+		}
+        openFile.close();
+    }
+}
+
 std::vector<double> oxtsReader(const char * filePath, const std::string & txtName){
     std::string filename;
     filename.append(filePath);
-    filename.append("/");
     filename.append(txtName);
     std::vector<double> Data;
 
@@ -46,8 +64,7 @@ std::vector<double> oxtsReader(const char * filePath, const std::string & txtNam
     return Data;
 }
 
-std::vector<double> computeVehicleSpeed( std::vector<std::vector<double> > oxtsData){
-    std::vector<double> speed;
+void computeVehicleSpeed( std::vector<std::vector<double> > oxtsData, std::vector<double>& speed){
     double temp = 0; 
     for (uint32_t i = 0; i < oxtsData.size(); i++){
         temp = 0;
@@ -59,21 +76,19 @@ std::vector<double> computeVehicleSpeed( std::vector<std::vector<double> > oxtsD
             speed.push_back(temp);
         }
     }
-    return speed;
 }
 
-std::vector<std::vector<double> > directoryReader(const char * filePath){
+void directoryReader(const char * filePath, std::vector<std::vector<double> >& oxtsData){
     std::vector<std::string> txtList;
     DIR *pdir = NULL;
     pdir = opendir (filePath);
     struct dirent * pent = NULL;
-    std::vector<std::vector<double> > oxtsData;
 
     if (pdir == NULL){
         std::cout << "\n ERROR! OXTS dir could not be opened" << std::endl;
-        return oxtsData;
     }
 
+	// the length of txtList limits to 1000. WHY?
     while ((pent = readdir(pdir))){
         if (pent == NULL){
             std::cout << "\n ERROR " << std::endl;
@@ -90,7 +105,6 @@ std::vector<std::vector<double> > directoryReader(const char * filePath){
         std::vector<double> temp_data = oxtsReader(filePath, txtList[i]);
         oxtsData.push_back( temp_data );
     }
-    return oxtsData;
 }
 
 int main(int argc, char * argv[]){
@@ -166,6 +180,20 @@ int main(int argc, char * argv[]){
 	std::vector<int> sensorID;
 	lsi::sortImageAndImu(timeImu, timeRgb, sensorID);
 
+	std::vector<double> timestamp, speed;
+	if( Parser::hasOption("-vel")){
+		std::string oxts_path;
+		oxts_path.append(inputFile).append("oxts/data/");
+
+		std::vector<std::vector<double> > oxtsData;
+		directoryReader(oxts_path.c_str(), oxtsData);
+		computeVehicleSpeed(oxtsData, speed);
+
+		std::string time_path;
+		time_path.append(inputFile).append("oxts/timestamps.txt");
+		timeReader(time_path.c_str(), timestamp);
+	}
+
 	/**************************************************************************
 	 *  Construct MVO object
 	 **************************************************************************/
@@ -223,15 +251,7 @@ int main(int argc, char * argv[]){
 
 					vo->run(image, depth);
 				}else if( Parser::hasOption("-vel")){
-					std::string oxts_path;
-					oxts_path.append(inputFile).append("oxts/data/");
-					
-					std::vector<std::vector<double> > oxtsData;
-					std::vector<double> speed;
-					oxtsData = directoryReader(oxts_path.c_str());
-					speed = computeVehicleSpeed(oxtsData);
-
-					vo->run(image);
+					vo->run(image, timestamp[it_rgb], speed[it_rgb]);
 				}else{
 					vo->run(image);
 				}

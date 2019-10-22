@@ -33,7 +33,7 @@ bool MVO::update_features(){
         std::cerr << "## KLT tracker: " << lsi::toc() << std::endl;
 
         for( int i = 0; i < this->nFeature; i++ ){
-            if( validity[i] & (this->features[i].life > 0) ){
+            if( validity[i] & this->features[i].is_alive ){
                 this->features[i].life++;
                 this->features[i].uv.push_back(points[i]);
                 this->features[i].is_matched = true;
@@ -83,10 +83,22 @@ void MVO::klt_tracker(std::vector<cv::Point2f>& fwd_pts, std::vector<bool>& vali
     std::cerr << "### Calculate optical flows: " << lsi::toc() << std::endl;
     
     // Calculate bi-directional error( = validity ): validity = ~border_invalid & error_valid
+    
+    // WARNING: heavy computational load
+    // cv::Mat desc;
+    // std::vector<cv::KeyPoint> keypoints;
+    // for( uint32_t i = 0; i < pts.size(); i++ )
+    //     keypoints.emplace_back(fwd_pts[i],1.0);
+    // this->descriptor->compute(this->cur_image, keypoints, desc);
+    // bool desc_valid;
+
+    bool border_invalid, error_valid;
     validity.reserve(pts.size());
     for( uint32_t i = 0; i < pts.size(); i++ ){
-        bool border_invalid = (fwd_pts[i].x < 0) | (fwd_pts[i].x > this->params.imSize.width) | (fwd_pts[i].y < 0) | (fwd_pts[i].y > this->params.imSize.height);
-        bool error_valid = cv::norm(pts[i] - bwd_pts[i]) < 1;//std::min( cv::norm(pts[i] - fwd_pts[i])/5.0, 1.0);
+        border_invalid = (fwd_pts[i].x < 0) | (fwd_pts[i].x > this->params.imSize.width) | (fwd_pts[i].y < 0) | (fwd_pts[i].y > this->params.imSize.height);
+        error_valid = cv::norm(pts[i] - bwd_pts[i]) < std::min( (double) cv::norm(pts[i] - fwd_pts[i])/5.0, 1.0);
+        // desc_valid = cv::norm(this->features[i].desc - desc.row(i));
+
         validity.push_back(!border_invalid & error_valid);
         // bool valid = ~border_invalid & status.at<uchar>(i);// & err.at<float>(i) < std::min( cv::norm(pts[i] - fwd_pts[i])/5.0, 2.0);
         // validity.push_back(valid);
@@ -98,10 +110,10 @@ void MVO::delete_dead_features(){
         if( this->features[i].is_alive == false ){
             if( this->features[i].life > 2 ){
                 this->features_dead.push_back(this->features[i]);
-                std::cout << "features_dead increase, ";
+                // std::cout << "features_dead increase, ";
             }
             this->features.erase(this->features.begin()+i);
-            std::cout << "features decreases" << std::endl;
+            // std::cout << "features decreases" << std::endl;
         }else{
             i++;
         }
@@ -115,6 +127,18 @@ void MVO::add_features(){
 
     while( this->nFeature < this->bucket.max_features && this->bucket.saturated.any() == true )
         this->add_feature();
+
+    // WARNING: descriptor may remove keypoint whose description cannot be extracted
+    // cv::Mat desc;
+    // std::vector<cv::KeyPoint> keypoints;
+    // for( int i = 0; i < this->nFeature; i++ )
+    //     if( this->features[i].life == 1 )
+    //         keypoints.emplace_back(cv::Point2f(this->features[i].uv.back().x,this->features[i].uv.back().y),1.0);
+    // this->descriptor->compute(this->cur_image, keypoints, desc);
+    // int j = 0;
+    // for( int i = 0; i < this->nFeature; i++ )
+    //     if( this->features[i].life == 1 )
+    //         this->features[i].desc = desc.row(j++).clone();
 }
 
 void MVO::update_bucket(){
@@ -271,10 +295,11 @@ bool MVO::calculate_essential()
         }
     }
 
-    if( points1.size() <= this->nFeature * this->params.thRatioKeyFrame )
+    if( points1.size() <= this->nFeature * this->params.thRatioKeyFrame ){
         this->next_key_step = this->step;
-    //     std::cout << "key step: " << this->key_step << ' ' << std::endl;
-    // }
+        this->key_timestamp = this->timestamp;
+        std::cerr << "key step: " << this->key_step << ' ' << std::endl;
+    }
 
     cv::Mat inlier_mat;
     this->essentialMat = cv::findEssentialMat(points1, points2, this->params.Kcv, cv::RANSAC, 0.999, 0.5, inlier_mat);
@@ -333,8 +358,9 @@ bool MVO::calculate_essential()
     std::cerr << "# Extract R, t: " << lsi::toc() << std::endl;
 
     uint32_t inlier_cnt = 0;
+    bool* inlier = inlier_mat.ptr<bool>(0);
     for (int i = 0; i < inlier_mat.rows; i++){
-        if (inlier_mat.at<char>(i)){
+        if (inlier[i]){
             this->features[i].is_2D_inliered = true;
             inlier_cnt++;
         }else{

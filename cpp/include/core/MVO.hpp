@@ -83,6 +83,8 @@ class MVO{
 		// 3D reconstruction
 		double vehicle_height;
 		double initScale;
+		double weightScaleRef;
+		double weightScaleReg;
 		double reprojError;
 		MVO::SVD SVDMethod;
 		MVO::TRIANGULATION triangulationMethod;
@@ -118,6 +120,7 @@ class MVO{
 	void refresh();
 	void run(cv::Mat& image);
 	void run(cv::Mat& image, Eigen::MatrixXd& depth);
+	void run(cv::Mat& image, double timestamp, double speed);
 	void plot();
 	void updateView();
 
@@ -169,6 +172,8 @@ class MVO{
 	uint32_t step;
 	uint32_t key_step;
 	uint32_t next_key_step;
+
+	double timestamp, key_timestamp;
 	
 	cv::Mat prev_image;
 	cv::Mat cur_image;
@@ -176,6 +181,7 @@ class MVO{
 
 	cv::Ptr<cv::CLAHE> cvClahe;
 	cv::Mat distMap1, distMap2;
+	// cv::Ptr<cv::DescriptorExtractor> descriptor;
 
 	Bucket bucket;
 	std::vector<Feature> features;
@@ -184,6 +190,7 @@ class MVO{
 
 	bool scale_initialized;
 	bool groundtruth_provided;
+	bool speed_provided;
 
 	int nFeature;
 	int nFeatureMatched;
