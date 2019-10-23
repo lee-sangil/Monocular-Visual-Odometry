@@ -173,7 +173,8 @@ class MVO{
 	uint32_t key_step;
 	uint32_t next_key_step;
 
-	double timestamp, key_timestamp;
+	std::vector<double> timestampSinceKeyframe;
+	std::vector<double> speedSinceKeyframe;
 	
 	cv::Mat prev_image;
 	cv::Mat cur_image;

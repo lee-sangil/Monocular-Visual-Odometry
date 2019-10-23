@@ -14,10 +14,15 @@ void MVO::run(cv::Mat& image, Eigen::MatrixXd& depth){
 
 void MVO::run(cv::Mat& image, double timestamp, double speed){
     this->speed_provided = true;
-    this->timestamp = timestamp;
+    this->timestampSinceKeyframe.push_back(timestamp);
+    this->speedSinceKeyframe.push_back(speed);
 
-    ::scale_reference = speed * (this->timestamp - this->key_timestamp);
-    std::cerr << "scale_reference: " << ::scale_reference << std::endl;
+    std::vector<double> timestampDiff;
+    double scale = 0.0;
+    for( uint32_t i = 0; i < this->speedSinceKeyframe.size()-1; i++ )
+        scale += (this->speedSinceKeyframe[i]+this->speedSinceKeyframe[i+1])/2 * (this->timestampSinceKeyframe[i+1]-this->timestampSinceKeyframe[i]);
+    
+    ::scale_reference = scale;
     this->run(image);
 }
 
@@ -791,7 +796,7 @@ bool MVO::scale_propagation(const Eigen::Matrix3d &R, Eigen::Vector3d &t, std::v
             flag = false;
 
         }else{
-            std::cerr << "@ scale_from_height: " << scale_from_height << ", " << "scale: " << scale << std::endl;
+            std::cerr << "@ scale_from_height: " << ::scale_reference << ", " << "scale: " << scale << std::endl;
 
             // Update scale
             t = scale * t;
