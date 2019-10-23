@@ -298,14 +298,16 @@ bool MVO::calculate_essential()
     if( points1.size() <= this->nFeature * this->params.thRatioKeyFrame ){
         this->keystepVec.push_back(this->step);
 
-        double last_timestamp = this->timestampSinceKeyframe.back();
-        double last_speed = this->speedSinceKeyframe.back();
+        if( this->speed_provided ){
+            double last_timestamp = this->timestampSinceKeyframe.back();
+            double last_speed = this->speedSinceKeyframe.back();
 
-        this->timestampSinceKeyframe.clear();
-        this->speedSinceKeyframe.clear();
+            this->timestampSinceKeyframe.clear();
+            this->speedSinceKeyframe.clear();
 
-        this->timestampSinceKeyframe.push_back(last_timestamp);
-        this->speedSinceKeyframe.push_back(last_speed);
+            this->timestampSinceKeyframe.push_back(last_timestamp);
+            this->speedSinceKeyframe.push_back(last_speed);
+        }
 
         std::cerr << "key step: " << this->key_step << ' ' << std::endl;
     }
