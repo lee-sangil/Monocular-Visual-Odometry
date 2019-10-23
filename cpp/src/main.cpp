@@ -5,7 +5,7 @@
 #include "core/time.hpp"
 #include <opencv2/imgcodecs.hpp>
 #include <dirent.h>
-#define D_METER 5.0
+#define D_METER 1.2
 #define D_RADIAN PI/24
 
 Eigen::MatrixXd read_binary(const char* filename, const int rows, const int cols){
@@ -275,12 +275,12 @@ int main(int argc, char * argv[]){
 					bStep = false;
 					break;
 				}else if( key == 'a' ){
-					vo->params.view.height -= D_METER;
-					vo->params.view.height = std::max(vo->params.view.height,1.0);
+					vo->params.view.height /= D_METER;
+					vo->params.view.height = std::max(vo->params.view.height,5.0);
 					vo->plot();
 					continue;
 				}else if( key == 'd' ){
-					vo->params.view.height += D_METER;
+					vo->params.view.height *= D_METER;
 					vo->plot();
 					continue;
 				}else if( key == 'h' ){
@@ -318,11 +318,11 @@ int main(int argc, char * argv[]){
 				bStep = true;
 				break;
 			case 'a':
-				vo->params.view.height -= D_METER;
-				vo->params.view.height = std::max(vo->params.view.height,0.0);
+				vo->params.view.height /= D_METER;
+				vo->params.view.height = std::max(vo->params.view.height,5.0);
 				break;
 			case 'd':
-				vo->params.view.height += D_METER;
+				vo->params.view.height *= D_METER;
 				break;
 			case 'h':
 				vo->params.view.roll += D_RADIAN;

@@ -171,7 +171,7 @@ class MVO{
 
 	uint32_t step;
 	uint32_t key_step;
-	uint32_t next_key_step;
+	std::vector<uint32_t> keystepVec;
 
 	std::vector<double> timestampSinceKeyframe;
 	std::vector<double> speedSinceKeyframe;

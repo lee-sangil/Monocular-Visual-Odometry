@@ -6,7 +6,7 @@
 MVO::MVO(){
     this->step = -1;
     this->key_step = 0;
-    this->next_key_step = 0;
+    this->keystepVec.push_back(0);
     this->scale_initialized = false;
     this->groundtruth_provided = false;
     this->speed_provided = false;
@@ -235,7 +235,7 @@ void MVO::set_image(cv::Mat& image){
         this->cur_image = this->undist_image.clone();
 
     this->step++;
-    this->key_step = this->next_key_step;
+    this->key_step = this->keystepVec.back();
 }
 
 void MVO::run(cv::Mat& image){

@@ -41,13 +41,14 @@ void MVO::plot(){
 	this->updateView();
 
 	cv::Mat traj = cv::Mat::zeros(this->params.view.imSize.height,this->params.view.imSize.width,CV_8UC3);
+	Eigen::Matrix4d Tco = this->TocRec.back().inverse();
 
 	// Points
 	Eigen::Vector4d point;
 	Eigen::Vector3d uv;
 	for( uint32_t i = 0; i < this->features_dead.size(); i++ ){
 		if( this->features_dead[i].is_3D_init ){
-			point = this->TocRec.back().inverse() * this->features_dead[i].point_init;
+			point = Tco * this->features_dead[i].point_init;
 			uv = this->params.view.P * point;
 			if( uv(2) > 1 ){
 				switch (this->features_dead[i].type){
@@ -66,7 +67,7 @@ void MVO::plot(){
 	}
 	for( uint32_t i = 0; i < this->features.size(); i++ ){
 		if( this->features[i].is_3D_init ){
-			point = this->TocRec.back().inverse() * this->features[i].point_init;
+			point = Tco * this->features[i].point_init;
 			uv = this->params.view.P * point;
 			if( uv(2) > 1 ){
 				switch (this->features[i].type){
@@ -92,21 +93,20 @@ void MVO::plot(){
 	}
 
 	// Trajectory
-	Eigen::Matrix4d currTco = this->TocRec.back().inverse();
-	Eigen::Matrix4d prevTco = Eigen::Matrix4d::Identity();
-	Eigen::Matrix4d nextTco;
-	Eigen::Vector4d prevPos, nextPos;
-	Eigen::Vector3d uv_next;
-	for( uint32_t i = 0; i < this->TocRec.size()-1; i++ ){
-		prevTco = currTco * this->TocRec[i];
-		nextTco = currTco * this->TocRec[i+1];
-		prevPos = prevTco.block(0,3,4,1);
-		nextPos = nextTco.block(0,3,4,1);
-		uv = this->params.view.P * prevPos;
-		uv_next = this->params.view.P * nextPos;
-		if( uv(2) > 1 && uv_next(2) > 1)
-			cv::line(traj, cv::Point(uv(0)/uv(2), uv(1)/uv(2)), cv::Point(uv_next(0)/uv_next(2), uv_next(1)/uv_next(2)), cv::Scalar(0,0,255), 2);
-	}
+	// Eigen::Matrix4d prevTco = Eigen::Matrix4d::Identity();
+	// Eigen::Matrix4d nextTco;
+	// Eigen::Vector4d prevPos, nextPos;
+	// Eigen::Vector3d uv_next;
+	// for( uint32_t i = 0; i < this->TocRec.size()-1; i++ ){
+	// 	prevTco = Tco * this->TocRec[i];
+	// 	nextTco = Tco * this->TocRec[i+1];
+	// 	prevPos = prevTco.block(0,3,4,1);
+	// 	nextPos = nextTco.block(0,3,4,1);
+	// 	uv = this->params.view.P * prevPos;
+	// 	uv_next = this->params.view.P * nextPos;
+	// 	if( uv(2) > 1 && uv_next(2) > 1)
+	// 		cv::line(traj, cv::Point(uv(0)/uv(2), uv(1)/uv(2)), cv::Point(uv_next(0)/uv_next(2), uv_next(1)/uv_next(2)), cv::Scalar(0,0,255), 2);
+	// }
 
 	// Camera
 	Eigen::Vector3d uv0, uv1, uv2, uv3, uv4;
@@ -115,19 +115,41 @@ void MVO::plot(){
 	uv2 = this->params.view.P * (Eigen::Vector4d() << this->params.view.upperRight.x,this->params.view.upperRight.y,this->params.view.upperRight.z,1).finished();
 	uv3 = this->params.view.P * (Eigen::Vector4d() << this->params.view.lowerRight.x,this->params.view.lowerRight.y,this->params.view.lowerRight.z,1).finished();
 	uv4 = this->params.view.P * (Eigen::Vector4d() << this->params.view.lowerLeft.x,this->params.view.lowerLeft.y,this->params.view.lowerLeft.z,1).finished();
-	cv::line(traj, cv::Point(uv0(0)/uv0(2), uv0(1)/uv0(2)), cv::Point(uv1(0)/uv1(2), uv1(1)/uv1(2)), cv::Scalar(0,0,255), 2);
-	cv::line(traj, cv::Point(uv0(0)/uv0(2), uv0(1)/uv0(2)), cv::Point(uv2(0)/uv2(2), uv2(1)/uv2(2)), cv::Scalar(0,0,255), 2);
-	cv::line(traj, cv::Point(uv0(0)/uv0(2), uv0(1)/uv0(2)), cv::Point(uv3(0)/uv3(2), uv3(1)/uv3(2)), cv::Scalar(0,0,255), 2);
-	cv::line(traj, cv::Point(uv0(0)/uv0(2), uv0(1)/uv0(2)), cv::Point(uv4(0)/uv4(2), uv4(1)/uv4(2)), cv::Scalar(0,0,255), 2);
-	cv::line(traj, cv::Point(uv1(0)/uv1(2), uv1(1)/uv1(2)), cv::Point(uv2(0)/uv2(2), uv2(1)/uv2(2)), cv::Scalar(0,0,255), 2);
-	cv::line(traj, cv::Point(uv2(0)/uv2(2), uv2(1)/uv2(2)), cv::Point(uv3(0)/uv3(2), uv3(1)/uv3(2)), cv::Scalar(0,0,255), 2);
-	cv::line(traj, cv::Point(uv3(0)/uv3(2), uv3(1)/uv3(2)), cv::Point(uv4(0)/uv4(2), uv4(1)/uv4(2)), cv::Scalar(0,0,255), 2);
-	cv::line(traj, cv::Point(uv4(0)/uv4(2), uv4(1)/uv4(2)), cv::Point(uv1(0)/uv1(2), uv1(1)/uv1(2)), cv::Scalar(0,0,255), 2);
+	if( uv0(2) > 1 && uv1(2) > 1 && uv2(2) > 1 && uv3(2) > 1 && uv4(2) > 1){
+		cv::line(traj, cv::Point(uv0(0)/uv0(2), uv0(1)/uv0(2)), cv::Point(uv1(0)/uv1(2), uv1(1)/uv1(2)), cv::Scalar(0,0,255), 2);
+		cv::line(traj, cv::Point(uv0(0)/uv0(2), uv0(1)/uv0(2)), cv::Point(uv2(0)/uv2(2), uv2(1)/uv2(2)), cv::Scalar(0,0,255), 2);
+		cv::line(traj, cv::Point(uv0(0)/uv0(2), uv0(1)/uv0(2)), cv::Point(uv3(0)/uv3(2), uv3(1)/uv3(2)), cv::Scalar(0,0,255), 2);
+		cv::line(traj, cv::Point(uv0(0)/uv0(2), uv0(1)/uv0(2)), cv::Point(uv4(0)/uv4(2), uv4(1)/uv4(2)), cv::Scalar(0,0,255), 2);
+		cv::line(traj, cv::Point(uv1(0)/uv1(2), uv1(1)/uv1(2)), cv::Point(uv2(0)/uv2(2), uv2(1)/uv2(2)), cv::Scalar(0,0,255), 2);
+		cv::line(traj, cv::Point(uv2(0)/uv2(2), uv2(1)/uv2(2)), cv::Point(uv3(0)/uv3(2), uv3(1)/uv3(2)), cv::Scalar(0,0,255), 2);
+		cv::line(traj, cv::Point(uv3(0)/uv3(2), uv3(1)/uv3(2)), cv::Point(uv4(0)/uv4(2), uv4(1)/uv4(2)), cv::Scalar(0,0,255), 2);
+		cv::line(traj, cv::Point(uv4(0)/uv4(2), uv4(1)/uv4(2)), cv::Point(uv1(0)/uv1(2), uv1(1)/uv1(2)), cv::Scalar(0,0,255), 2);
+	}
+
+	// Keyframes
+	for( uint32_t i = 0; i < this->keystepVec.size(); i++ ){
+		Eigen::Matrix4d T = this->TocRec[this->keystepVec[i]];
+		uv0 = this->params.view.P * Tco * T * (Eigen::Vector4d() << 0,0,0,1).finished();
+		uv1 = this->params.view.P * Tco * T * (Eigen::Vector4d() << this->params.view.upperLeft.x,this->params.view.upperLeft.y,this->params.view.upperLeft.z,1).finished();
+		uv2 = this->params.view.P * Tco * T * (Eigen::Vector4d() << this->params.view.upperRight.x,this->params.view.upperRight.y,this->params.view.upperRight.z,1).finished();
+		uv3 = this->params.view.P * Tco * T * (Eigen::Vector4d() << this->params.view.lowerRight.x,this->params.view.lowerRight.y,this->params.view.lowerRight.z,1).finished();
+		uv4 = this->params.view.P * Tco * T * (Eigen::Vector4d() << this->params.view.lowerLeft.x,this->params.view.lowerLeft.y,this->params.view.lowerLeft.z,1).finished();
+		if( uv0(2) > 1 && uv1(2) > 1 && uv2(2) > 1 && uv3(2) > 1 && uv4(2) > 1){
+			cv::line(traj, cv::Point(uv0(0)/uv0(2), uv0(1)/uv0(2)), cv::Point(uv1(0)/uv1(2), uv1(1)/uv1(2)), cv::Scalar(255,0,255), 1);
+			cv::line(traj, cv::Point(uv0(0)/uv0(2), uv0(1)/uv0(2)), cv::Point(uv2(0)/uv2(2), uv2(1)/uv2(2)), cv::Scalar(255,0,255), 1);
+			cv::line(traj, cv::Point(uv0(0)/uv0(2), uv0(1)/uv0(2)), cv::Point(uv3(0)/uv3(2), uv3(1)/uv3(2)), cv::Scalar(255,0,255), 1);
+			cv::line(traj, cv::Point(uv0(0)/uv0(2), uv0(1)/uv0(2)), cv::Point(uv4(0)/uv4(2), uv4(1)/uv4(2)), cv::Scalar(255,0,255), 1);
+			cv::line(traj, cv::Point(uv1(0)/uv1(2), uv1(1)/uv1(2)), cv::Point(uv2(0)/uv2(2), uv2(1)/uv2(2)), cv::Scalar(255,0,255), 1);
+			cv::line(traj, cv::Point(uv2(0)/uv2(2), uv2(1)/uv2(2)), cv::Point(uv3(0)/uv3(2), uv3(1)/uv3(2)), cv::Scalar(255,0,255), 1);
+			cv::line(traj, cv::Point(uv3(0)/uv3(2), uv3(1)/uv3(2)), cv::Point(uv4(0)/uv4(2), uv4(1)/uv4(2)), cv::Scalar(255,0,255), 1);
+			cv::line(traj, cv::Point(uv4(0)/uv4(2), uv4(1)/uv4(2)), cv::Point(uv1(0)/uv1(2), uv1(1)/uv1(2)), cv::Scalar(255,0,255), 1);
+		}
+	}
 
 	// Horizontal Grid
 	Eigen::Vector3d uv_start, uv_end;
 	Eigen::Matrix4d Rco;
-	Rco = this->TocRec.back().inverse();
+	Rco = Tco;
 	Rco.block(0,3,3,1) = Eigen::Vector3d::Zero();
 
 	// double s, y;

@@ -296,7 +296,7 @@ bool MVO::calculate_essential()
     }
 
     if( points1.size() <= this->nFeature * this->params.thRatioKeyFrame ){
-        this->next_key_step = this->step;
+        this->keystepVec.push_back(this->step);
 
         double last_timestamp = this->timestampSinceKeyframe.back();
         double last_speed = this->speedSinceKeyframe.back();
