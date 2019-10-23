@@ -1,0 +1,28 @@
+{
+	// Use IntelliSense to learn about possible attributes.
+	// Hover to view descriptions of existing attributes.
+	// For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+	"version": "0.2.0",
+	"configurations": [
+		{
+			"name": "(gdb) Launch",
+			"type": "cppdbg",
+			"request": "launch",
+			"program": "/home/icsl/Documents/Monocular-Visual-Odometry/cpp/build/main",
+			// "args": ["-i", "/media/icsl/7637-D834/2019_0603_sample/", "-c", "/home/icsl/Documents/Monocular-Visual-Odometry/cpp/config/camera.yaml", "-fi", "900"],
+			"args": ["-i", "/media/icsl/Samsung_T3/Datasets/KITTI/2011_10_03/2011_10_03_drive_0027_sync/"],
+			"stopAtEntry": false,
+			"cwd": "${workspaceFolder}/cpp/build/",
+			"environment": [],
+			"externalConsole": false,
+			"MIMode": "gdb",
+			"setupCommands": [
+				{
+					"description": "Enable pretty-printing for gdb",
+					"text": "-enable-pretty-printing",
+					"ignoreFailures": true
+				}
+			]
+		}
+	]
+}
