@@ -73,7 +73,7 @@ Feature.thInlier: 6
 Feature.thRatioKeyFrame: 0.8
 
 # Min. feature distance between for extraction
-Feature.min_px_dist: 15
+Feature.min_px_dist: 20
 
 # Min. feature distance between for reconstruction
 Feature.px_wide: 5
@@ -82,8 +82,8 @@ Feature.px_wide: 5
 Bucket.safety: 20
 
 # Bucket size
-Bucket.rows: 16
-Bucket.cols: 8
+Bucket.rows: 8
+Bucket.cols: 16
 
 #--------------------------------------------------------------------------------------------
 # Reconstruction Parameters (tunable).
@@ -104,8 +104,16 @@ RANSAC.thDist: 0.1
 # Rejection threshold
 RANSAC.thDistOut: 1
 
-# Vehicel height
+# Vehicle height
 Scale.height: 1.5
+
+# For scale-propagation, the weight for scale referenced from a vehicle's fixed height
+# If you choose *negative* value, scale-propagation does not executed. It means that the 
+# algorithm *does not minimize* the difference between initialized 3d points and reconstructed points.
+Scale.referenceWeight: 10
+
+# For scale-propagation, regularization weight for scale smoothness
+Scale.regularizationWeight: 0
 
 # SVD Methods: mid-point(0: recommended), linear least square(1)
 Triangulation.Method: 0
