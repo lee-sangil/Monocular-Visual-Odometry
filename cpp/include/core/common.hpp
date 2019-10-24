@@ -42,7 +42,7 @@
 #include <opencv2/calib3d.hpp>
 #include <boost/filesystem.hpp>
 
-enum Type{Common,Dynamic,Road,};
+enum Type{Unknown,Dynamic,Road,};
 
 typedef struct Bucket{
 	int safety = 20;

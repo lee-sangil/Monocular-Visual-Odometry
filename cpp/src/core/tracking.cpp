@@ -33,7 +33,7 @@ bool MVO::update_features(){
         std::cerr << "## KLT tracker: " << lsi::toc() << std::endl;
 
         for( int i = 0; i < this->nFeature; i++ ){
-            if( validity[i] & this->features[i].is_alive ){
+            if( validity[i] && this->features[i].is_alive ){
                 this->features[i].life++;
                 this->features[i].uv.push_back(points[i]);
                 this->features[i].is_matched = true;
@@ -95,7 +95,7 @@ void MVO::klt_tracker(std::vector<cv::Point2f>& fwd_pts, std::vector<bool>& vali
     bool border_invalid, error_valid;
     validity.reserve(pts.size());
     for( uint32_t i = 0; i < pts.size(); i++ ){
-        border_invalid = (fwd_pts[i].x < 0) | (fwd_pts[i].x > this->params.imSize.width) | (fwd_pts[i].y < 0) | (fwd_pts[i].y > this->params.imSize.height);
+        border_invalid = (fwd_pts[i].x <= 0) | (fwd_pts[i].x >= this->params.imSize.width) | (fwd_pts[i].y <= 0) | (fwd_pts[i].y >= this->params.imSize.height);
         error_valid = cv::norm(pts[i] - bwd_pts[i]) < std::min( (double) cv::norm(pts[i] - fwd_pts[i])/5.0, 1.0);
         // desc_valid = cv::norm(this->features[i].desc - desc.row(i));
 
@@ -145,10 +145,10 @@ void MVO::update_bucket(){
     this->bucket.mass.fill(0.0);
     this->bucket.saturated.fill(1.0);
     for( int i = 0; i < this->nFeature; i++ ){
-        uint32_t row_bucket = std::ceil(this->features[i].uv.back().y / this->params.imSize.height * this->bucket.grid.height);
-        uint32_t col_bucket = std::ceil(this->features[i].uv.back().x / this->params.imSize.width * this->bucket.grid.width);
-        this->features[i].bucket = cv::Point(row_bucket, col_bucket);
-        this->bucket.mass(row_bucket-1, col_bucket-1)++;
+        uint32_t col_bucket = std::floor(this->features[i].uv.back().y / this->params.imSize.height * this->bucket.grid.height);
+        uint32_t row_bucket = std::floor(this->features[i].uv.back().x / this->params.imSize.width * this->bucket.grid.width);
+        this->features[i].bucket = cv::Point(col_bucket, row_bucket);
+        this->bucket.mass(row_bucket, col_bucket)++;
     }
 }
 
@@ -175,8 +175,8 @@ void MVO::add_feature(){
     idxBelongToBucket.clear();
 
     for( int l = 0; l < this->nFeature; l++ ){
-        for( int ii = std::max(col-1,0); ii < std::min(col+1,this->bucket.grid.width); ii++){
-            for( int jj = std::max(row-1,0); jj < std::min(row+1,this->bucket.grid.height); jj++){
+        for( int ii = std::max(col-1,0); ii <= std::min(col+1,this->bucket.grid.width-1); ii++){
+            for( int jj = std::max(row-1,0); jj <= std::min(row+1,this->bucket.grid.height-1); jj++){
                 if( (this->features[l].bucket.x == ii) & (this->features[l].bucket.y == jj)){
                     idxBelongToBucket.push_back(l);
                 }
@@ -236,7 +236,7 @@ void MVO::add_feature(){
         newFeature.frame_init = 0; // frame step when the 3d point is initialized
         newFeature.uv.emplace_back(bestKeypoint.x, bestKeypoint.y); // uv point in pixel coordinates
         newFeature.life = 1; // the number of frames in where the feature is observed
-        newFeature.bucket = cv::Point(row, col); // the location of bucket where the feature belong to
+        newFeature.bucket = cv::Point(col, row); // the location of bucket where the feature belong to
         newFeature.point.setZero(4,1); // 3-dim homogeneous point in the local coordinates
         newFeature.is_alive = true;
         newFeature.is_matched = false; // matched between both frame
@@ -246,11 +246,11 @@ void MVO::add_feature(){
         newFeature.is_3D_init = false; // scale-compensated
         newFeature.point_init.setZero(4,1); // scale-compensated 3-dim homogeneous point in the global coordinates
         newFeature.point_var = 0;
-        newFeature.type = Type::Common;
+        newFeature.type = Type::Unknown;
 
         this->features.push_back(newFeature);
         this->nFeature++;
-
+    
         Feature::new_feature_id++;
 
         // Update bucket
@@ -267,7 +267,7 @@ void MVO::add_feature(){
         for( int i = 0; i < this->bucket.prob.rows(); i++ ){
             // weight.block(i,0,1,weight.cols()) /= std::pow(weight.rows(),2);
             this->bucket.prob.block(i,0,1,this->bucket.prob.cols()) *= i+1;
-        }            
+        }
         // std::cout << "Feature is added!" << std::endl;
     }else{
         this->bucket.saturated(row,col) = 0.0;
@@ -286,12 +286,14 @@ bool MVO::calculate_essential()
     points1.reserve(this->nFeature);
     points2.reserve(this->nFeature);
 
+    std::vector<uint32_t> idx_static;
     int key_idx;
     for( int i = 0; i < this->nFeature; i++ ){
         key_idx = this->features[i].life - 1 - (this->step - this->key_step);
         if( key_idx >= 0 && this->features[i].type != Type::Dynamic ){
             points1.push_back(this->features[i].uv[key_idx]);
             points2.push_back(this->features[i].uv.back());   // latest
+            idx_static.push_back(i);
         }
     }
 
@@ -313,14 +315,36 @@ bool MVO::calculate_essential()
     }
 
     cv::Mat inlier_mat;
-    this->essentialMat = cv::findEssentialMat(points1, points2, this->params.Kcv, cv::RANSAC, 0.999, 0.5, inlier_mat);
+    this->essentialMat = cv::findEssentialMat(points1, points2, this->params.Kcv, cv::RANSAC, 0.999, 1, inlier_mat);
     std::cerr << "# Calculate essential: " << lsi::toc() << std::endl;
+    
+    Eigen::Matrix3d E_;
+    cv::cv2eigen(this->essentialMat, E_);
+
+    double error;
+    std::vector<double> essentialError;
+    for( uint32_t i = 0; i < points1.size(); i++ ){
+        error = (Eigen::Vector3d() << points2[i].x,points2[i].y,1).finished().transpose() * this->params.Kinv.transpose() * E_ * this->params.Kinv * (Eigen::Vector3d() << points1[i].x,points1[i].y,1).finished();
+        essentialError.push_back(error);
+    }
+
+    uint32_t inlier_cnt = 0;
+    bool* inlier = inlier_mat.ptr<bool>(0);
+    for (int i = 0; i < inlier_mat.rows; i++){
+        if (inlier[i]){
+            this->features[idx_static[i]].is_2D_inliered = true;
+            inlier_cnt++;
+        // }else if( essentialError[i] > 1e-4 ){
+        }else{
+            this->features[idx_static[i]].type = Type::Dynamic;
+        }
+    }
+    this->nFeature2DInliered = inlier_cnt;
+    std::cerr << "nFeature2DInliered: " << (double) this->nFeature2DInliered / this->nFeature * 100 << '%' << std::endl;
 
     Eigen::Matrix3d U,V;
     switch( this->params.SVDMethod){
         case MVO::SVD::JACOBI:{
-            Eigen::Matrix3d E_;
-            cv::cv2eigen(this->essentialMat, E_);
             Eigen::JacobiSVD<Eigen::MatrixXd> svd(E_, Eigen::ComputeThinU | Eigen::ComputeThinV);
             U = svd.matrixU();
             V = svd.matrixV();
@@ -367,19 +391,6 @@ bool MVO::calculate_essential()
     this->t_vec.push_back(-U.block(0, 2, 3, 1));
 
     std::cerr << "# Extract R, t: " << lsi::toc() << std::endl;
-
-    uint32_t inlier_cnt = 0;
-    bool* inlier = inlier_mat.ptr<bool>(0);
-    for (int i = 0; i < inlier_mat.rows; i++){
-        if (inlier[i]){
-            this->features[i].is_2D_inliered = true;
-            inlier_cnt++;
-        }else{
-            // this->features[i].type = Type::Dynamic;
-        }
-    }
-    this->nFeature2DInliered = inlier_cnt;
-    std::cerr << "nFeature2DInliered: " << (double) this->nFeature2DInliered / this->nFeature * 100 << '%' << std::endl;
 
     if (this->nFeature2DInliered < this->params.thInlier){
         std::cerr << " There are a few inliers matching features in 2D." << std::endl;

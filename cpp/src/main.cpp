@@ -241,12 +241,9 @@ int main(int argc, char * argv[]){
 				dirRgb.append(inputFile).append(rgbNameRaw[it_rgb]);
 				chk::getImgTUMdataset(dirRgb, image);
 
-				std::cout << "                                                                                                        " << '\r';
-
 				if( Parser::hasOption("-gt") ){
 					std::ostringstream dirDepth;
 					dirDepth << inputFile << "full_depth/" << std::setfill('0') << std::setw(10) << it_rgb << ".bin";
-
 					Eigen::MatrixXd depth = read_binary(dirDepth.str().c_str(), vo->params.imSize.height, vo->params.imSize.width);
 
 					vo->run(image, depth);
@@ -256,7 +253,7 @@ int main(int argc, char * argv[]){
 					vo->run(image);
 				}
 				
-				std::cout << "Iteration: " << it_rgb << ", Execution time: " << lsi::toc()/1e3 << "ms";
+				std::cout << "Iteration: " << it_rgb << ", Execution time: " << lsi::toc()/1e3 << "ms       " << '\r';
 				vo->plot();
 
 				it_rgb++;

@@ -231,7 +231,7 @@ bool MVO::verify_solutions(const std::vector<Eigen::Matrix3d>& R_vec, const std:
 				this->features[idx_2DInlier[i]].point = (Eigen::Vector4d() << opt_X_curr[i], 1).finished();
 				this->features[idx_2DInlier[i]].is_3D_reconstructed = true;
                 this->nFeature3DReconstructed++;
-			}
+            }
 		}
 		success = true;
 	}
@@ -723,17 +723,17 @@ bool MVO::scale_propagation(const Eigen::Matrix3d &R, Eigen::Vector3d &t, std::v
             }
         }
 
-        if( roadIdx.size() > this->params.thInlier ){
+        if( roadIdx.size() > (uint32_t) this->params.thInlier ){
             std::vector<double> plane;
             std::vector<bool> planeInlier, planeOutlier;
             this->ransac<cv::Point3f, std::vector<double>>(roadCandidate, this->params.ransacCoef_plane, plane, planeInlier, planeOutlier);
 
-            if( planeInlier.size() > this->params.thInlier ){
+            if( planeInlier.size() > (uint32_t) this->params.thInlier ){
                 for( uint32_t i = 0; i < roadIdx.size(); i++ ){
                     if( planeInlier[roadIdx[i]] )
                         this->features[roadIdx[i]].type = Type::Road;
                     else
-                        this->features[roadIdx[i]].type = Type::Common;
+                        this->features[roadIdx[i]].type = Type::Unknown;
                 }
                 scale_from_height = this->params.vehicle_height / std::abs(plane[3]);   
                 ::scale_reference = scale_from_height;

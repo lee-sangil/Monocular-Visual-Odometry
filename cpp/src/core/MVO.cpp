@@ -94,12 +94,12 @@ MVO::MVO(std::string yaml):MVO(){
 
     // Bucket
     this->bucket = Bucket();
+    this->bucket.max_features =     fSettings["Feature.num"];
     this->bucket.safety =           fSettings["Bucket.safety"];
-	this->bucket.max_features =     fSettings["Feature.num"];
     int bucketGridRows =            fSettings["Bucket.rows"];
     int bucketGridCols =            fSettings["Bucket.cols"];
 
-	this->bucket.grid = cv::Size(bucketGridRows,bucketGridCols);
+	this->bucket.grid = cv::Size(bucketGridCols,bucketGridRows);
 	this->bucket.size = cv::Size(this->params.imSize.width/this->bucket.grid.width, this->params.imSize.height/this->bucket.grid.height);
 	this->bucket.mass.setZero(this->bucket.grid.height, this->bucket.grid.width);
 	this->bucket.prob.resize(this->bucket.grid.height, this->bucket.grid.width);
