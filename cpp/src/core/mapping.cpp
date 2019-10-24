@@ -22,7 +22,8 @@ void MVO::run(cv::Mat& image, double timestamp, double speed){
     for( uint32_t i = 0; i < this->speedSinceKeyframe.size()-1; i++ )
         scale += (this->speedSinceKeyframe[i]+this->speedSinceKeyframe[i+1])/2 * (this->timestampSinceKeyframe[i+1]-this->timestampSinceKeyframe[i]);
     
-    ::scale_reference = scale;
+    this->update_scale_reference(scale);
+
     this->run(image);
 }
 
@@ -735,8 +736,9 @@ bool MVO::scale_propagation(const Eigen::Matrix3d &R, Eigen::Vector3d &t, std::v
                     else
                         this->features[roadIdx[i]].type = Type::Unknown;
                 }
-                scale_from_height = this->params.vehicle_height / std::abs(plane[3]);   
-                ::scale_reference = scale_from_height;
+                scale_from_height = this->params.vehicle_height / std::abs(plane[3]);
+
+                this->update_scale_reference(scale_from_height);
             }
         }
     }
@@ -967,20 +969,20 @@ void MVO::calculate_scale(const std::vector<std::pair<cv::Point3f,cv::Point3f>> 
     if( ::scale_reference_weight < 0 ){
         scale = ::scale_reference;
     }else{
-        double sum = 0;
+        double num = 0, den = 0;
         for (uint32_t i = 0; i < pts.size(); i++){
-            sum += (pts[i].first.x * pts[i].second.x + pts[i].first.y * pts[i].second.y + pts[i].first.z * pts[i].second.z + ::scale_reference_weight * ::scale_reference) / 
-            (pts[i].first.x * pts[i].first.x + pts[i].first.y * pts[i].first.y + pts[i].first.z * pts[i].first.z + ::scale_reference_weight + 1e-10);
+            num += (pts[i].first.x * pts[i].second.x + pts[i].first.y * pts[i].second.y + pts[i].first.z * pts[i].second.z);
+            den += (pts[i].first.x * pts[i].first.x + pts[i].first.y * pts[i].first.y + pts[i].first.z * pts[i].first.z);
         }
-        scale = sum / pts.size();
-    }
+        scale = (num / pts.size() + ::scale_reference_weight * ::scale_reference) / (den / pts.size() + ::scale_reference_weight + 1e-10);
 
-    // double num = 0, den = 0;
-    // for (uint32_t i = 0; i < pts.size(); i++){
-    //     num += (pts[i].first.x * pts[i].second.x + pts[i].first.y * pts[i].second.y + pts[i].first.z * pts[i].second.z);
-    //     den += (pts[i].first.x * pts[i].first.x + pts[i].first.y * pts[i].first.y + pts[i].first.z * pts[i].first.z);
-    // }
-    // scale = (num + pts.size() * ::scale_reference) / (den + pts.size());
+        // double sum = 0;
+        // for (uint32_t i = 0; i < pts.size(); i++){
+        //     sum += (pts[i].first.x * pts[i].second.x + pts[i].first.y * pts[i].second.y + pts[i].first.z * pts[i].second.z + ::scale_reference_weight * ::scale_reference) / 
+        //     (pts[i].first.x * pts[i].first.x + pts[i].first.y * pts[i].first.y + pts[i].first.z * pts[i].first.z + ::scale_reference_weight + 1e-10);
+        // }
+        // scale = sum / pts.size();
+    }
 }
 
 void MVO::calculate_scale_error(const double& scale, const std::vector<std::pair<cv::Point3f,cv::Point3f>> &pts, std::vector<double>& dist){
@@ -1074,4 +1076,17 @@ void MVO::calculate_plane_error(const std::vector<double>& plane, const std::vec
     dist.clear();
     for( uint32_t i = 0; i < pts.size(); i++ )
         dist.push_back(std::abs(a * pts[i].x + b * pts[i].y + c * pts[i].z + d));
+}
+
+void MVO::update_scale_reference(const double scale){
+    if( ::scale_reference == 0 )
+        ::scale_reference = scale;
+    else{
+        // low-pass filter
+        // ::scale_reference = this->params.weightScaleReg * ::scale_reference + (1-this->params.weightScaleReg) * scale;
+
+        // limit slope
+        ::scale_reference = ::scale_reference + ((scale > ::scale_reference)?1:-1) * std::min(std::abs(scale - ::scale_reference), this->params.weightScaleReg);
+    }
+    std::cout << ::scale_reference << std::endl;
 }

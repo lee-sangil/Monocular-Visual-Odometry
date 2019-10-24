@@ -191,10 +191,10 @@ MVO::MVO(std::string yaml):MVO(){
     this->params.view.K <<  300,   0, 300,
 						      0, 300, 300,
 						      0,   0,   1;
-    this->params.view.upperLeft =   cv::Point3d(-3,-2, 3);
-    this->params.view.upperRight =  cv::Point3d( 3,-2, 3);
-    this->params.view.lowerLeft =   cv::Point3d(-3, 2, 3);
-    this->params.view.lowerRight =  cv::Point3d( 3, 2, 3);
+    this->params.view.upperLeft =   cv::Point3d(-1,-.5, 1);
+    this->params.view.upperRight =  cv::Point3d( 1,-.5, 1);
+    this->params.view.lowerLeft =   cv::Point3d(-1, .5, 1);
+    this->params.view.lowerRight =  cv::Point3d( 1, .5, 1);
 }
 
 void MVO::refresh(){
