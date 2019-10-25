@@ -3,34 +3,13 @@
 #include "core/numerics.hpp"
 #include "core/time.hpp"
 
-double MVO::scale_reference;
+double MVO::scale_reference = -1;
 double MVO::scale_reference_weight;
-
-void MVO::run(cv::Mat& image, Eigen::MatrixXd& depth){
-    this->groundtruth_provided = true;
-    this->run(image);
-    std::cerr << "* Reconstruction error: " << this->calcReconstructionErrorGT(depth) << std::endl;
-}
-
-void MVO::run(cv::Mat& image, double timestamp, double speed){
-    this->speed_provided = true;
-    this->timestampSinceKeyframe.push_back(timestamp);
-    this->speedSinceKeyframe.push_back(speed);
-
-    std::vector<double> timestampDiff;
-    double scale = 0.0;
-    for( uint32_t i = 0; i < this->speedSinceKeyframe.size()-1; i++ )
-        scale += (this->speedSinceKeyframe[i]+this->speedSinceKeyframe[i+1])/2 * (this->timestampSinceKeyframe[i+1]-this->timestampSinceKeyframe[i]);
-    
-    this->update_scale_reference(scale);
-
-    this->run(image);
-}
 
 bool MVO::calculate_motion()
 {
-    if (this->step == 0)
-        return true;
+    if (!this->is_start)
+        return false;
 
     /**************************************************
      * Solve two-fold ambiguity
@@ -157,12 +136,34 @@ bool MVO::calculate_motion()
         }
         break;
     }
-    std::cerr << "nFeature3DReconstructed: " << (double) this->nFeature / this->nFeature * 100 << '%' << std::endl;
+    std::cerr << "nFeature3DReconstructed: " << (double) this->nFeature3DReconstructed / this->nFeature * 100 << '%' << std::endl;
+    std::cerr << "nFeature3DInliered: " << (double) this->nFeatureInlier / this->nFeature * 100 << '%' << std::endl;
 
     /**** ****/
-    if (this->nFeature3DReconstructed < this->params.thInlier){
-        std::cerr << "There are few inliers reconstructed in 3D." << std::endl;
+    std::cout << "this->nFeatureInlier: " << this->nFeatureInlier << " " << std::endl;
+    if (this->nFeatureInlier < this->params.thInlier){
+        std::cerr << "There are few inliers reconstructed and accorded in 3D." << std::endl;
         this->scale_initialized = false;
+        // this->is_start = false;
+
+        // this->keystepVec.push_back(this->step);
+
+        // if( this->speed_provided ){
+        //     double last_timestamp = this->timestampSinceKeyframe.back();
+        //     double last_speed = this->speedSinceKeyframe.back();
+
+        //     this->timestampSinceKeyframe.clear();
+        //     this->speedSinceKeyframe.clear();
+
+        //     this->timestampSinceKeyframe.push_back(last_timestamp);
+        //     this->speedSinceKeyframe.push_back(last_speed);
+        // }
+
+        // std::cerr << "key step: " << this->key_step << ' ' << std::endl;
+
+        // for( int i = 0; i < this->nFeature; i++ )
+        //     this->features[i].is_3D_init = false;
+
         return false;
     }else{
         std::cerr << "Temporal velocity: " << T.block(0,3,3,1).norm() << std::endl;
@@ -754,8 +755,11 @@ bool MVO::scale_propagation(const Eigen::Matrix3d &R, Eigen::Vector3d &t, std::v
         }
         uint32_t nPoint = idx.size();
 
-        // Use RANSAC to find suitable scale
-        if ( nPoint > this->params.ransacCoef_scale.minPtNum){
+        if( this->scale_reference_weight < 0 ){ // Use reference scale directly
+            scale = this->scale_reference;
+            this->nFeatureInlier = this->nFeature3DReconstructed;
+        }
+        else if ( nPoint > this->params.ransacCoef_scale.minPtNum){ // Use RANSAC to find suitable scale
             Eigen::Matrix4d T_;
             T_.setIdentity();
             T_.block(0,0,3,3) = R;
@@ -786,15 +790,15 @@ bool MVO::scale_propagation(const Eigen::Matrix3d &R, Eigen::Vector3d &t, std::v
         }
 
         // Use the previous scale, if the scale cannot be found
-        if (MVO::scale_reference_weight >= 0 && (nPoint <= this->params.ransacCoef_scale.minPtNum 
-            || inlier.size() < (std::size_t)this->params.thInlier || scale == 0))
+        // But do not use the previous scale when the velocity reference is fetched directly (scale_reference_weight < 0)
+        if ( this->scale_reference_weight >= 0 && (nPoint <= this->params.ransacCoef_scale.minPtNum || inlier.size() < (std::size_t)this->params.thInlier || scale == 0) )
         {
             std::cerr << "There are a few SCALE FACTOR INLIERS" << std::endl;
 
             inlier.clear();
             outlier.clear();
 
-            scale = (this->step - this->key_step) * (this->TRec[this->step-1].block(0,0,3,1)).norm();
+            scale = (this->TRec.back().block(0,3,3,1)).norm();
 
             // Update scale
             t = scale * t;
@@ -966,23 +970,19 @@ std::vector<uint32_t> MVO::randweightedpick(const std::vector<double> &h, int n 
 }
 
 void MVO::calculate_scale(const std::vector<std::pair<cv::Point3f,cv::Point3f>> &pts, double& scale){
-    if( MVO::scale_reference_weight < 0 ){
-        scale = MVO::scale_reference;
-    }else{
-        double num = 0, den = 0;
-        for (uint32_t i = 0; i < pts.size(); i++){
-            num += (pts[i].first.x * pts[i].second.x + pts[i].first.y * pts[i].second.y + pts[i].first.z * pts[i].second.z);
-            den += (pts[i].first.x * pts[i].first.x + pts[i].first.y * pts[i].first.y + pts[i].first.z * pts[i].first.z);
-        }
-        scale = (num / pts.size() + MVO::scale_reference_weight * MVO::scale_reference) / (den / pts.size() + MVO::scale_reference_weight + 1e-10);
-
-        // double sum = 0;
-        // for (uint32_t i = 0; i < pts.size(); i++){
-        //     sum += (pts[i].first.x * pts[i].second.x + pts[i].first.y * pts[i].second.y + pts[i].first.z * pts[i].second.z + MVO::scale_reference_weight * ::scale_reference) / 
-        //     (pts[i].first.x * pts[i].first.x + pts[i].first.y * pts[i].first.y + pts[i].first.z * pts[i].first.z + MVO::scale_reference_weight + 1e-10);
-        // }
-        // scale = sum / pts.size();
+    double num = 0, den = 0;
+    for (uint32_t i = 0; i < pts.size(); i++){
+        num += (pts[i].first.x * pts[i].second.x + pts[i].first.y * pts[i].second.y + pts[i].first.z * pts[i].second.z);
+        den += (pts[i].first.x * pts[i].first.x + pts[i].first.y * pts[i].first.y + pts[i].first.z * pts[i].first.z);
     }
+    scale = (num / pts.size() + MVO::scale_reference_weight * MVO::scale_reference) / (den / pts.size() + MVO::scale_reference_weight + 1e-10);
+
+    // double sum = 0;
+    // for (uint32_t i = 0; i < pts.size(); i++){
+    //     sum += (pts[i].first.x * pts[i].second.x + pts[i].first.y * pts[i].second.y + pts[i].first.z * pts[i].second.z + MVO::scale_reference_weight * ::scale_reference) / 
+    //     (pts[i].first.x * pts[i].first.x + pts[i].first.y * pts[i].first.y + pts[i].first.z * pts[i].first.z + MVO::scale_reference_weight + 1e-10);
+    // }
+    // scale = sum / pts.size();
 }
 
 void MVO::calculate_scale_error(const double& scale, const std::vector<std::pair<cv::Point3f,cv::Point3f>> &pts, std::vector<double>& dist){
@@ -1079,7 +1079,7 @@ void MVO::calculate_plane_error(const std::vector<double>& plane, const std::vec
 }
 
 void MVO::update_scale_reference(const double scale){
-    if( MVO::scale_reference == 0 )
+    if( MVO::scale_reference == -1 )
         MVO::scale_reference = scale;
     else{
         // low-pass filter
@@ -1088,5 +1088,4 @@ void MVO::update_scale_reference(const double scale){
         // limit slope
         MVO::scale_reference = MVO::scale_reference + ((scale > MVO::scale_reference)?1:-1) * std::min(std::abs(scale - MVO::scale_reference), this->params.weightScaleReg);
     }
-    std::cout << MVO::scale_reference << std::endl;
 }

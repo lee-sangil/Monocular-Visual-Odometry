@@ -7,6 +7,8 @@ MVO::MVO(){
     this->step = -1;
     this->key_step = 0;
     this->keystepVec.push_back(0);
+
+    this->is_start = false;
     this->scale_initialized = false;
     this->groundtruth_provided = false;
     this->speed_provided = false;
@@ -252,8 +254,32 @@ void MVO::run(cv::Mat& image){
     success.push_back(this->calculate_essential());    // RANSAC for calculating essential/fundamental matrix
     success.push_back(this->calculate_motion());       // Extract rotational and translational from fundamental matrix
 
-    if( !std::all_of(success.begin(), success.end(), [](bool b){return b;}) )
+    if( !std::all_of(success.begin(), success.end(), [](bool b){return b;}) ){
         this->scale_initialized = false;
+    }
+    
+    // std::cout << "start: " << this->is_start << ", key_step: " << this->key_step << " " << std::endl;
+}
+
+void MVO::run(cv::Mat& image, Eigen::MatrixXd& depth){
+    this->groundtruth_provided = true;
+    this->run(image);
+    std::cerr << "* Reconstruction error: " << this->calcReconstructionErrorGT(depth) << std::endl;
+}
+
+void MVO::run(cv::Mat& image, double timestamp, double speed){
+    this->speed_provided = true;
+    this->timestampSinceKeyframe.push_back(timestamp);
+    this->speedSinceKeyframe.push_back(speed);
+
+    std::vector<double> timestampDiff;
+    double scale = 0.0;
+    for( uint32_t i = 0; i < this->speedSinceKeyframe.size()-1; i++ )
+        scale += (this->speedSinceKeyframe[i]+this->speedSinceKeyframe[i+1])/2 * (this->timestampSinceKeyframe[i+1]-this->timestampSinceKeyframe[i]);
+    
+    this->update_scale_reference(scale);
+
+    this->run(image);
 }
 
 ptsROI_t MVO::get_points()

@@ -37,12 +37,6 @@ bool MVO::update_features(){
                 this->features[i].life++;
                 this->features[i].uv.push_back(points[i]);
                 this->features[i].is_matched = true;
-                
-                if( cv::norm(this->features[i].uv[this->features[i].uv.size()-2] - this->features[i].uv.back()) > this->params.px_wide ){
-                    this->features[i].is_wide = true;
-                }else{
-                    this->features[i].is_wide = false;
-                }
                 this->nFeatureMatched++;
 
             }else
@@ -145,8 +139,8 @@ void MVO::update_bucket(){
     this->bucket.mass.fill(0.0);
     this->bucket.saturated.fill(1.0);
     for( int i = 0; i < this->nFeature; i++ ){
-        uint32_t col_bucket = std::floor(this->features[i].uv.back().y / this->params.imSize.height * this->bucket.grid.height);
-        uint32_t row_bucket = std::floor(this->features[i].uv.back().x / this->params.imSize.width * this->bucket.grid.width);
+        uint32_t row_bucket = std::floor(this->features[i].uv.back().y / this->params.imSize.height * this->bucket.grid.height);
+        uint32_t col_bucket = std::floor(this->features[i].uv.back().x / this->params.imSize.width * this->bucket.grid.width);
         this->features[i].bucket = cv::Point(col_bucket, row_bucket);
         this->bucket.mass(row_bucket, col_bucket)++;
     }
@@ -287,6 +281,7 @@ bool MVO::calculate_essential()
     points2.reserve(this->nFeature);
 
     std::vector<uint32_t> idx_static;
+    int nWideFeature = 0;
     int key_idx;
     for( int i = 0; i < this->nFeature; i++ ){
         key_idx = this->features[i].life - 1 - (this->step - this->key_step);
@@ -294,8 +289,17 @@ bool MVO::calculate_essential()
             points1.push_back(this->features[i].uv[key_idx]);
             points2.push_back(this->features[i].uv.back());   // latest
             idx_static.push_back(i);
+            if( cv::norm(this->features[i].uv[key_idx] - this->features[i].uv.back()) > this->params.px_wide ){
+                this->features[i].is_wide = true;
+                nWideFeature++;
+            }else{
+                this->features[i].is_wide = false;
+            }
         }
     }
+
+    // if( this->is_start == false && nWideFeature < this->params.thInlier )
+    //     return false;
 
     if( points1.size() <= this->nFeature * this->params.thRatioKeyFrame ){
         this->keystepVec.push_back(this->step);
@@ -315,7 +319,7 @@ bool MVO::calculate_essential()
     }
 
     cv::Mat inlier_mat;
-    this->essentialMat = cv::findEssentialMat(points1, points2, this->params.Kcv, cv::RANSAC, 0.999, 1, inlier_mat);
+    this->essentialMat = cv::findEssentialMat(points1, points2, this->params.Kcv, cv::RANSAC, 0.999, 1.5, inlier_mat);
     std::cerr << "# Calculate essential: " << lsi::toc() << std::endl;
     
     Eigen::Matrix3d E_;
@@ -396,6 +400,7 @@ bool MVO::calculate_essential()
         std::cerr << " There are a few inliers matching features in 2D." << std::endl;
         return false;
     }else{
+        this->is_start = true;
         return true;
     }
 }

@@ -192,6 +192,7 @@ class MVO{
 	std::vector<Feature> features_backup;
 	std::vector<Feature> features_dead; // for debugging with plot
 
+	bool is_start;
 	bool scale_initialized;
 	bool groundtruth_provided;
 	bool speed_provided;

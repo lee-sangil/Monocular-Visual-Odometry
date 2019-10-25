@@ -31,7 +31,7 @@ void MVO::plot(){
 
 	// feature points
 	for( int i = 0; i < this->nFeature; i++ ){
-		if( this->features[i].type == Type::Dynamic )
+		if( this->features[i].type == Type::Dynamic || this->features[i].is_2D_inliered == false )
 			cv::circle(img, cv::Point(this->features[i].uv.back().x, this->features[i].uv.back().y), 3, cv::Scalar(255,0,0), 1);
 		else
 			cv::circle(img, cv::Point(this->features[i].uv.back().x, this->features[i].uv.back().y), 3, cv::Scalar(0,255,0), 1);

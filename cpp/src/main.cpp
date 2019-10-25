@@ -192,6 +192,9 @@ int main(int argc, char * argv[]){
 		std::string time_path;
 		time_path.append(inputFile).append("oxts/timestamps.txt");
 		timeReader(time_path.c_str(), timestamp);
+
+		timestamp.erase(timestamp.begin(), timestamp.begin()+initFrame);
+		speed.erase(speed.begin(), speed.begin()+initFrame);
 	}
 
 	/**************************************************************************
@@ -243,7 +246,7 @@ int main(int argc, char * argv[]){
 
 				if( Parser::hasOption("-gt") ){
 					std::ostringstream dirDepth;
-					dirDepth << inputFile << "full_depth/" << std::setfill('0') << std::setw(10) << it_rgb << ".bin";
+					dirDepth << inputFile << "full_depth/" << std::setfill('0') << std::setw(10) << it_rgb+initFrame << ".bin";
 					Eigen::MatrixXd depth = read_binary(dirDepth.str().c_str(), vo->params.imSize.height, vo->params.imSize.width);
 
 					vo->run(image, depth);
