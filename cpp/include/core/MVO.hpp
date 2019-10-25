@@ -157,7 +157,7 @@ class MVO{
 	double calcReconstructionError(Eigen::Matrix3d& R, Eigen::Vector3d& t);
 	double calcReconstructionErrorGT(Eigen::MatrixXd& depth);
 	void update_scale_reference(const double scale);
-	
+
 	// RANSAC
 	template <typename DATA, typename FUNC>
 	static void ransac(const std::vector<DATA>& sample, const MVO::RansacCoef<DATA, FUNC> ransacCoef, FUNC& val, std::vector<bool>& inlier, std::vector<bool>& outlier);
@@ -167,7 +167,9 @@ class MVO{
 	static void calculate_scale_error(const double& scale, const std::vector<std::pair<cv::Point3f,cv::Point3f>>& pts, std::vector<double>& dist);
 	static void calculate_plane(const std::vector<cv::Point3f>& pts, std::vector<double>& plane);
 	static void calculate_plane_error(const std::vector<double>& plane, const std::vector<cv::Point3f>& pts, std::vector<double>& dist);
-	
+	static double scale_reference;
+	static double scale_reference_weight;
+
 	private:
 
 	uint32_t step;

@@ -3,8 +3,8 @@
 #include "core/numerics.hpp"
 #include "core/time.hpp"
 
-double scale_reference;
-double scale_reference_weight;
+double MVO::scale_reference;
+double MVO::scale_reference_weight;
 
 void MVO::run(cv::Mat& image, Eigen::MatrixXd& depth){
     this->groundtruth_provided = true;
@@ -700,7 +700,7 @@ bool MVO::scale_propagation(const Eigen::Matrix3d &R, Eigen::Vector3d &t, std::v
     double scale = 0, scale_from_height = 0;
     bool flag;
 
-    ::scale_reference_weight = this->params.weightScaleRef;
+    MVO::scale_reference_weight = this->params.weightScaleRef;
 
     // Initialization
     // initialze scale, in the case of the first time
@@ -786,7 +786,7 @@ bool MVO::scale_propagation(const Eigen::Matrix3d &R, Eigen::Vector3d &t, std::v
         }
 
         // Use the previous scale, if the scale cannot be found
-        if (::scale_reference_weight >= 0 && (nPoint <= this->params.ransacCoef_scale.minPtNum 
+        if (MVO::scale_reference_weight >= 0 && (nPoint <= this->params.ransacCoef_scale.minPtNum 
             || inlier.size() < (std::size_t)this->params.thInlier || scale == 0))
         {
             std::cerr << "There are a few SCALE FACTOR INLIERS" << std::endl;
@@ -801,7 +801,7 @@ bool MVO::scale_propagation(const Eigen::Matrix3d &R, Eigen::Vector3d &t, std::v
             flag = false;
 
         }else{
-            std::cerr << "@ scale_from_height: " << ::scale_reference << ", " << "scale: " << scale << std::endl;
+            std::cerr << "@ scale_from_height: " << MVO::scale_reference << ", " << "scale: " << scale << std::endl;
 
             // Update scale
             t = scale * t;
@@ -966,20 +966,20 @@ std::vector<uint32_t> MVO::randweightedpick(const std::vector<double> &h, int n 
 }
 
 void MVO::calculate_scale(const std::vector<std::pair<cv::Point3f,cv::Point3f>> &pts, double& scale){
-    if( ::scale_reference_weight < 0 ){
-        scale = ::scale_reference;
+    if( MVO::scale_reference_weight < 0 ){
+        scale = MVO::scale_reference;
     }else{
         double num = 0, den = 0;
         for (uint32_t i = 0; i < pts.size(); i++){
             num += (pts[i].first.x * pts[i].second.x + pts[i].first.y * pts[i].second.y + pts[i].first.z * pts[i].second.z);
             den += (pts[i].first.x * pts[i].first.x + pts[i].first.y * pts[i].first.y + pts[i].first.z * pts[i].first.z);
         }
-        scale = (num / pts.size() + ::scale_reference_weight * ::scale_reference) / (den / pts.size() + ::scale_reference_weight + 1e-10);
+        scale = (num / pts.size() + MVO::scale_reference_weight * MVO::scale_reference) / (den / pts.size() + MVO::scale_reference_weight + 1e-10);
 
         // double sum = 0;
         // for (uint32_t i = 0; i < pts.size(); i++){
-        //     sum += (pts[i].first.x * pts[i].second.x + pts[i].first.y * pts[i].second.y + pts[i].first.z * pts[i].second.z + ::scale_reference_weight * ::scale_reference) / 
-        //     (pts[i].first.x * pts[i].first.x + pts[i].first.y * pts[i].first.y + pts[i].first.z * pts[i].first.z + ::scale_reference_weight + 1e-10);
+        //     sum += (pts[i].first.x * pts[i].second.x + pts[i].first.y * pts[i].second.y + pts[i].first.z * pts[i].second.z + MVO::scale_reference_weight * ::scale_reference) / 
+        //     (pts[i].first.x * pts[i].first.x + pts[i].first.y * pts[i].first.y + pts[i].first.z * pts[i].first.z + MVO::scale_reference_weight + 1e-10);
         // }
         // scale = sum / pts.size();
     }
@@ -1079,14 +1079,14 @@ void MVO::calculate_plane_error(const std::vector<double>& plane, const std::vec
 }
 
 void MVO::update_scale_reference(const double scale){
-    if( ::scale_reference == 0 )
-        ::scale_reference = scale;
+    if( MVO::scale_reference == 0 )
+        MVO::scale_reference = scale;
     else{
         // low-pass filter
-        // ::scale_reference = this->params.weightScaleReg * ::scale_reference + (1-this->params.weightScaleReg) * scale;
+        // MVO::scale_reference = this->params.weightScaleReg * MVO::scale_reference + (1-this->params.weightScaleReg) * scale;
 
         // limit slope
-        ::scale_reference = ::scale_reference + ((scale > ::scale_reference)?1:-1) * std::min(std::abs(scale - ::scale_reference), this->params.weightScaleReg);
+        MVO::scale_reference = MVO::scale_reference + ((scale > MVO::scale_reference)?1:-1) * std::min(std::abs(scale - MVO::scale_reference), this->params.weightScaleReg);
     }
-    std::cout << ::scale_reference << std::endl;
+    std::cout << MVO::scale_reference << std::endl;
 }
