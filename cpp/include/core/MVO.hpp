@@ -115,8 +115,7 @@ class MVO{
 	ptsROI_t get_points();
 	
 	// Script operations
-	void backup();
-	void reload();
+	void restart();
 	void refresh();
 	void run(cv::Mat& image);
 	void run(cv::Mat& image, Eigen::MatrixXd& depth);

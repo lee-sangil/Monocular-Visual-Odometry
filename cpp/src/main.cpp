@@ -107,6 +107,46 @@ void directoryReader(const char * filePath, std::vector<std::vector<double> >& o
     }
 }
 
+bool grabActiveKey(MVO * vo, char key){
+	bool bRtn = true;
+	switch (key){
+	case 'a':
+	case 'A':
+		vo->params.view.height /= D_METER;
+		vo->params.view.height = std::max(vo->params.view.height,5.0);
+		break;
+	case 'd':
+	case 'D':
+		vo->params.view.height *= D_METER;
+		break;
+	case 'h':
+	case 'H':
+		vo->params.view.roll += D_RADIAN;
+		break;
+	case 'j':
+	case 'J':
+		vo->params.view.pitch -= D_RADIAN;
+		break;
+	case 'k':
+	case 'K':
+		vo->params.view.pitch += D_RADIAN;
+		break;
+	case 'l':
+	case 'L':
+		vo->params.view.roll -= D_RADIAN;
+		break;
+	case 'e':
+	case 'E':
+		vo->params.view.height =  vo->params.view.heightDefault;
+		vo->params.view.roll =    vo->params.view.rollDefault;
+		vo->params.view.pitch =   vo->params.view.pitchDefault;
+		break;
+	default:
+		return false;
+	}
+	return bRtn;
+}
+
 int main(int argc, char * argv[]){
 
 	Parser::init(argc, argv);
@@ -208,17 +248,7 @@ int main(int argc, char * argv[]){
 	std::ofstream statusLogger;
 	statusLogger.open(outputDir + "CamTrajectory.txt");
 
-	std::string dirRgb;
-	cv::Mat image;
-	bool bRun = true, bStep = false;
-	int length;
-
-	if( Parser::hasOption("-fl") ){
-		length = Parser::getIntOption("-fl");
-	}else{
-		length = sensorID.size();
-	}
-	
+	char key;
 	std::cout << "# Key descriptions: " << std::endl;
 	std::cout << "- s: pause and process a one frame" << std::endl << 
 	"- w: play continuously" << std::endl << 
@@ -228,6 +258,16 @@ int main(int argc, char * argv[]){
 	"- e: reset to default parameters of view camera" << std::endl << 
 	"- q: quit" << std::endl;
 
+	cv::Mat image;
+	std::string dirRgb;
+
+	int length;
+	if( Parser::hasOption("-fl") )
+		length = Parser::getIntOption("-fl");
+	else
+		length = sensorID.size();
+
+	bool bRun = true, bStep = false;
 	int it_imu = 0, it_rgb = 0;
 	for( int it = 0; it < length && bRun; it++ ){
 
@@ -265,7 +305,7 @@ int main(int argc, char * argv[]){
 
 		if( bStep ){
 			while(true){
-				char key = cv::waitKey(0);
+				key = cv::waitKey(0);
 				if( key == 's' ){
 					break;
 				}else if( key == 'q' ){
@@ -274,35 +314,7 @@ int main(int argc, char * argv[]){
 				}else if( key == 'w' ){
 					bStep = false;
 					break;
-				}else if( key == 'a' ){
-					vo->params.view.height /= D_METER;
-					vo->params.view.height = std::max(vo->params.view.height,5.0);
-					vo->plot();
-					continue;
-				}else if( key == 'd' ){
-					vo->params.view.height *= D_METER;
-					vo->plot();
-					continue;
-				}else if( key == 'h' ){
-					vo->params.view.roll += D_RADIAN;
-					vo->plot();
-					continue;
-				}else if( key == 'j' ){
-					vo->params.view.pitch -= D_RADIAN;
-					vo->plot();
-					continue;
-				}else if( key == 'k' ){
-					vo->params.view.pitch += D_RADIAN;
-					vo->plot();
-					continue;
-				}else if( key == 'l' ){
-					vo->params.view.roll -= D_RADIAN;
-					vo->plot();
-					continue;
-				}else if( key == 'e' ){
-					vo->params.view.height =  vo->params.view.heightDefault;
-					vo->params.view.roll =    vo->params.view.rollDefault;
-					vo->params.view.pitch =   vo->params.view.pitchDefault;
+				}else if( grabActiveKey(vo, key) ){
 					vo->plot();
 					continue;
 				}
@@ -310,36 +322,16 @@ int main(int argc, char * argv[]){
 		}
 
 		//KeyBoard Process
-		switch (cv::waitKey(1)) {
+		key = cv::waitKey(1);
+		switch (key) {
 			case 'q':	// press q to quit
 				bRun = false;
 				break;
 			case 's':
 				bStep = true;
 				break;
-			case 'a':
-				vo->params.view.height /= D_METER;
-				vo->params.view.height = std::max(vo->params.view.height,5.0);
-				break;
-			case 'd':
-				vo->params.view.height *= D_METER;
-				break;
-			case 'h':
-				vo->params.view.roll += D_RADIAN;
-				break;
-			case 'j':
-				vo->params.view.pitch -= D_RADIAN;
-				break;
-			case 'k':
-				vo->params.view.pitch += D_RADIAN;
-				break;
-			case 'l':
-				vo->params.view.roll -= D_RADIAN;
-				break;
-			case 'e':
-				vo->params.view.height =  vo->params.view.heightDefault;
-				vo->params.view.roll =    vo->params.view.rollDefault;
-				vo->params.view.pitch =   vo->params.view.pitchDefault;
+			default:
+				grabActiveKey(vo, key);
 				break;
 		}
 	}

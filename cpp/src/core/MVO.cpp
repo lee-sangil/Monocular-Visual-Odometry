@@ -212,19 +212,33 @@ void MVO::refresh(){
     }
 }
 
-void MVO::backup(){
-    this->features_backup.clear();
-    this->features_backup.assign(this->features.begin(), this->features.end());
-}
+void MVO::restart(){
+    this->step = -1;
+    this->key_step = 0;
+    this->keystepVec.clear();
+    this->keystepVec.push_back(0);
 
-void MVO::reload(){
+    this->is_start = false;
+    this->scale_initialized = false;
+    
     this->features.clear();
-    this->features.assign(this->features_backup.begin(), this->features_backup.end());
-    this->nFeature = this->features.size();
+    this->features_dead.clear();
+
+    // Variables
+    this->nFeature = 0;
+    this->nFeatureMatched = 0;
+    this->nFeature2DInliered = 0;
+    this->nFeature3DReconstructed = 0;
+    this->nFeatureInlier = 0;
+
+    // Initial position
+    this->TRec.clear();
+    this->TocRec.clear();
+    this->PocRec.clear();
 
     this->TRec.push_back(Eigen::Matrix4d::Identity());
-    this->TocRec.push_back(this->TocRec.back());
-    this->PocRec.push_back(this->PocRec.back());
+    this->TocRec.push_back(Eigen::Matrix4d::Identity());
+    this->PocRec.push_back((Eigen::Vector4d() << 0,0,0,1).finished());
 }
 
 void MVO::set_image(cv::Mat& image){
@@ -254,9 +268,8 @@ void MVO::run(cv::Mat& image){
     success.push_back(this->calculate_essential());    // RANSAC for calculating essential/fundamental matrix
     success.push_back(this->calculate_motion());       // Extract rotational and translational from fundamental matrix
 
-    if( !std::all_of(success.begin(), success.end(), [](bool b){return b;}) ){
-        this->scale_initialized = false;
-    }
+    if( !std::all_of(success.begin(), success.end(), [](bool b){return b;}) )
+        this->restart();
     
     // std::cout << "start: " << this->is_start << ", key_step: " << this->key_step << " " << std::endl;
 }
@@ -278,7 +291,6 @@ void MVO::run(cv::Mat& image, double timestamp, double speed){
         scale += (this->speedSinceKeyframe[i]+this->speedSinceKeyframe[i+1])/2 * (this->timestampSinceKeyframe[i+1]-this->timestampSinceKeyframe[i]);
     
     this->update_scale_reference(scale);
-
     this->run(image);
 }
 

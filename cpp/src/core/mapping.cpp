@@ -9,7 +9,7 @@ double MVO::scale_reference_weight;
 bool MVO::calculate_motion()
 {
     if (!this->is_start)
-        return false;
+        return true;
 
     /**************************************************
      * Solve two-fold ambiguity
@@ -140,30 +140,9 @@ bool MVO::calculate_motion()
     std::cerr << "nFeature3DInliered: " << (double) this->nFeatureInlier / this->nFeature * 100 << '%' << std::endl;
 
     /**** ****/
-    std::cout << "this->nFeatureInlier: " << this->nFeatureInlier << " " << std::endl;
+    std::cerr << "nFeatureInlier: " << this->nFeatureInlier << " " << std::endl;
     if (this->nFeatureInlier < this->params.thInlier){
         std::cerr << "There are few inliers reconstructed and accorded in 3D." << std::endl;
-        this->scale_initialized = false;
-        // this->is_start = false;
-
-        // this->keystepVec.push_back(this->step);
-
-        // if( this->speed_provided ){
-        //     double last_timestamp = this->timestampSinceKeyframe.back();
-        //     double last_speed = this->speedSinceKeyframe.back();
-
-        //     this->timestampSinceKeyframe.clear();
-        //     this->speedSinceKeyframe.clear();
-
-        //     this->timestampSinceKeyframe.push_back(last_timestamp);
-        //     this->speedSinceKeyframe.push_back(last_speed);
-        // }
-
-        // std::cerr << "key step: " << this->key_step << ' ' << std::endl;
-
-        // for( int i = 0; i < this->nFeature; i++ )
-        //     this->features[i].is_3D_init = false;
-
         return false;
     }else{
         std::cerr << "Temporal velocity: " << T.block(0,3,3,1).norm() << std::endl;
@@ -1064,18 +1043,32 @@ void MVO::calculate_plane(const std::vector<cv::Point3f>& pts, std::vector<doubl
             plane.push_back(0);
         }
     }
+
+    if( std::abs(plane[1]) < 0.5 ){ // perpendicular to y-axis
+        plane.clear();
+        plane.push_back(0);
+        plane.push_back(0);
+        plane.push_back(0);
+        plane.push_back(0);
+    }
 }
 
 void MVO::calculate_plane_error(const std::vector<double>& plane, const std::vector<cv::Point3f>& pts, std::vector<double>& dist){
     double norm = std::sqrt(std::pow(plane[0],2) + std::pow(plane[1],2) + std::pow(plane[2],2));
-    double a = plane[0]/norm;
-    double b = plane[1]/norm;
-    double c = plane[2]/norm;
-    double d = plane[3]/norm;
+    if( std::abs(norm) < 1e-10 ){
+        dist.clear();
+        for( uint32_t i = 0; i < pts.size(); i++ )
+            dist.push_back(1e10);
+    }else{
+        double a = plane[0]/norm;
+        double b = plane[1]/norm;
+        double c = plane[2]/norm;
+        double d = plane[3]/norm;
 
-    dist.clear();
-    for( uint32_t i = 0; i < pts.size(); i++ )
-        dist.push_back(std::abs(a * pts[i].x + b * pts[i].y + c * pts[i].z + d));
+        dist.clear();
+        for( uint32_t i = 0; i < pts.size(); i++ )
+            dist.push_back(std::abs(a * pts[i].x + b * pts[i].y + c * pts[i].z + d));
+    }
 }
 
 void MVO::update_scale_reference(const double scale){

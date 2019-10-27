@@ -298,9 +298,6 @@ bool MVO::calculate_essential()
         }
     }
 
-    // if( this->is_start == false && nWideFeature < this->params.thInlier )
-    //     return false;
-
     if( points1.size() <= this->nFeature * this->params.thRatioKeyFrame ){
         this->keystepVec.push_back(this->step);
 
