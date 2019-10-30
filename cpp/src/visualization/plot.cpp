@@ -31,15 +31,19 @@ void MVO::plot(){
 
 	// feature points
 	for( int i = 0; i < this->nFeature; i++ ){
-		if( this->features[i].type == Type::Dynamic || this->features[i].is_2D_inliered == false )
+		if( this->features[i].type == Type::Dynamic || this->features[i].is_2D_inliered == false ){
 			cv::circle(img, cv::Point(this->features[i].uv.back().x, this->features[i].uv.back().y), 3, cv::Scalar(255,0,0), 1);
-		else if( this->features[i].type == Type::Road )
+			if( this->rotate_provided && this->features[i].uv_pred.x > 0 && this->features[i].uv_pred.y > 0 )
+				cv::drawMarker(img, cv::Point(this->features[i].uv_pred.x, this->features[i].uv_pred.y), cv::Scalar(255,0,0), cv::MARKER_CROSS, 5);
+		}else if( this->features[i].type == Type::Road ){
 			cv::circle(img, cv::Point(this->features[i].uv.back().x, this->features[i].uv.back().y), 3, cv::Scalar(50,50,255), 1);
-		else
+			if( this->rotate_provided && this->features[i].uv_pred.x > 0 && this->features[i].uv_pred.y > 0 )
+				cv::drawMarker(img, cv::Point(this->features[i].uv_pred.x, this->features[i].uv_pred.y), cv::Scalar(50,50,255), cv::MARKER_CROSS, 5);
+		}else{
 			cv::circle(img, cv::Point(this->features[i].uv.back().x, this->features[i].uv.back().y), 3, cv::Scalar(0,200,0), 1);
-
-		if( this->rotate_provided && this->features[i].uv_pred.x > 0 && this->features[i].uv_pred.y > 0 )
-			cv::drawMarker(img, cv::Point(this->features[i].uv_pred.x, this->features[i].uv_pred.y), cv::Scalar(0,200,0), cv::MARKER_CROSS, 5);
+			if( this->rotate_provided && this->features[i].uv_pred.x > 0 && this->features[i].uv_pred.y > 0 )
+				cv::drawMarker(img, cv::Point(this->features[i].uv_pred.x, this->features[i].uv_pred.y), cv::Scalar(0,200,0), cv::MARKER_CROSS, 5);
+		}
 	}
 	cv::imshow("MVO", img);
 
