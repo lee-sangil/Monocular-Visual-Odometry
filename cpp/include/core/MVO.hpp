@@ -68,6 +68,8 @@ class MVO{
 		cv::Size imSize;
 		bool applyCLAHE = false;
 
+		Eigen::Matrix4d Tci, Tic;
+
 		MVO::RansacCoef<std::pair<cv::Point3f,cv::Point3f>, double> ransacCoef_scale;
 		MVO::RansacCoef<cv::Point3f, std::vector<double>> ransacCoef_plane;
 		
@@ -75,6 +77,7 @@ class MVO{
 		double thRatioKeyFrame = 0.9;
 		double min_px_dist = 7.0;
 		double px_wide = 12.0;
+		double max_epiline_dist = 20.0;
 
 		// Statistical model
 		double var_theta = std::pow(90.0 / 1241.0 / 2, 2);
@@ -113,12 +116,14 @@ class MVO{
 
 	// Get feature 
 	ptsROI_t get_points();
+	cv::Point2f calculateRotWarp(cv::Point2f uv);
 	
 	// Script operations
 	void restart();
 	void refresh();
 	void run(cv::Mat& image);
 	void run(cv::Mat& image, Eigen::MatrixXd& depth);
+	void run(cv::Mat& image, double timestamp, Eigen::Vector3d& gyro);
 	void run(cv::Mat& image, double timestamp, double speed);
 	void plot();
 	void updateView();
@@ -168,6 +173,7 @@ class MVO{
 	static void calculate_plane_error(const std::vector<double>& plane, const std::vector<cv::Point3f>& pts, std::vector<double>& dist);
 	static double scale_reference;
 	static double scale_reference_weight;
+	static Eigen::Matrix3d rotate_prior;
 
 	private:
 
@@ -177,6 +183,7 @@ class MVO{
 
 	std::vector<double> timestampSinceKeyframe;
 	std::vector<double> speedSinceKeyframe;
+	std::vector<Eigen::Vector3d> gyroSinceKeyframe;
 	
 	cv::Mat prev_image;
 	cv::Mat cur_image;
@@ -194,6 +201,7 @@ class MVO{
 	bool is_start;
 	bool scale_initialized;
 	bool groundtruth_provided;
+	bool rotate_provided;
 	bool speed_provided;
 
 	int nFeature;
@@ -203,6 +211,7 @@ class MVO{
 	int nFeatureInlier;
 
 	cv::Mat essentialMat;
+	Eigen::Matrix3d fundamentalMat;
 	std::vector<Eigen::Matrix3d> R_vec;
 	std::vector<Eigen::Vector3d> t_vec;
 	std::vector<Eigen::Matrix4d> TRec;

@@ -42,21 +42,33 @@ Camera.p1: 0.0
 Camera.p2: 0.0
 Camera.k3: 0.0
 
-# Camera extrinsics [B:IMU,C0:cam0]
-Camera.T_BC0: !!opencv-matrix
+# Camera extrinsics [I:IMU,V:Velodyne,C:cam] - do NOT insert TAB
+Camera.T_IC: !!opencv-matrix
+     rows: 0
+     cols: 0
+     dt: d
+     data: [1,0,0,0,
+            0,1,0,0,
+            0,0,1,0,
+            0,0,0,1]
+
+Camera.T_IV: !!opencv-matrix
      rows: 4
      cols: 4
      dt: d
-     data: [-1.0, 0.0, 0.0, 0.058,
-            0.0, 0.0, -1.0, -0.038,
-            0.0, -1.0, 0.0, 0.010,
-            0.0, 0.0, 0.0, 1.0]
+     data: [9.999976e-01, 7.553071e-04, -2.035826e-03, -8.086759e-01,
+           -7.854027e-04, 9.998898e-01, -1.482298e-02,  3.195559e-01,
+            2.024406e-03, 1.482454e-02,  9.998881e-01, -7.997231e-01,
+            0,0,0,1]
 
-LiDAR.R: [0.99769146, -0.01995549,  0.064911606,
-         0.02136297,  0.99954991, -0.021061777,
-        -0.06446209,  0.02239986,  0.997668725]
-
-LiDAR.T: [-0.4822433, -0.0082169, 0.4185907]
+Camera.T_VC: !!opencv-matrix
+     rows: 4
+     cols: 4
+     dt: d
+     data: [7.967514e-03, -9.999679e-01, -8.462264e-04, -1.377769e-02,
+           -2.771053e-03,  8.241710e-04, -9.999958e-01, -5.542117e-02,
+            9.999644e-01,  7.969825e-03, -2.764397e-03, -2.918589e-01,
+            0,0,0,1]
 
 #--------------------------------------------------------------------------------------------
 # Feature Parameters (tunable).
@@ -77,6 +89,9 @@ Feature.min_px_dist: 20
 
 # Min. feature distance between for reconstruction
 Feature.px_wide: 5
+
+# Max. distance between the epipolar line and feature predicted by gyro
+Feature.max_epiline_dist: 20
 
 # Bucket safety region (px)
 Bucket.safety: 20

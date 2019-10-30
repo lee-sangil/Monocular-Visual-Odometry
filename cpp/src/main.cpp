@@ -3,6 +3,7 @@
 #include "core/imageProc.hpp"
 #include "core/MVO.hpp"
 #include "core/time.hpp"
+#include "core/numerics.hpp"
 #include <opencv2/imgcodecs.hpp>
 #include <dirent.h>
 #define D_METER 1.2
@@ -76,6 +77,17 @@ void computeVehicleSpeed( std::vector<std::vector<double> > oxtsData, std::vecto
             speed.push_back(temp);
         }
     }
+}
+
+void computeImuRotation( std::vector<std::vector<double> > oxtsData, std::vector<Eigen::Vector3d>& imuRot){
+    for (uint32_t i = 0; i < oxtsData.size(); i++){
+		if(i == 0){
+			imuRot.push_back(Eigen::Vector3d::Zero());
+			continue;
+		}
+		
+		imuRot.push_back( (Eigen::Vector3d() << oxtsData[i][17], oxtsData[i][18], oxtsData[i][19]).finished() );
+	}
 }
 
 void directoryReader(const char * filePath, std::vector<std::vector<double> >& oxtsData){
@@ -237,6 +249,23 @@ int main(int argc, char * argv[]){
 		speed.erase(speed.begin(), speed.begin()+initFrame);
 	}
 
+	std::vector<Eigen::Vector3d> imuRot;
+	if( Parser::hasOption("-imu")){
+		std::string oxts_path;
+		oxts_path.append(inputFile).append("oxts/data/");
+
+		std::vector<std::vector<double> > oxtsData;
+		directoryReader(oxts_path.c_str(), oxtsData);
+		computeImuRotation(oxtsData, imuRot);
+
+		std::string time_path;
+		time_path.append(inputFile).append("oxts/timestamps.txt");
+		timeReader(time_path.c_str(), timestamp);
+
+		timestamp.erase(timestamp.begin(), timestamp.begin()+initFrame);
+		imuRot.erase(imuRot.begin(), imuRot.begin()+initFrame);
+	}
+
 	/**************************************************************************
 	 *  Construct MVO object
 	 **************************************************************************/
@@ -292,6 +321,8 @@ int main(int argc, char * argv[]){
 					vo->run(image, depth);
 				}else if( Parser::hasOption("-vel")){
 					vo->run(image, timestamp[it_rgb], speed[it_rgb]);
+				}else if( Parser::hasOption("-imu")){
+					vo->run(image, timestamp[it_rgb], imuRot[it_rgb]);
 				}else{
 					vo->run(image);
 				}

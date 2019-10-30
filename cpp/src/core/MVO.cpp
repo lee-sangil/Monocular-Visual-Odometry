@@ -3,6 +3,8 @@
 #include "core/numerics.hpp"
 #include "core/time.hpp"
 
+Eigen::Matrix3d MVO::rotate_prior;
+
 MVO::MVO(){
     this->step = -1;
     this->key_step = 0;
@@ -12,6 +14,7 @@ MVO::MVO(){
     this->scale_initialized = false;
     this->groundtruth_provided = false;
     this->speed_provided = false;
+    this->rotate_provided = false;
     this->cvClahe = cv::createCLAHE();
 
     // Variables
@@ -70,12 +73,35 @@ MVO::MVO(std::string yaml):MVO(){
 
     cv::initUndistortRectifyMap(this->params.Kcv, this->params.distCoeffs, cv::Mat(), this->params.Kcv, this->params.imSize, CV_32FC1, this->distMap1, this->distMap2);
 
+    if( !fSettings["Camera.T_IC"].empty() ){
+        cv::Mat Tic;
+        fSettings["Camera.T_IC"] >> Tic;
+        cv::cv2eigen(Tic, this->params.Tic);
+        this->params.Tci = this->params.Tic.inverse();
+    }else if( !fSettings["Camera.T_CI"].empty() ){
+        cv::Mat Tci;
+        fSettings["Camera.T_CI"] >> Tci;
+        cv::cv2eigen(Tci, this->params.Tci);
+        this->params.Tic = this->params.Tci.inverse();
+    }else if( !fSettings["Camera.T_IV"].empty() && !fSettings["Camera.T_VC"].empty() ){
+        Eigen::Matrix4d Tiv_, Tvc_;
+        cv::Mat Tiv, Tvc;
+        fSettings["Camera.T_IV"] >> Tiv;
+        fSettings["Camera.T_VC"] >> Tvc;
+        cv::cv2eigen(Tiv, Tiv_);
+        cv::cv2eigen(Tvc, Tvc_);
+
+        this->params.Tci = Tvc_ * Tiv_;
+        this->params.Tic = this->params.Tci.inverse();
+    }
+
     // this->descriptor = cv::BRISK::create();
 
     this->params.thInlier =         fSettings["Feature.thInlier"];
     this->params.thRatioKeyFrame =  fSettings["Feature.thRatioKeyFrame"];
     this->params.min_px_dist =      fSettings["Feature.min_px_dist"];
     this->params.px_wide =          fSettings["Feature.px_wide"];
+    this->params.max_epiline_dist = fSettings["Feature.max_epiline_dist"];
 
     // RANSAC parameter
     this->params.ransacCoef_scale.iterMax =        fSettings["RANSAC.iterMax"];
@@ -280,6 +306,20 @@ void MVO::run(cv::Mat& image, Eigen::MatrixXd& depth){
     std::cerr << "* Reconstruction error: " << this->calcReconstructionErrorGT(depth) << std::endl;
 }
 
+void MVO::run(cv::Mat& image, double timestamp, Eigen::Vector3d& gyro){
+    this->rotate_provided = true;
+    this->timestampSinceKeyframe.push_back(timestamp);
+    this->gyroSinceKeyframe.push_back(gyro);
+
+    std::vector<double> timestampDiff;
+    Eigen::Vector3d radian = Eigen::Vector3d::Zero();
+    for( uint32_t i = 0; i < this->gyroSinceKeyframe.size()-1; i++ )
+        radian += (this->gyroSinceKeyframe[i]+this->gyroSinceKeyframe[i+1])/2 * (this->timestampSinceKeyframe[i+1]-this->timestampSinceKeyframe[i]);
+
+    MVO::rotate_prior = this->params.Tci.block(0,0,3,3) * skew(-radian).exp() * this->params.Tic.block(0,0,3,3);
+    this->run(image);
+}
+
 void MVO::run(cv::Mat& image, double timestamp, double speed){
     this->speed_provided = true;
     this->timestampSinceKeyframe.push_back(timestamp);
@@ -301,4 +341,14 @@ ptsROI_t MVO::get_points()
         ptsROI.push_back( std::make_tuple(this->features[i].uv.back(), this->features[i].point.block(0, 0, 3, 1) ) );
     }
     return ptsROI;
+}
+
+cv::Point2f MVO::calculateRotWarp(cv::Point2f uv){
+    Eigen::Vector3d pixel, warpedPixel;
+    cv::Point2f warpedUV;
+    pixel << uv.x, uv.y, 1;
+    warpedPixel = this->params.K * MVO::rotate_prior * this->params.Kinv * pixel;
+    warpedUV.x = warpedPixel(0)/warpedPixel(2);
+    warpedUV.y = warpedPixel(1)/warpedPixel(2);
+    return warpedUV;
 }

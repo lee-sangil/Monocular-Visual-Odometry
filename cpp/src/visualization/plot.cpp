@@ -37,6 +37,9 @@ void MVO::plot(){
 			cv::circle(img, cv::Point(this->features[i].uv.back().x, this->features[i].uv.back().y), 3, cv::Scalar(50,50,255), 1);
 		else
 			cv::circle(img, cv::Point(this->features[i].uv.back().x, this->features[i].uv.back().y), 3, cv::Scalar(0,200,0), 1);
+
+		if( this->features[i].uv_pred.x > 0 && this->features[i].uv_pred.y > 0 )
+			cv::drawMarker(img, cv::Point(this->features[i].uv_pred.x, this->features[i].uv_pred.y), cv::Scalar(0,200,0), cv::MARKER_CROSS, 5);
 	}
 	cv::imshow("MVO", img);
 

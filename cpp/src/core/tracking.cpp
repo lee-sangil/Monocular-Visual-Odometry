@@ -34,11 +34,17 @@ bool MVO::update_features(){
 
         for( int i = 0; i < this->nFeature; i++ ){
             if( validity[i] && this->features[i].is_alive ){
+                cv::Point2f uv_prev = this->features[i].uv.back();
                 this->features[i].life++;
+                this->features[i].uv_pred = this->calculateRotWarp(uv_prev);
                 this->features[i].uv.push_back(points[i]);
                 this->features[i].is_matched = true;
                 this->nFeatureMatched++;
 
+                Eigen::Vector3d epiLine = this->fundamentalMat * (Eigen::Vector3d() << uv_prev.x, uv_prev.y, 1).finished();
+                double distFromEpiLine = std::abs(epiLine(0)*this->features[i].uv_pred.x + epiLine(1)*this->features[i].uv_pred.y + epiLine(2)) / epiLine.topRows(2).norm();
+                if( this->is_start && distFromEpiLine > this->params.max_epiline_dist )
+                    this->features[i].type = Type::Dynamic;
             }else
                 this->features[i].is_alive = false;
         }
@@ -229,6 +235,7 @@ void MVO::add_feature(){
         newFeature.id = Feature::new_feature_id; // unique id of the feature
         newFeature.frame_init = 0; // frame step when the 3d point is initialized
         newFeature.uv.emplace_back(bestKeypoint.x, bestKeypoint.y); // uv point in pixel coordinates
+        newFeature.uv_pred = cv::Point2f(-1,-1);
         newFeature.life = 1; // the number of frames in where the feature is observed
         newFeature.bucket = cv::Point(col, row); // the location of bucket where the feature belong to
         newFeature.point.setZero(4,1); // 3-dim homogeneous point in the local coordinates
@@ -312,6 +319,17 @@ bool MVO::calculate_essential()
             this->speedSinceKeyframe.push_back(last_speed);
         }
 
+        if( this->rotate_provided ){
+            double last_timestamp = this->timestampSinceKeyframe.back();
+            Eigen::Vector3d last_gyro = this->gyroSinceKeyframe.back();
+
+            this->timestampSinceKeyframe.clear();
+            this->gyroSinceKeyframe.clear();
+
+            this->timestampSinceKeyframe.push_back(last_timestamp);
+            this->gyroSinceKeyframe.push_back(last_gyro);
+        }
+
         std::cerr << "key step: " << this->key_step << ' ' << std::endl;
     }
 
@@ -321,6 +339,7 @@ bool MVO::calculate_essential()
     
     Eigen::Matrix3d E_;
     cv::cv2eigen(this->essentialMat, E_);
+    this->fundamentalMat = this->params.Kinv.transpose() * E_ * this->params.Kinv;
 
     double error;
     std::vector<double> essentialError;

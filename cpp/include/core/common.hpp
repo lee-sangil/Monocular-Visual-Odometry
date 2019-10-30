@@ -63,6 +63,7 @@ typedef struct Feature{
 	uint32_t frame_init;
 	// cv::Mat desc;
 	std::vector< cv::Point2f > uv;
+	cv::Point2f uv_pred;
 	cv::Point bucket;
 	Eigen::Vector4d point;
 	Eigen::Vector4d point_init;
