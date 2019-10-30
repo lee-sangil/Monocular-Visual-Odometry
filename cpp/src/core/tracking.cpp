@@ -36,14 +36,15 @@ bool MVO::update_features(){
             if( validity[i] && this->features[i].is_alive ){
                 cv::Point2f uv_prev = this->features[i].uv.back();
                 this->features[i].life++;
-                this->features[i].uv_pred = this->calculateRotWarp(uv_prev);
+                if( this->rotate_provided )
+                    this->features[i].uv_pred = this->calculateRotWarp(uv_prev);
                 this->features[i].uv.push_back(points[i]);
                 this->features[i].is_matched = true;
                 this->nFeatureMatched++;
 
                 Eigen::Vector3d epiLine = this->fundamentalMat * (Eigen::Vector3d() << uv_prev.x, uv_prev.y, 1).finished();
                 double distFromEpiLine = std::abs(epiLine(0)*this->features[i].uv_pred.x + epiLine(1)*this->features[i].uv_pred.y + epiLine(2)) / epiLine.topRows(2).norm();
-                if( this->is_start && distFromEpiLine > this->params.max_epiline_dist )
+                if( this->rotate_provided && this->is_start && distFromEpiLine > this->params.max_epiline_dist )
                     this->features[i].type = Type::Dynamic;
             }else
                 this->features[i].is_alive = false;

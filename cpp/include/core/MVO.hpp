@@ -122,9 +122,8 @@ class MVO{
 	void restart();
 	void refresh();
 	void run(cv::Mat& image);
-	void run(cv::Mat& image, Eigen::MatrixXd& depth);
-	void run(cv::Mat& image, double timestamp, Eigen::Vector3d& gyro);
-	void run(cv::Mat& image, double timestamp, double speed);
+	void update_gyro(double timestamp, Eigen::Vector3d& gyro);
+	void update_velocity(double timestamp, double speed);
 	void plot();
 	void updateView();
 
@@ -200,7 +199,6 @@ class MVO{
 
 	bool is_start;
 	bool scale_initialized;
-	bool groundtruth_provided;
 	bool rotate_provided;
 	bool speed_provided;
 

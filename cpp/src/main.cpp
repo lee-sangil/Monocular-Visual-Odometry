@@ -313,18 +313,18 @@ int main(int argc, char * argv[]){
 				dirRgb.append(inputFile).append(rgbNameRaw[it_rgb]);
 				chk::getImgTUMdataset(dirRgb, image);
 
+				if( Parser::hasOption("-vel"))
+					vo->update_velocity(timestamp[it_rgb], speed[it_rgb]);
+				if( Parser::hasOption("-imu"))
+					vo->update_gyro(timestamp[it_rgb], imuRot[it_rgb]);
+				
+				vo->run(image);
+
 				if( Parser::hasOption("-gt") ){
 					std::ostringstream dirDepth;
 					dirDepth << inputFile << "full_depth/" << std::setfill('0') << std::setw(10) << it_rgb+initFrame << ".bin";
 					Eigen::MatrixXd depth = read_binary(dirDepth.str().c_str(), vo->params.imSize.height, vo->params.imSize.width);
-
-					vo->run(image, depth);
-				}else if( Parser::hasOption("-vel")){
-					vo->run(image, timestamp[it_rgb], speed[it_rgb]);
-				}else if( Parser::hasOption("-imu")){
-					vo->run(image, timestamp[it_rgb], imuRot[it_rgb]);
-				}else{
-					vo->run(image);
+					std::cerr << "* Reconstruction error: " << vo->calcReconstructionErrorGT(depth) << std::endl;
 				}
 				
 				std::cout << "Iteration: " << it_rgb << ", Execution time: " << lsi::toc()/1e3 << "ms       " << '\r';

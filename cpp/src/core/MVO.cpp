@@ -12,7 +12,6 @@ MVO::MVO(){
 
     this->is_start = false;
     this->scale_initialized = false;
-    this->groundtruth_provided = false;
     this->speed_provided = false;
     this->rotate_provided = false;
     this->cvClahe = cv::createCLAHE();
@@ -300,13 +299,7 @@ void MVO::run(cv::Mat& image){
     // std::cout << "start: " << this->is_start << ", key_step: " << this->key_step << " " << std::endl;
 }
 
-void MVO::run(cv::Mat& image, Eigen::MatrixXd& depth){
-    this->groundtruth_provided = true;
-    this->run(image);
-    std::cerr << "* Reconstruction error: " << this->calcReconstructionErrorGT(depth) << std::endl;
-}
-
-void MVO::run(cv::Mat& image, double timestamp, Eigen::Vector3d& gyro){
+void MVO::update_gyro(double timestamp, Eigen::Vector3d& gyro){
     this->rotate_provided = true;
     this->timestampSinceKeyframe.push_back(timestamp);
     this->gyroSinceKeyframe.push_back(gyro);
@@ -317,10 +310,9 @@ void MVO::run(cv::Mat& image, double timestamp, Eigen::Vector3d& gyro){
         radian += (this->gyroSinceKeyframe[i]+this->gyroSinceKeyframe[i+1])/2 * (this->timestampSinceKeyframe[i+1]-this->timestampSinceKeyframe[i]);
 
     MVO::rotate_prior = this->params.Tci.block(0,0,3,3) * skew(-radian).exp() * this->params.Tic.block(0,0,3,3);
-    this->run(image);
 }
 
-void MVO::run(cv::Mat& image, double timestamp, double speed){
+void MVO::update_velocity(double timestamp, double speed){
     this->speed_provided = true;
     this->timestampSinceKeyframe.push_back(timestamp);
     this->speedSinceKeyframe.push_back(speed);
@@ -331,7 +323,6 @@ void MVO::run(cv::Mat& image, double timestamp, double speed){
         scale += (this->speedSinceKeyframe[i]+this->speedSinceKeyframe[i+1])/2 * (this->timestampSinceKeyframe[i+1]-this->timestampSinceKeyframe[i]);
     
     this->update_scale_reference(scale);
-    this->run(image);
 }
 
 ptsROI_t MVO::get_points()
