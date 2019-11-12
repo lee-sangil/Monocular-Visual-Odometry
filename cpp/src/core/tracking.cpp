@@ -5,6 +5,9 @@
 uint32_t Feature::new_feature_id = 0;
 
 bool MVO::extract_features(){
+    // Add extra feature points
+    this->add_extra_features();
+    
     // Update features using KLT tracker
     if( this->update_features() ){
         std::cerr << "# Update features: " << lsi::toc() << std::endl;
@@ -420,4 +423,141 @@ bool MVO::calculate_essential()
         this->is_start = true;
         return true;
     }
+}
+
+void MVO::add_extra_features(){
+
+    if( this->features_extra.size() > 1 ){
+        uint32_t row, col;
+
+        for( uint32_t i = 0; i < this->features_extra.size(); i++ ){
+            this->features_extra[i].id = Feature::new_feature_id;
+            row = std::floor(this->features_extra[i].uv.back().y / this->params.imSize.height * this->bucket.grid.height);
+            col = std::floor(this->features_extra[i].uv.back().x / this->params.imSize.width * this->bucket.grid.width);
+
+            this->features.push_back(this->features_extra[i]);
+            this->nFeature++;
+        
+            Feature::new_feature_id++;
+
+            // Update bucket
+            this->bucket.mass(row, col)++;
+        }
+        cv::eigen2cv(this->bucket.mass, this->bucket.cvMass);
+        cv::GaussianBlur(this->bucket.cvMass, this->bucket.cvProb, cv::Size(21,21), 3.0);
+        cv::cv2eigen(this->bucket.cvProb, this->bucket.prob);
+
+        this->bucket.prob.array() += 0.05;
+        this->bucket.prob = this->bucket.prob.cwiseInverse();
+
+        // Assign high weight for ground
+        for( int i = 0; i < this->bucket.prob.rows(); i++ ){
+            // weight.block(i,0,1,weight.cols()) /= std::pow(weight.rows(),2);
+            this->bucket.prob.block(i,0,1,this->bucket.prob.cols()) *= i+1;
+        }
+
+        this->features_extra.clear();
+    }
+}
+
+void MVO::extract_extra_features(cv::Rect& roi, int nFeature){
+
+    int bkSafety = this->bucket.safety;
+    roi.x = std::max(bkSafety, roi.x);
+    roi.y = std::max(bkSafety, roi.y);
+    roi.width = std::min(this->params.imSize.width-bkSafety, roi.x+roi.width)-roi.x;
+    roi.height = std::min(this->params.imSize.height-bkSafety, roi.y+roi.height)-roi.y;
+
+    int nSuccess = 0;
+    while( nSuccess < nFeature )
+        if( this->extract_extra_feature(roi) )
+            nSuccess++;
+            
+}
+
+bool MVO::extract_extra_feature(cv::Rect& roi){
+
+    int row, col;
+    row = (roi.x-1) / this->bucket.size.height;
+    col = (roi.y-1) / this->bucket.size.width;
+
+    // Seek index of which feature is extracted specific bucket
+    std::vector<uint32_t>& idxBelongToBucket = this->idxTemplate;
+    idxBelongToBucket.clear();
+
+    for( int l = 0; l < this->nFeature; l++ ){
+        for( int ii = std::max(col-1,0); ii <= std::min(col+1,this->bucket.grid.width-1); ii++){
+            for( int jj = std::max(row-1,0); jj <= std::min(row+1,this->bucket.grid.height-1); jj++){
+                if( (this->features[l].bucket.x == ii) & (this->features[l].bucket.y == jj)){
+                    idxBelongToBucket.push_back(l);
+                }
+            }
+        }
+    }
+    uint32_t nInBucket = idxBelongToBucket.size();
+    
+    // Try to find a seperate feature
+    cv::Mat crop_image;
+    std::vector<cv::Point2f> keypoints;
+
+    crop_image = this->cur_image(roi);
+    cv::goodFeaturesToTrack(crop_image, keypoints, 50, 0.1, 2.0, cv::noArray(), 3, true);
+    
+    if( keypoints.size() > 0 ){
+        for( uint32_t l = 0; l < keypoints.size(); l++ ){
+            keypoints[l].x = keypoints[l].x + roi.x - 1;
+            keypoints[l].y = keypoints[l].y + roi.y - 1;
+        }
+    }else{
+        return false;
+    }
+    
+
+    bool success;
+    double dist, minDist, maxMinDist = 0;
+    cv::Point2f bestKeypoint;
+    for( uint32_t l = 0; l < keypoints.size(); l++ ){
+        success = true;
+        minDist = 1e9; // enough-large number
+        for( uint32_t f = 0; f < nInBucket; f++ ){
+            dist = cv::norm(keypoints[l] - this->features[idxBelongToBucket[f]].uv.back());
+            
+            if( dist < minDist )
+                minDist = dist;
+
+        }
+        if( success ){
+            if( minDist > maxMinDist){
+                maxMinDist = minDist;
+                bestKeypoint = keypoints[l];
+            }
+        }
+    }
+    
+    if( maxMinDist > 0.0 ){
+        // Add new feature to VO object
+        Feature newFeature;
+
+        newFeature.frame_init = 0; // frame step when the 3d point is initialized
+        newFeature.uv.emplace_back(bestKeypoint.x, bestKeypoint.y); // uv point in pixel coordinates
+        newFeature.uv_pred = cv::Point2f(-1,-1);
+        newFeature.life = 1; // the number of frames in where the feature is observed
+        newFeature.bucket = cv::Point(col, row); // the location of bucket where the feature belong to
+        newFeature.point.setZero(4,1); // 3-dim homogeneous point in the local coordinates
+        newFeature.is_alive = true;
+        newFeature.is_matched = false; // matched between both frame
+        newFeature.is_wide = false; // verify whether features btw the initial and current are wide enough
+        newFeature.is_2D_inliered = false; // belong to major (or meaningful) movement
+        newFeature.is_3D_reconstructed = false; // triangulation completion
+        newFeature.is_3D_init = false; // scale-compensated
+        newFeature.point_init.setZero(4,1); // scale-compensated 3-dim homogeneous point in the global coordinates
+        newFeature.point_var = 0;
+        newFeature.type = Type::Unknown;
+
+        MVO::features_extra.push_back(newFeature);
+        return true;
+    }else{
+        return false;
+    }
+    
 }

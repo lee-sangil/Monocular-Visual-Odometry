@@ -174,6 +174,12 @@ class MVO{
 	static double scale_reference_weight;
 	static Eigen::Matrix3d rotate_prior;
 
+	// Add additional feature within bound-box
+	void add_extra_features();
+	void extract_extra_features(cv::Rect& roi, int nFeature = 1);
+	bool extract_extra_feature(cv::Rect& roi);
+	std::vector<Feature> features_extra;
+
 	private:
 
 	uint32_t step;
