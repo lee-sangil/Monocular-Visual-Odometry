@@ -243,6 +243,7 @@ void MVO::add_feature(){
         newFeature.life = 1; // the number of frames in where the feature is observed
         newFeature.bucket = cv::Point(col, row); // the location of bucket where the feature belong to
         newFeature.point.setZero(4,1); // 3-dim homogeneous point in the local coordinates
+        newFeature.point(3) = 1;
         newFeature.is_alive = true;
         newFeature.is_matched = false; // matched between both frame
         newFeature.is_wide = false; // verify whether features btw the initial and current are wide enough
@@ -250,6 +251,7 @@ void MVO::add_feature(){
         newFeature.is_3D_reconstructed = false; // triangulation completion
         newFeature.is_3D_init = false; // scale-compensated
         newFeature.point_init.setZero(4,1); // scale-compensated 3-dim homogeneous point in the global coordinates
+        newFeature.point_init(3) = 1;
         newFeature.point_var = 0;
         newFeature.type = Type::Unknown;
 
@@ -544,6 +546,7 @@ bool MVO::extract_extra_feature(cv::Rect& roi){
         newFeature.life = 1; // the number of frames in where the feature is observed
         newFeature.bucket = cv::Point(col, row); // the location of bucket where the feature belong to
         newFeature.point.setZero(4,1); // 3-dim homogeneous point in the local coordinates
+        newFeature.point(3) = 1;
         newFeature.is_alive = true;
         newFeature.is_matched = false; // matched between both frame
         newFeature.is_wide = false; // verify whether features btw the initial and current are wide enough
@@ -551,7 +554,8 @@ bool MVO::extract_extra_feature(cv::Rect& roi){
         newFeature.is_3D_reconstructed = false; // triangulation completion
         newFeature.is_3D_init = false; // scale-compensated
         newFeature.point_init.setZero(4,1); // scale-compensated 3-dim homogeneous point in the global coordinates
-        newFeature.point_var = 0;
+        newFeature.point_init(3) = 1;
+        newFeature.point_var = 5;
         newFeature.type = Type::Unknown;
 
         MVO::features_extra.push_back(newFeature);

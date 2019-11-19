@@ -235,8 +235,19 @@ void MVO::plot(){
 	/*******************************************
 	 * 			Reconstructed Depth
 	 * *****************************************/
-	cv::Mat recon_img(this->cur_image.size(), CV_8UC3);
-	cvtColor(this->cur_image, recon_img, CV_GRAY2BGR);
+	cv::Mat recon_img = cv::Mat::zeros(this->cur_image.size(), CV_8UC3);
+	int r,g,b;
+	for( uint32_t i = 0; i < this->features.size(); i++ ){
+		// if( this->features[i].is_3D_init ){
+		// 	point = Tco * this->features[i].point_init;
+		if( this->features[i].is_3D_reconstructed ){
+			point = this->features[i].point;
+			r = std::min((int) (point(2)*6), 255);
+			g = std::max(255 - (int) (point(2)*4), 30);
+			b = 100;
+			cv::circle(recon_img, cv::Point(this->features[i].uv.back().x, this->features[i].uv.back().y), 5, cv::Scalar(b, g, r), CV_FILLED);
+		}
+	}
 
 	cv::imshow("Depth", recon_img);
 }
