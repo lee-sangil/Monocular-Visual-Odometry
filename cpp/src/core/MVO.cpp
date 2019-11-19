@@ -104,18 +104,18 @@ MVO::MVO(std::string yaml):MVO(){
 
     // RANSAC parameter
     this->params.ransacCoef_scale.iterMax =        fSettings["RANSAC.iterMax"];
-    this->params.ransacCoef_scale.minPtNum =       fSettings["RANSAC.nSample"];
     this->params.ransacCoef_scale.thInlrRatio =    fSettings["RANSAC.thInlrRatio"];
-    this->params.ransacCoef_scale.thDist =         fSettings["RANSAC.thDist"]; // standard deviation
-    this->params.ransacCoef_scale.thDistOut =      fSettings["RANSAC.thDistOut"]; // three times of standard deviation
+    this->params.ransacCoef_scale.minPtNum =       fSettings["RANSAC.scale.nSample"];
+    this->params.ransacCoef_scale.thDist =         fSettings["RANSAC.scale.thDist"]; // standard deviation
+    this->params.ransacCoef_scale.thDistOut =      fSettings["RANSAC.scale.thDistOut"]; // three times of standard deviation
     this->params.ransacCoef_scale.calculate_func = MVO::calculate_scale;
     this->params.ransacCoef_scale.calculate_dist = MVO::calculate_scale_error;
     
     this->params.ransacCoef_plane.iterMax =        fSettings["RANSAC.iterMax"];
-    this->params.ransacCoef_plane.minPtNum =       3;
     this->params.ransacCoef_plane.thInlrRatio =    fSettings["RANSAC.thInlrRatio"];
-    this->params.ransacCoef_plane.thDist =         fSettings["RANSAC.thDist"]; // standard deviation
-    this->params.ransacCoef_plane.thDistOut =      fSettings["RANSAC.thDistOut"]; // three times of standard deviation
+    this->params.ransacCoef_plane.minPtNum =       3;
+    this->params.ransacCoef_plane.thDist =         fSettings["RANSAC.plane.thDist"]; // standard deviation
+    this->params.ransacCoef_plane.thDistOut =      fSettings["RANSAC.plane.thDistOut"]; // three times of standard deviation
     this->params.ransacCoef_plane.calculate_func = MVO::calculate_plane;
     this->params.ransacCoef_plane.calculate_dist = MVO::calculate_plane_error;
 
@@ -206,7 +206,10 @@ MVO::MVO(std::string yaml):MVO(){
     cv::moveWindow("MVO", 20, 20);
 
     cv::namedWindow("Trajectory");
-    cv::moveWindow("Trajectory", 1280, 20);
+    cv::moveWindow("Trajectory", 1320, 20);
+
+    cv::namedWindow("Depth");
+    cv::moveWindow("Depth", 20, 440);
 
     this->params.view.heightDefault =   fSettings["viewCam.height"]; // in world coordinate
     this->params.view.rollDefault =     (double) fSettings["viewCam.roll"] * PI/180; // radian

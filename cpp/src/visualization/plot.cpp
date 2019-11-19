@@ -231,4 +231,12 @@ void MVO::plot(){
 	// }
 
 	cv::imshow("Trajectory", traj);
+
+	/*******************************************
+	 * 			Reconstructed Depth
+	 * *****************************************/
+	cv::Mat recon_img(this->cur_image.size(), CV_8UC3);
+	cvtColor(this->cur_image, recon_img, CV_GRAY2BGR);
+
+	cv::imshow("Depth", recon_img);
 }

@@ -711,10 +711,10 @@ bool MVO::scale_propagation(const Eigen::Matrix3d &R, Eigen::Vector3d &t, std::v
 
             if( planeInlier.size() > (uint32_t) this->params.thInlier ){
                 for( uint32_t i = 0; i < roadIdx.size(); i++ ){
-                    if( planeInlier[roadIdx[i]] )
+                    if( planeInlier[i] )
                         this->features[roadIdx[i]].type = Type::Road;
-                    else
-                        this->features[roadIdx[i]].type = Type::Unknown;
+                    // else
+                    //     this->features[roadIdx[i]].type = Type::Unknown;
                 }
                 scale_from_height = this->params.vehicle_height / std::abs(plane[3]);
 
@@ -828,11 +828,14 @@ double MVO::calcReconstructionError(Eigen::Matrix3d& R, Eigen::Vector3d& t){
 double MVO::calcReconstructionErrorGT(Eigen::MatrixXd& depth){
     std::vector<double> error;
     for( uint32_t i = 0; i < this->features.size(); i++ ){
-        if( depth(this->features[i].uv.back().y, this->features[i].uv.back().x) > 0)
+        if( depth(this->features[i].uv.back().y, this->features[i].uv.back().x) > 0 && this->features[i].is_3D_reconstructed == true )
             error.push_back(this->features[i].point(2) - depth(this->features[i].uv.back().y, this->features[i].uv.back().x));
     }
-    std::sort(error.begin(), error.end());
-    return error[std::floor(error.size()/2)];
+    if( error.size() > 0 ){
+        std::sort(error.begin(), error.end());
+        return error[std::floor(error.size()/2)];
+    }else
+        return 1e5;
 }
 
 template <typename DATA, typename FUNC>
