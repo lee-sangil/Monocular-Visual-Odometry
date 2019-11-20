@@ -176,8 +176,8 @@ class MVO{
 
 	// Add additional feature within bound-box
 	void add_extra_features();
-	void extract_extra_features(cv::Rect& roi, int nFeature = 1);
-	bool extract_extra_feature(cv::Rect& roi);
+	void extract_roi_features(std::vector<cv::Rect> rois, std::vector<int> nFeature);
+	bool extract_roi_feature(cv::Rect& roi);
 	std::vector<Feature> features_extra;
 
 	private:

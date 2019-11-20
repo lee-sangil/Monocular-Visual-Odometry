@@ -2,12 +2,14 @@
 #include "core/utils.hpp"
 #include "core/numerics.hpp"
 #include "core/time.hpp"
+#include "core/depthFilter.hpp"
+
 uint32_t Feature::new_feature_id = 0;
 
 bool MVO::extract_features(){
     // Add extra feature points
     this->add_extra_features();
-    
+
     // Update features using KLT tracker
     if( this->update_features() ){
         std::cerr << "# Update features: " << lsi::toc() << std::endl;
@@ -254,6 +256,7 @@ void MVO::add_feature(){
         newFeature.point_init(3) = 1;
         newFeature.point_var = 0;
         newFeature.type = Type::Unknown;
+        newFeature.depth = new depthFilter();
 
         this->features.push_back(newFeature);
         this->nFeature++;
@@ -462,22 +465,25 @@ void MVO::add_extra_features(){
     }
 }
 
-void MVO::extract_extra_features(cv::Rect& roi, int nFeature){
+void MVO::extract_roi_features(std::vector<cv::Rect> rois, std::vector<int> nFeature){
 
-    int bkSafety = this->bucket.safety;
-    roi.x = std::max(bkSafety, roi.x);
-    roi.y = std::max(bkSafety, roi.y);
-    roi.width = std::min(this->params.imSize.width-bkSafety, roi.x+roi.width)-roi.x;
-    roi.height = std::min(this->params.imSize.height-bkSafety, roi.y+roi.height)-roi.y;
+    cv::Rect roi;
+    for( uint32_t i = 0; i < rois.size(); i++ ){
+        roi = rois[i];
+        int bkSafety = this->bucket.safety;
+        roi.x = std::max(bkSafety, roi.x);
+        roi.y = std::max(bkSafety, roi.y);
+        roi.width = std::min(this->params.imSize.width-bkSafety, roi.x+roi.width)-roi.x;
+        roi.height = std::min(this->params.imSize.height-bkSafety, roi.y+roi.height)-roi.y;
 
-    int nSuccess = 0;
-    while( nSuccess < nFeature )
-        if( this->extract_extra_feature(roi) )
-            nSuccess++;
-            
+        int nSuccess = 0;
+        while( nSuccess < nFeature[i] )
+            if( this->extract_roi_feature(roi) )
+                nSuccess++;
+    }
 }
 
-bool MVO::extract_extra_feature(cv::Rect& roi){
+bool MVO::extract_roi_feature(cv::Rect& roi){
 
     int row, col;
     row = (roi.x-1) / this->bucket.size.height;
@@ -557,6 +563,7 @@ bool MVO::extract_extra_feature(cv::Rect& roi){
         newFeature.point_init(3) = 1;
         newFeature.point_var = 5;
         newFeature.type = Type::Unknown;
+        newFeature.depth = new depthFilter();
 
         MVO::features_extra.push_back(newFeature);
         return true;

@@ -2,20 +2,23 @@
 #define __DEPTHFILTER_HPP__
 
 #include "core/common.hpp"
+#define DEPTH_MIN 0.1 // meter
 
-class depthFilter{
+class depthFilter{ // inverse-depth estimator
 	private:
 
+	bool initialize = false;
 	double mean;
-	double variance;
-	double a;
-	double b;
-	double min, max;
+	double sigma;
+	double a = 10;
+	double b = 10;
+	static double max;
+	// static double min = 0; // 1/inf
 
 	public:
 
-	depthFilter(double mean, double variance, double a, double b, double min, double max):mean(mean),variance(variance),a(a),b(b),min(min),max(max){}
-	void update(double measurement, double dt);
+	depthFilter(){};
+	void update(double meas, double tau);
 	double get_mean() const;
 };
 

@@ -42,6 +42,8 @@
 #include <opencv2/calib3d.hpp>
 #include <boost/filesystem.hpp>
 
+#include "core/depthFilter.hpp"
+
 enum Type{Unknown,Dynamic,Road,};
 
 typedef struct Bucket{
@@ -75,6 +77,7 @@ typedef struct Feature{
 	bool is_3D_reconstructed;
 	bool is_3D_init;
 	Type type;
+	depthFilter * depth;
 }Feature;
 
 #endif //__COMMON_HPP__

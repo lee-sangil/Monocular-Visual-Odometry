@@ -290,11 +290,11 @@ void MVO::run(cv::Mat& image){
     std::cerr << "# Grab image: " << lsi::toc() << std::endl;
     this->refresh();
 
-    std::vector<bool> success;
-    success.reserve(3);
-    success.push_back(this->extract_features());       // Extract and update features
-    success.push_back(this->calculate_essential());    // RANSAC for calculating essential/fundamental matrix
-    success.push_back(this->calculate_motion());       // Extract rotational and translational from fundamental matrix
+    std::array<bool,4> success;
+    success[0] = true;//this->extract_roi_features();   // Extract extra features in rois
+    success[1] = this->extract_features();       // Extract and update features
+    success[2] = this->calculate_essential();    // RANSAC for calculating essential/fundamental matrix
+    success[3] = this->calculate_motion();       // Extract rotational and translational from fundamental matrix
 
     if( !std::all_of(success.begin(), success.end(), [](bool b){return b;}) )
         this->restart();
