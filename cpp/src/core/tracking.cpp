@@ -4,22 +4,30 @@
 #include "core/time.hpp"
 #include "core/DepthFilter.hpp"
 
+#include <exception>
+
 uint32_t Feature::new_feature_id = 0;
 
 bool MVO::extract_features(){
-    // Add extra feature points
-    this->add_extra_features();
-
     // Update features using KLT tracker
     if( this->update_features() ){
         std::cerr << "# Update features: " << lsi::toc() << std::endl;
-
+        
         // Delete features which is failed to track by KLT tracker
         this->delete_dead_features();
         std::cerr << "# Delete features: " << lsi::toc() << std::endl;
         
         // Add features to the number of the lost features
         this->add_features();
+
+        try{
+            // Add extra feature points
+            this->add_extra_features();
+        }
+        catch(std::exception msg){
+            std::cerr << msg.what() << std::endl;
+        }
+
         std::cerr << "# Add features: " << lsi::toc() << std::endl;
         
         return true;
@@ -431,21 +439,16 @@ bool MVO::calculate_essential()
 
 void MVO::add_extra_features(){
 
-    if( this->features_extra.size() > 1 ){
-        uint32_t row, col;
-
+    if( this->features_extra.size() > 0 ){
         for( uint32_t i = 0; i < this->features_extra.size(); i++ ){
             this->features_extra[i].id = Feature::new_feature_id;
-            row = std::floor(this->features_extra[i].uv.back().y / this->params.imSize.height * this->bucket.grid.height);
-            col = std::floor(this->features_extra[i].uv.back().x / this->params.imSize.width * this->bucket.grid.width);
-
             this->features.push_back(this->features_extra[i]);
             this->nFeature++;
         
             Feature::new_feature_id++;
 
             // Update bucket
-            this->bucket.mass(row, col)++;
+            this->bucket.mass(this->features_extra[i].bucket.y, this->features_extra[i].bucket.x)++;
         }
         cv::eigen2cv(this->bucket.mass, this->bucket.cvMass);
         cv::GaussianBlur(this->bucket.cvMass, this->bucket.cvProb, cv::Size(21,21), 3.0);
@@ -476,7 +479,8 @@ void MVO::extract_roi_features(std::vector<cv::Rect> rois, std::vector<int> nFea
         roi.height = std::min(this->params.imSize.height-bkSafety, roi.y+roi.height)-roi.y;
 
         int nSuccess = 0;
-        while( nSuccess < nFeature[i] )
+        int nTry = 0;
+        while( nSuccess < nFeature[i] && nTry++ < 10 )
             if( this->extract_roi_feature(roi) )
                 nSuccess++;
     }
@@ -508,7 +512,7 @@ bool MVO::extract_roi_feature(cv::Rect& roi){
     std::vector<cv::Point2f> keypoints;
 
     crop_image = this->cur_image(roi);
-    cv::goodFeaturesToTrack(crop_image, keypoints, 50, 0.1, 2.0, cv::noArray(), 3, true);
+    cv::goodFeaturesToTrack(crop_image, keypoints, 10, 0.1, 2.0, cv::noArray(), 3, true);
     
     if( keypoints.size() > 0 ){
         for( uint32_t l = 0; l < keypoints.size(); l++ ){
@@ -518,7 +522,6 @@ bool MVO::extract_roi_feature(cv::Rect& roi){
     }else{
         return false;
     }
-    
 
     bool success;
     double dist, minDist, maxMinDist = 0;
@@ -532,6 +535,10 @@ bool MVO::extract_roi_feature(cv::Rect& roi){
             if( dist < minDist )
                 minDist = dist;
 
+            if( dist < this->params.min_px_dist/2+1 ){
+                success = false;
+                break;
+            }
         }
         if( success ){
             if( minDist > maxMinDist){
