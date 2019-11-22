@@ -5,6 +5,7 @@
 #include "core/DepthFilter.hpp"
 
 #include <exception>
+#inculde <
 
 uint32_t Feature::new_feature_id = 0;
 
@@ -23,8 +24,9 @@ bool MVO::extract_features(){
         try{
             // Add extra feature points
             this->add_extra_features();
-        }
-        catch(std::exception msg){
+        }catch(std::exception& msg){
+            std::cerr << msg.what() << std::endl;
+        }catch(cv::Exception& msg){
             std::cerr << msg.what() << std::endl;
         }
 
