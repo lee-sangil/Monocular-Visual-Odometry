@@ -5,7 +5,6 @@
 #include "core/DepthFilter.hpp"
 
 #include <exception>
-#inculde <
 
 uint32_t Feature::new_feature_id = 0;
 
