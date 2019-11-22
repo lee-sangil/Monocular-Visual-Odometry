@@ -114,7 +114,8 @@ class MVO{
 	void set_image(cv::Mat& image);
 
 	// Get feature 
-	ptsROI_t get_points();
+	ptsROI_t get_points() const;
+	std::vector<Feature> get_features() const;
 	cv::Point2f calculateRotWarp(cv::Point2f uv);
 	
 	// Script operations

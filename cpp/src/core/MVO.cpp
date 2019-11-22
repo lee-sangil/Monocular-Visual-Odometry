@@ -342,7 +342,11 @@ void MVO::update_velocity(double timestamp, double speed){
     this->update_scale_reference(scale);
 }
 
-ptsROI_t MVO::get_points()
+std::vector<Feature> MVO::get_features() const {
+    return this->features;
+}
+
+ptsROI_t MVO::get_points() const
 {
     ptsROI_t ptsROI;
     for( uint32_t i = 0; i < this->features.size(); i++ ){
