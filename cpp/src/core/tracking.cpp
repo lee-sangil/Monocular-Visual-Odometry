@@ -20,14 +20,8 @@ bool MVO::extract_features(){
         // Add features to the number of the lost features
         this->add_features();
 
-        try{
-            // Add extra feature points
-            this->add_extra_features();
-        }catch(std::exception& msg){
-            std::cerr << msg.what() << std::endl;
-        }catch(cv::Exception& msg){
-            std::cerr << msg.what() << std::endl;
-        }
+        // Add extra feature points
+        this->add_extra_features();
 
         std::cerr << "# Add features: " << lsi::toc() << std::endl;
         
@@ -481,7 +475,7 @@ void MVO::extract_roi_features(std::vector<cv::Rect> rois, std::vector<int> nFea
 
         int nSuccess = 0;
         int nTry = 0;
-        while( nSuccess < nFeature[i] && nTry++ < 10 )
+        while( nSuccess < nFeature[i] && nTry++ < 3 )
             if( this->extract_roi_feature(roi) )
                 nSuccess++;
     }
@@ -512,8 +506,13 @@ bool MVO::extract_roi_feature(cv::Rect& roi){
     cv::Mat crop_image;
     std::vector<cv::Point2f> keypoints;
 
-    crop_image = this->cur_image(roi);
-    cv::goodFeaturesToTrack(crop_image, keypoints, 10, 0.1, 2.0, cv::noArray(), 3, true);
+    try{
+        crop_image = this->cur_image(roi);
+        cv::goodFeaturesToTrack(crop_image, keypoints, 10, 0.1, 2.0, cv::noArray(), 3, true);
+    }catch(std::exception& msg){
+        std::cerr << msg.what() << std::endl;
+        return false;
+    }
     
     if( keypoints.size() > 0 ){
         for( uint32_t l = 0; l < keypoints.size(); l++ ){
