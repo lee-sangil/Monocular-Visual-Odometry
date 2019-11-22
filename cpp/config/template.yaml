@@ -1,5 +1,7 @@
 %YAML:1.0
 
+Version: 2.0
+
 #--------------------------------------------------------------------------------------------
 # IMU Parameters (fixed).
 #--------------------------------------------------------------------------------------------
@@ -44,8 +46,8 @@ Camera.k3: 0.0
 
 # Camera extrinsics [I:IMU,V:Velodyne,C:cam] - do NOT insert TAB
 Camera.T_IC: !!opencv-matrix
-     rows: 0
-     cols: 0
+     rows: 4
+     cols: 4
      dt: d
      data: [1,0,0,0,
             0,1,0,0,
@@ -141,6 +143,10 @@ PnP.Method: 4
 
 # Min. Reprojection error
 PnP.threshold: 0.01
+
+# Depth filter
+DepthFilter.depth_min: 0.1
+DepthFilter.px_noise: 1
 
 #--------------------------------------------------------------------------------------------
 # Display Parameters (tunable).

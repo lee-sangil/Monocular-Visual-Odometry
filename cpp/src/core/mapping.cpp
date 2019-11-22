@@ -2,6 +2,7 @@
 #include "core/utils.hpp"
 #include "core/numerics.hpp"
 #include "core/time.hpp"
+#include "core/DepthFilter.hpp"
 
 double MVO::scale_reference = -1;
 double MVO::scale_reference_weight;
@@ -528,27 +529,25 @@ void MVO::update3DPoints(const Eigen::Matrix3d &R, const Eigen::Vector3d &t,
     T = this->TocRec.back().inverse() * Toc;
     
     int key_idx;
-    double cur_var, prv_var, new_var, diffX;
+    double tau, tauInverse, z;
+    Eigen::Vector4d point_initframe;
     for( uint32_t i = 0; i < this->features.size(); i++ ){
         key_idx = this->features[i].life - 1 - (this->step - this->key_step);
         if( this->features[i].is_3D_reconstructed ){
             this->features[i].point.block(0,0,3,1) *= scale;
-
-            cur_var = 5/(cv::norm(this->features[i].uv[key_idx] - this->features[i].uv.back()));
+            point_initframe = Toc * this->features[i].point;
+            z = point_initframe(2);
+            
+            tau = DepthFilter::computeTau(Toc, this->features[i].point.block(0,0,3,1), z);
+            tauInverse = DepthFilter::computeInverseTau(z, tau);
             if( this->features[i].is_3D_init ){
                 if( this->params.updateInitPoint ){
-                    diffX = (Toc * this->features[i].point - this->features[i].point_init).norm();
-                    if( diffX < 3*this->features[i].point_var){
-                        prv_var = this->features[i].point_var;
-                        new_var = 1 / ( (1 / prv_var) + (1 / cur_var) );
-                        
-                        this->features[i].point_init = new_var/cur_var * Toc * this->features[i].point + new_var/prv_var * this->features[i].point_init;
-                        this->features[i].point_var = new_var;
-                    }
+                    this->features[i].depth->update(1/z, tauInverse);
+                    this->features[i].point_init = this->TocRec[this->features[i].frame_init] * this->features[i].point;
                 }
             }else if( this->features[i].is_wide ){
                 this->features[i].point_init = Toc * this->features[i].point;
-                this->features[i].point_var = cur_var;
+                this->features[i].depth->update(1/z, tauInverse);
                 this->features[i].is_3D_init = true;
                 this->features[i].frame_init = this->step;
             }
@@ -580,27 +579,25 @@ void MVO::update3DPoints(const Eigen::Matrix3d &R, const Eigen::Vector3d &t,
         double scale = t_E.norm();
 
         int key_idx;
-        double cur_var, prv_var, new_var, diffX;
+        double tau, tauInverse, z;
+        Eigen::Vector4d point_initframe;
         for( uint32_t i = 0; i < this->features.size(); i++ ){
             if( this->features[i].is_3D_reconstructed ){
                 this->features[i].point.block(0,0,3,1) *= scale;
+                point_initframe = Toc * this->features[i].point;
+                z = point_initframe(2);
 
                 key_idx = this->features[i].life - 1 - (this->step - this->key_step);
-                cur_var = 5/(cv::norm(this->features[i].uv[key_idx] - this->features[i].uv.back()));
+                tau = DepthFilter::computeTau(Toc, this->features[i].point.block(0,0,3,1), z);
+                tauInverse = DepthFilter::computeInverseTau(z, tau);
                 if( this->features[i].is_3D_init ){
                     if( this->params.updateInitPoint ){
-                        diffX = (Toc * this->features[i].point - this->features[i].point_init).norm();
-                        if( diffX < 3*this->features[i].point_var){
-                            prv_var = this->features[i].point_var;
-                            new_var = 1 / ( (1 / prv_var) + (1 / cur_var) );
-                            
-                            this->features[i].point_init = new_var/cur_var * Toc * this->features[i].point + new_var/prv_var * this->features[i].point_init;
-                            this->features[i].point_var = new_var;
-                        }
+                        this->features[i].depth->update(1/z, tauInverse);
+                        this->features[i].point_init = this->TocRec[this->features[i].frame_init] * this->features[i].point;
                     }
                 }else if( this->features[i].is_wide ){
                     this->features[i].point_init = Toc * this->features[i].point;
-                    this->features[i].point_var = cur_var;
+                    this->features[i].depth->update(1/z, tauInverse);
                     this->features[i].is_3D_init = true;
                     this->features[i].frame_init = this->step;
                 }
@@ -634,29 +631,28 @@ void MVO::update3DPoints(const Eigen::Matrix3d &R, const Eigen::Vector3d &t,
         std::vector<bool> inliers;
         this->constructDepth(uv_prev, uv_curr, Rinv, tinv, X_prev, X_curr, inliers);
 
-        double cur_var, prv_var, new_var, diffX;
+        double tau, tauInverse, z;
+        Eigen::Vector4d point_initframe;
         for (uint32_t i = 0; i < nPoint; i++){
             // 2d inliers
             if(inliers[i]){
                 len = this->features[idx2D[i]].life;
-                cur_var = 5/(cv::norm(this->features[idx2D[i]].uv[len-2] - this->features[idx2D[i]].uv.back()));
+                point_initframe = Toc * this->features[idx2D[i]].point;
+                z = point_initframe(2);
+
+                tau = DepthFilter::computeTau(Toc, this->features[i].point.block(0,0,3,1), z);
+                tauInverse = DepthFilter::computeInverseTau(z, tau);
                 this->features[idx2D[i]].point = (Eigen::Vector4d() << X_curr[i], 1).finished();
 				this->features[idx2D[i]].is_3D_reconstructed = true;
                 
                 if( this->features[idx2D[i]].is_3D_init ){
                     if( this->params.updateInitPoint ){
-                        diffX = (Toc * this->features[idx2D[i]].point - this->features[idx2D[i]].point_init).norm();
-                        if( diffX < 3*this->features[idx2D[i]].point_var){
-                            prv_var = this->features[idx2D[i]].point_var;
-                            new_var = 1 / ( (1 / prv_var) + (1 / cur_var) );
-                            
-                            this->features[idx2D[i]].point_init = new_var/cur_var * Toc * this->features[idx2D[i]].point + new_var/prv_var * this->features[idx2D[i]].point_init;
-                            this->features[idx2D[i]].point_var = new_var;
-                        }
+                        this->features[idx2D[i]].depth->update(1/z, tauInverse);
+                        this->features[idx2D[i]].point_init = this->TocRec[this->features[idx2D[i]].frame_init] * this->features[idx2D[i]].point;
                     }
                 }else if( this->features[idx2D[i]].is_wide ){
                     this->features[idx2D[i]].point_init = Toc * this->features[idx2D[i]].point;
-                    this->features[idx2D[i]].point_var = cur_var;
+                    this->features[idx2D[i]].depth->update(1/z, tauInverse);
                     this->features[idx2D[i]].is_3D_init = true;
                     this->features[idx2D[i]].frame_init = this->step;
                 }
@@ -761,7 +757,7 @@ bool MVO::scale_propagation(const Eigen::Matrix3d &R, Eigen::Vector3d &t, std::v
                                     cv::Point3f(init_point(0),init_point(1),init_point(2)));
                 
                 // RANSAC weight
-                this->params.ransacCoef_scale.weight.push_back( std::atan( -curr_point(2)/5 + 3 ) + PI / 2 );
+                this->params.ransacCoef_scale.weight.push_back( std::atan( -curr_point(2)/5 + 3 ) + M_PI / 2 );
             }
 
             this->ransac<std::pair<cv::Point3f,cv::Point3f>,double>(Points, this->params.ransacCoef_scale, scale, inlier, outlier);

@@ -2,7 +2,6 @@
 #define __MVO_HPP__
 
 #include "core/common.hpp"
-#define PI 3.1415926536
 
 typedef  std::vector< std::tuple<cv::Point2f, Eigen::Vector3d> > ptsROI_t;
 
@@ -47,7 +46,7 @@ class MVO{
 		double roll;
 		double pitch;
 		double heightDefault = 20;
-		double rollDefault = -PI/2;
+		double rollDefault = -M_PI/2;
 		double pitchDefault = 0;
 		Eigen::Matrix3d R = Eigen::Matrix3d::Identity();
 		Eigen::Vector3d t = Eigen::Vector3d::Zero();

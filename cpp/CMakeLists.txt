@@ -69,6 +69,7 @@ add_library(${PROJECT_NAME} SHARED
   src/core/imageProc.cpp
   src/core/time.cpp
   src/core/utils.cpp
+  src/core/DepthFilter.cpp
   src/visualization/plot.cpp
 )
 target_link_libraries(${PROJECT_NAME}

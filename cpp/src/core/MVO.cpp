@@ -2,8 +2,11 @@
 #include "core/utils.hpp"
 #include "core/numerics.hpp"
 #include "core/time.hpp"
+#include "core/DepthFilter.hpp"
 
 Eigen::Matrix3d MVO::rotate_prior;
+double DepthFilter::px_error_angle;
+double DepthFilter::meas_max;
 
 MVO::MVO(){
     this->step = -1;
@@ -39,9 +42,15 @@ MVO::MVO(std::string yaml):MVO(){
 	 **************************************************************************/
     cv::FileStorage fSettings(yaml, cv::FileStorage::READ);
 	if (!fSettings.isOpened()){
-		std::cerr << "Failed to open: " << yaml << std::endl;
-		return;
+		std::cout << "Failed to open: " << yaml << std::endl;
+		abort();
 	}
+
+    double version = fSettings["Version"];
+    if( version != 2.0){
+        std::cout << "YAML file is an old version (your version is \"" << std::setfill('0') << std::setprecision(1) << std::fixed << version << "\", required is \"2.0\"" << std::endl;
+        abort();
+    }
 
 	this->params.fx =			    fSettings["Camera.fx"];
 	this->params.fy =			    fSettings["Camera.fy"];
@@ -202,6 +211,11 @@ MVO::MVO(std::string yaml):MVO(){
             abort();
     }
 
+    double depth_min = fSettings["DepthFilter.depth_min"];
+    double px_noise = fSettings["DepthFilter.px_noise"];
+    DepthFilter::meas_max = 1.0/depth_min;
+    DepthFilter::px_error_angle = std::atan(px_noise/(this->params.fx+this->params.fy))*2.0; // law of chord (sehnensatz)
+
     cv::namedWindow("MVO");
     cv::moveWindow("MVO", 20, 20);
 
@@ -212,8 +226,8 @@ MVO::MVO(std::string yaml):MVO(){
     cv::moveWindow("Depth", 20, 440);
 
     this->params.view.heightDefault =   fSettings["viewCam.height"]; // in world coordinate
-    this->params.view.rollDefault =     (double) fSettings["viewCam.roll"] * PI/180; // radian
-    this->params.view.pitchDefault =    (double) fSettings["viewCam.pitch"] * PI/180; // radian
+    this->params.view.rollDefault =     (double) fSettings["viewCam.roll"] * M_PI/180; // radian
+    this->params.view.pitchDefault =    (double) fSettings["viewCam.pitch"] * M_PI/180; // radian
     this->params.view.height =          this->params.view.heightDefault;
     this->params.view.roll =            this->params.view.rollDefault;
     this->params.view.pitch =           this->params.view.pitchDefault;

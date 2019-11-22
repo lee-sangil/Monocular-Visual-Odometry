@@ -42,9 +42,14 @@
 #include <opencv2/calib3d.hpp>
 #include <boost/filesystem.hpp>
 
-#include "core/depthFilter.hpp"
+#include "core/DepthFilter.hpp"
+
+#define D_METER 1.2
+#define D_RADIAN M_PI/24
 
 enum Type{Unknown,Dynamic,Road,};
+
+class DepthFilter;
 
 typedef struct Bucket{
 	int safety = 20;
@@ -69,7 +74,6 @@ typedef struct Feature{
 	cv::Point bucket;
 	Eigen::Vector4d point;
 	Eigen::Vector4d point_init;
-	double point_var;
 	bool is_alive;
 	bool is_matched;
 	bool is_wide;
@@ -77,7 +81,7 @@ typedef struct Feature{
 	bool is_3D_reconstructed;
 	bool is_3D_init;
 	Type type;
-	depthFilter * depth;
+	DepthFilter * depth;
 }Feature;
 
 #endif //__COMMON_HPP__

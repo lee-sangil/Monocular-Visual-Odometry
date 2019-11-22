@@ -22,7 +22,7 @@ void chk::getImageFile(const std::string& nameFile, std::vector<double>& timesta
 	
 	while(std::getline(file,str)){
 		if(str[0] != '#'){
-			// // Dataset recorded with imbedded board
+			// // Dataset recorded with embedded board
 			// std::string seq = str.substr(0, str.find('\t'));
 			// std::stringstream ss;
 			// ss << std::setw(6) << std::setfill('0') << seq << ".jpg";

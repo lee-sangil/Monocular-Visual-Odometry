@@ -6,8 +6,6 @@
 #include "core/numerics.hpp"
 #include <opencv2/imgcodecs.hpp>
 #include <dirent.h>
-#define D_METER 1.2
-#define D_RADIAN PI/24
 
 Eigen::MatrixXd read_binary(const char* filename, const int rows, const int cols){
     Eigen::MatrixXd matrix(rows, cols);
@@ -319,7 +317,7 @@ int main(int argc, char * argv[]){
 					vo->update_gyro(timestamp[it_rgb], imuRot[it_rgb]);
 				
 				vo->run(image);
-
+				
 				if( Parser::hasOption("-gt") ){
 					std::ostringstream dirDepth;
 					dirDepth << inputFile << "full_depth/" << std::setfill('0') << std::setw(10) << it_rgb+initFrame << ".bin";

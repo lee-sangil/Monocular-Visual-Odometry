@@ -2,7 +2,7 @@
 #include "core/utils.hpp"
 #include "core/numerics.hpp"
 #include "core/time.hpp"
-#include "core/depthFilter.hpp"
+#include "core/DepthFilter.hpp"
 
 uint32_t Feature::new_feature_id = 0;
 
@@ -254,9 +254,8 @@ void MVO::add_feature(){
         newFeature.is_3D_init = false; // scale-compensated
         newFeature.point_init.setZero(4,1); // scale-compensated 3-dim homogeneous point in the global coordinates
         newFeature.point_init(3) = 1;
-        newFeature.point_var = 0;
         newFeature.type = Type::Unknown;
-        newFeature.depth = new depthFilter();
+        newFeature.depth = new DepthFilter();
 
         this->features.push_back(newFeature);
         this->nFeature++;
@@ -561,9 +560,8 @@ bool MVO::extract_roi_feature(cv::Rect& roi){
         newFeature.is_3D_init = false; // scale-compensated
         newFeature.point_init.setZero(4,1); // scale-compensated 3-dim homogeneous point in the global coordinates
         newFeature.point_init(3) = 1;
-        newFeature.point_var = 5;
         newFeature.type = Type::Unknown;
-        newFeature.depth = new depthFilter();
+        newFeature.depth = new DepthFilter();
 
         MVO::features_extra.push_back(newFeature);
         return true;
