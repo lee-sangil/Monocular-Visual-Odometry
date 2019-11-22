@@ -1,6 +1,6 @@
 %YAML:1.0
 
-Version: 2.0
+Version: 2.1
 
 #--------------------------------------------------------------------------------------------
 # IMU Parameters (fixed).
@@ -29,48 +29,36 @@ IMU.nG: 9.8082
 Camera.fps: 15
 
 # Camera image resolution
-Camera.width: 1241
-Camera.height: 376
+Camera.width: 1280
+Camera.height: 800
 
 # Camera intrinsics
-Camera.fx: 7.188560e+02
-Camera.fy: 7.188560e+02
-Camera.cx: 6.071928e+02
-Camera.cy: 1.852157e+02
+Camera.fx: 1.1736e+03
+Camera.fy: 1.1828e+03
+Camera.cx: 614.9016
+Camera.cy: 442.7584
 
-Camera.k1: 0.0
-Camera.k2: 0.0
-Camera.p1: 0.0
-Camera.p2: 0.0
-Camera.k3: 0.0
+Camera.k1: -0.4360
+Camera.k2: 0.1530
+Camera.p1: -0.0016
+Camera.p2: 5.9379e-05
+Camera.k3: 0
 
-# Camera extrinsics [I:IMU,V:Velodyne,C:cam] - do NOT insert TAB
+# Camera extrinsics [I:IMU,C:cam]
 Camera.T_IC: !!opencv-matrix
      rows: 4
      cols: 4
      dt: d
-     data: [1,0,0,0,
-            0,1,0,0,
-            0,0,1,0,
-            0,0,0,1]
+     data: [-1.0, 0.0, 0.0, 0.058,
+            0.0, 0.0, -1.0, -0.038,
+            0.0, -1.0, 0.0, 0.010,
+            0.0, 0.0, 0.0, 1.0]
 
-Camera.T_IV: !!opencv-matrix
-     rows: 4
-     cols: 4
-     dt: d
-     data: [9.999976e-01, 7.553071e-04, -2.035826e-03, -8.086759e-01,
-           -7.854027e-04, 9.998898e-01, -1.482298e-02,  3.195559e-01,
-            2.024406e-03, 1.482454e-02,  9.998881e-01, -7.997231e-01,
-            0,0,0,1]
+LiDAR.R: [0.99769146, -0.01995549,  0.064911606,
+         0.02136297,  0.99954991, -0.021061777,
+        -0.06446209,  0.02239986,  0.997668725]
 
-Camera.T_VC: !!opencv-matrix
-     rows: 4
-     cols: 4
-     dt: d
-     data: [7.967514e-03, -9.999679e-01, -8.462264e-04, -1.377769e-02,
-           -2.771053e-03,  8.241710e-04, -9.999958e-01, -5.542117e-02,
-            9.999644e-01,  7.969825e-03, -2.764397e-03, -2.918589e-01,
-            0,0,0,1]
+LiDAR.T: [-0.4822433, -0.0082169, 0.4185907]
 
 #--------------------------------------------------------------------------------------------
 # Feature Parameters (tunable).
@@ -87,10 +75,10 @@ Feature.thInlier: 6
 Feature.thRatioKeyFrame: 0.8
 
 # Min. feature distance between for extraction
-Feature.min_px_dist: 20
+Feature.min_px_dist: 10
 
 # Min. feature distance between for reconstruction
-Feature.px_wide: 5
+Feature.px_wide: 10
 
 # Max. distance between the epipolar line and feature predicted by gyro
 Feature.max_epiline_dist: 20
@@ -109,17 +97,20 @@ Bucket.cols: 16
 # Iteration
 RANSAC.iterMax: 1000
 
-# Min. number of samples
-RANSAC.nSample: 1
-
 # Inlier ratio
 RANSAC.thInlrRatio: 0.99
 
+# Min. number of samples
+RANSAC.scale.nSample: 1
+#RANSAC.plane.nSample: 3
+
 # Inlier threshold
-RANSAC.thDist: 0.1
+RANSAC.scale.thDist: 0.5
+RANSAC.plane.thDist: 0.01
 
 # Rejection threshold
-RANSAC.thDistOut: 1
+RANSAC.scale.thDistOut: 1
+RANSAC.plane.thDistOut: 0.5
 
 # Vehicle height
 Scale.height: 1.5
@@ -130,7 +121,7 @@ Scale.height: 1.5
 Scale.referenceWeight: 10
 
 # For scale-propagation, regularization weight for scale smoothness
-Scale.regularizationWeight: 0
+Scale.regularizationWeight: 0.1
 
 # SVD Methods: mid-point(0: recommended), linear least square(1)
 Triangulation.Method: 0
@@ -153,7 +144,7 @@ DepthFilter.px_noise: 1
 #--------------------------------------------------------------------------------------------
 
 # viewCam settings
-viewCam.height: 40
+viewCam.height: 10
 
 # viewCam settings in degree
 viewCam.roll: 0

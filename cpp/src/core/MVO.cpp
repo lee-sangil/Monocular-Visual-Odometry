@@ -47,8 +47,8 @@ MVO::MVO(std::string yaml):MVO(){
 	}
 
     double version = fSettings["Version"];
-    if( version != 2.0){
-        std::cout << "YAML file is an old version (your version is \"" << std::setfill('0') << std::setprecision(1) << std::fixed << version << "\", required is \"2.0\"" << std::endl;
+    if( version != YAML_VERSION ){
+        std::cout << "YAML file is an old version (your version is \"" << std::setfill('0') << std::setprecision(1) << std::fixed << version << "\", required is \"" << YAML_VERSION << "\"" << std::endl;
         abort();
     }
 
