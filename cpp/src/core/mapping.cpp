@@ -821,17 +821,32 @@ double MVO::calcReconstructionError(Eigen::Matrix3d& R, Eigen::Vector3d& t){
     return this->calcReconstructionError(Toc);
 }
 
-double MVO::calcReconstructionErrorGT(Eigen::MatrixXd& depth){
-    std::vector<double> error;
+void MVO::calcReconstructionErrorGT(Eigen::MatrixXd& depth){
+    std::vector<double> idx;
     for( uint32_t i = 0; i < this->features.size(); i++ ){
         if( depth(this->features[i].uv.back().y, this->features[i].uv.back().x) > 0 && this->features[i].is_3D_reconstructed == true )
-            error.push_back(this->features[i].point(2) - depth(this->features[i].uv.back().y, this->features[i].uv.back().x));
+            idx.push_back(i);
     }
-    if( error.size() > 0 ){
-        std::sort(error.begin(), error.end());
-        return error[std::floor(error.size()/2)];
-    }else
-        return 1e5;
+
+    if( idx.size() > 0 ){
+        std::cerr << "* Reconstruction depth: ";
+
+        // median value
+        // std::sort(error.begin(), error.end());
+        // std::cerr << error[std::floor(error.size()/2)];
+
+        // all elements
+        for( uint32_t i = 0; i < idx.size(); i++ ){
+            std::cerr << this->features[idx[i]].point(2) << ' ';
+        }
+        std::cerr << std::endl;
+
+        std::cerr << "* Groundtruth depth: ";
+        for( uint32_t i = 0; i < idx.size(); i++ ){
+            std::cerr << depth(this->features[idx[i]].uv.back().y, this->features[idx[i]].uv.back().x) << ' ';
+        }
+        std::cerr << std::endl;
+    }
 }
 
 template <typename DATA, typename FUNC>

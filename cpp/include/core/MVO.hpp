@@ -158,7 +158,7 @@ class MVO{
 						Eigen::Matrix4d& T, Eigen::Matrix4d& Toc, Eigen::Vector4d& Poc);
 	double calcReconstructionError(Eigen::Matrix4d& Toc);
 	double calcReconstructionError(Eigen::Matrix3d& R, Eigen::Vector3d& t);
-	double calcReconstructionErrorGT(Eigen::MatrixXd& depth);
+	void calcReconstructionErrorGT(Eigen::MatrixXd& depth);
 	void update_scale_reference(const double scale);
 
 	// RANSAC

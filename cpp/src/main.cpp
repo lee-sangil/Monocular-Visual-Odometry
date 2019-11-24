@@ -322,7 +322,7 @@ int main(int argc, char * argv[]){
 					std::ostringstream dirDepth;
 					dirDepth << inputFile << "full_depth/" << std::setfill('0') << std::setw(10) << it_rgb+initFrame << ".bin";
 					Eigen::MatrixXd depth = read_binary(dirDepth.str().c_str(), vo->params.imSize.height, vo->params.imSize.width);
-					std::cerr << "* Reconstruction error: " << vo->calcReconstructionErrorGT(depth) << std::endl;
+					vo->calcReconstructionErrorGT(depth);
 				}
 				
 				std::cout << "Iteration: " << it_rgb << ", Execution time: " << lsi::toc()/1e3 << "ms       " << '\r';
