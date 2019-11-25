@@ -7,8 +7,6 @@
 #include <opencv2/imgcodecs.hpp>
 #include <dirent.h>
 
-#include "core/utils.hpp"
-
 Eigen::MatrixXd read_binary(const char* filename, const int rows, const int cols);
 std::vector<double> oxtsReader(const char * filePath, const std::string & txtName);
 void timeReader(const char * filePath, std::vector<double>& timestamp);

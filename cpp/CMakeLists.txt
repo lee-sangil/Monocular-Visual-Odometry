@@ -64,11 +64,12 @@ include_directories(
 ##################################################
 add_library(${PROJECT_NAME} SHARED
   src/core/MVO.cpp
+  src/core/ransac.cpp
   src/core/tracking.cpp
   src/core/mapping.cpp
   src/core/imageProc.cpp
   src/core/time.cpp
-  src/core/utils.cpp
+  src/core/random.cpp
   src/core/DepthFilter.cpp
   src/visualization/plot.cpp
 )

@@ -32,21 +32,21 @@ void DepthFilter::update(const double meas, const double tau){
 	}
 }
 
-double DepthFilter::get_mean() const {
-	return this->mean;
-}
+double DepthFilter::get_mean() const {return this->mean;}
+double DepthFilter::get_variance() const {return this->sigma * this->sigma;}
 
-double DepthFilter::computeTau(const Eigen::Matrix4d& Toc, const Eigen::Vector3d& uv, const double z){
+double DepthFilter::computeTau(const Eigen::Matrix4d& Toc, const Eigen::Vector3d& p){
 	Eigen::Vector3d t = Toc.block(0,3,3,1);
-	Eigen::Vector3d a = uv*z-t;
+	Eigen::Vector3d a = p-t;
 	double t_norm = t.norm();
 	double a_norm = a.norm();
-	double alpha = acos(uv.dot(t)/t_norm); // dot product
+	double p_norm = p.norm();
+	double alpha = acos(p.dot(t)/(t_norm*p_norm)); // dot product
 	double beta = acos(a.dot(-t)/(t_norm*a_norm)); // dot product
 	double beta_plus = beta + DepthFilter::px_error_angle;
 	double gamma_plus = M_PI-alpha-beta_plus; // triangle angles sum to PI
 	double z_plus = t_norm*sin(beta_plus)/sin(gamma_plus); // law of sines
-	return (z_plus - z); // tau
+	return std::abs(z_plus - p(2)); // tau
 }
 
 double DepthFilter::computeInverseTau(const double z, const double tau){

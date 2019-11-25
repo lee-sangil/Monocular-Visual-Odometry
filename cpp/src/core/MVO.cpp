@@ -1,12 +1,14 @@
 #include "core/MVO.hpp"
-#include "core/utils.hpp"
+#include "core/random.hpp"
 #include "core/numerics.hpp"
 #include "core/time.hpp"
 #include "core/DepthFilter.hpp"
 
-Eigen::Matrix3d MVO::rotate_prior;
 double DepthFilter::px_error_angle;
 double DepthFilter::meas_max;
+double MVO::scale_reference = -1;
+double MVO::scale_reference_weight;
+uint32_t Feature::new_feature_id = 0;
 
 MVO::MVO(){
     this->step = -1;
@@ -333,7 +335,7 @@ void MVO::update_gyro(Eigen::Vector3d& gyro){
     for( uint32_t i = 0; i < this->gyroSinceKeyframe.size()-1; i++ )
         radian += (this->gyroSinceKeyframe[i]+this->gyroSinceKeyframe[i+1])/2 * (this->timestampSinceKeyframe[i+1]-this->timestampSinceKeyframe[i]);
 
-    MVO::rotate_prior = this->params.Tci.block(0,0,3,3) * skew(-radian).exp() * this->params.Tic.block(0,0,3,3);
+    this->rotate_prior = this->params.Tci.block(0,0,3,3) * skew(-radian).exp() * this->params.Tic.block(0,0,3,3);
 }
 
 void MVO::update_velocity(double speed){
@@ -365,7 +367,7 @@ cv::Point2f MVO::calculateRotWarp(cv::Point2f uv){
     Eigen::Vector3d pixel, warpedPixel;
     cv::Point2f warpedUV;
     pixel << uv.x, uv.y, 1;
-    warpedPixel = this->params.K * MVO::rotate_prior * this->params.Kinv * pixel;
+    warpedPixel = this->params.K * this->rotate_prior * this->params.Kinv * pixel;
     warpedUV.x = warpedPixel(0)/warpedPixel(2);
     warpedUV.y = warpedPixel(1)/warpedPixel(2);
     return warpedUV;

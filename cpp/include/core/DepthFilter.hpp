@@ -26,9 +26,10 @@ class DepthFilter{ // inverse-depth estimator
 	// tau: standard variation of meas (=measurement), in usage, meas = inverse-depth, tau: standard variation of inverse-depth
 	void update(const double meas, const double tau);
 	double get_mean() const;
+	double get_variance() const;
 
 	// tau: standard variation of z, depth
-	static double computeTau(const Eigen::Matrix4d& Toc, const Eigen::Vector3d& uv, const double z);
+	static double computeTau(const Eigen::Matrix4d& Toc, const Eigen::Vector3d& p);
 	// inverse tau: standard variation of inverse-depth
 	static double computeInverseTau(const double z, const double tau);
 };

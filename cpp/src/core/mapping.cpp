@@ -1,11 +1,8 @@
 #include "core/MVO.hpp"
-#include "core/utils.hpp"
+#include "core/random.hpp"
 #include "core/numerics.hpp"
 #include "core/time.hpp"
 #include "core/DepthFilter.hpp"
-
-double MVO::scale_reference = -1;
-double MVO::scale_reference_weight;
 
 bool MVO::calculate_motion()
 {
@@ -523,46 +520,59 @@ void MVO::constructDepth(const std::vector<cv::Point2f> uv_prev, const std::vect
     }
 }
 
-void MVO::update3DPoint(Feature& feature, const Eigen::Matrix4d Toc){
-    // Update point under Gaussian model assumption
-    int key_idx = feature.life - 1 - (this->step - this->key_step);
-    double cur_var = 5/(cv::norm(feature.uv[key_idx] - feature.uv.back()));
-    if( feature.is_3D_init ){
-        if( this->params.updateInitPoint ){
-            double diffX = (Toc * feature.point - feature.point_init).norm();
-            if( diffX < 3*feature.point_var){
-                double prv_var = feature.point_var;
-                double new_var = 1 / ( (1 / prv_var) + (1 / cur_var) );
-                
-                feature.point_init = new_var/cur_var * Toc * feature.point + new_var/prv_var * feature.point_init;
-                feature.point_var = new_var;
-            }
-        }
-    }else if( feature.is_wide ){
-        feature.point_init = Toc * feature.point;
-        feature.point_var = cur_var;
-        feature.is_3D_init = true;
-        feature.frame_init = this->step;
-    }
-
-    // Use Depthfilter - combination of Gaussian and uniform model
-    // Eigen::Vector4d point_initframe = Toc * feature.point;
-    // double z = point_initframe(2);
-    
-    // double tau, tauInverse;
-    // tau = DepthFilter::computeTau(Toc, feature.point.block(0,0,3,1), z);
-    // tauInverse = DepthFilter::computeInverseTau(z, tau);
+void MVO::update3DPoint(Feature& feature, const Eigen::Matrix4d& Toc, const Eigen::Matrix4d& T){
+    // // Update point under Gaussian model assumption
+    // int key_idx = feature.life - 1 - (this->step - this->key_step);
+    // double cur_var = 5/(cv::norm(feature.uv[key_idx] - feature.uv.back()));
     // if( feature.is_3D_init ){
     //     if( this->params.updateInitPoint ){
-    //         feature.depth->update(1/z, tauInverse);
-    //         feature.point_init = this->TocRec[feature.frame_init] * feature.point;
+    //         double diffX = (Toc * feature.point - feature.point_init).norm();
+    //         if( diffX < 3*feature.point_var){
+    //             double prv_var = feature.point_var;
+    //             double new_var = 1 / ( (1 / prv_var) + (1 / cur_var) );
+                
+    //             feature.point_init = new_var/cur_var * Toc * feature.point + new_var/prv_var * feature.point_init;
+    //             feature.point_var = new_var;
+    //         }
     //     }
     // }else if( feature.is_wide ){
     //     feature.point_init = Toc * feature.point;
-    //     feature.depth->update(1/z, tauInverse);
+    //     feature.point_var = cur_var;
     //     feature.is_3D_init = true;
     //     feature.frame_init = this->step;
     // }
+
+    // Use Depthfilter - combination of Gaussian and uniform model
+    Eigen::Vector3d point_initframe;
+    double z, tau, tauInverse;
+
+    if( feature.is_3D_init ){
+        Eigen::Matrix4d Tkc = this->TocRec[feature.frame_init-1].inverse() * Toc;
+        point_initframe = Tkc.block(0,0,3,4) * feature.point;
+        z = point_initframe(2);
+
+        tau = DepthFilter::computeTau(Tkc, point_initframe);
+        tauInverse = DepthFilter::computeInverseTau(z, tau);
+
+        if( this->params.updateInitPoint ){
+            feature.depth->update(1/z, tauInverse);
+            feature.point_init = Toc * Tkc.inverse() * (Eigen::Vector4d() << point_initframe / z / feature.depth->get_mean(), 1).finished();
+            feature.point_var = feature.depth->get_variance();
+        }
+
+    }else{ // if( feature.is_wide ){
+        point_initframe = T.block(0,0,3,4) * feature.point;
+        z = point_initframe(2);
+
+        tau = DepthFilter::computeTau(T, point_initframe);
+        tauInverse = DepthFilter::computeInverseTau(z, tau);
+
+        feature.depth->update(1/z, tauInverse);
+        feature.point_init = Toc * T.inverse() * (Eigen::Vector4d() << point_initframe / z / feature.depth->get_mean(), 1).finished();
+        feature.point_var = feature.depth->get_variance();
+        feature.is_3D_init = true;
+        feature.frame_init = this->step;
+    }
 }
 
 // without PnP
@@ -585,7 +595,7 @@ void MVO::update3DPoints(const Eigen::Matrix3d &R, const Eigen::Vector3d &t,
     for( uint32_t i = 0; i < this->features.size(); i++ ){
         if( this->features[i].is_3D_reconstructed ){
             this->features[i].point.block(0,0,3,1) *= scale;
-            update3DPoint(this->features[i], Toc);
+            update3DPoint(this->features[i], Toc, T);
         }
     }
 
@@ -616,7 +626,7 @@ void MVO::update3DPoints(const Eigen::Matrix3d &R, const Eigen::Vector3d &t,
         for( uint32_t i = 0; i < this->features.size(); i++ ){
             if( this->features[i].is_3D_reconstructed ){
                 this->features[i].point.block(0,0,3,1) *= scale;
-                update3DPoint(this->features[i], Toc);
+                update3DPoint(this->features[i], Toc, T);
             }
         }
     }else{
@@ -652,7 +662,7 @@ void MVO::update3DPoints(const Eigen::Matrix3d &R, const Eigen::Vector3d &t,
             if(inliers[i]){
                 this->features[idx2D[i]].point = (Eigen::Vector4d() << X_curr[i], 1).finished();
 				this->features[idx2D[i]].is_3D_reconstructed = true;
-                update3DPoint(this->features[idx2D[i]], Toc);
+                update3DPoint(this->features[idx2D[i]], Toc, T);
             } // if(lambda_prev > 0 && lambda_curr > 0)
         } // for
     }
@@ -700,7 +710,7 @@ bool MVO::scale_propagation(const Eigen::Matrix3d &R, Eigen::Vector3d &t, std::v
         if( roadIdx.size() > (uint32_t) this->params.thInlier ){
             std::vector<double> plane;
             std::vector<bool> planeInlier, planeOutlier;
-            this->ransac<cv::Point3f, std::vector<double>>(roadCandidate, this->params.ransacCoef_plane, plane, planeInlier, planeOutlier);
+            MVO::ransac<cv::Point3f, std::vector<double>>(roadCandidate, this->params.ransacCoef_plane, plane, planeInlier, planeOutlier);
 
             if( planeInlier.size() > (uint32_t) this->params.thInlier ){
                 for( uint32_t i = 0; i < roadIdx.size(); i++ ){
@@ -757,7 +767,7 @@ bool MVO::scale_propagation(const Eigen::Matrix3d &R, Eigen::Vector3d &t, std::v
                 this->params.ransacCoef_scale.weight.push_back( std::atan( -curr_point(2)/5 + 3 ) + M_PI / 2 );
             }
 
-            this->ransac<std::pair<cv::Point3f,cv::Point3f>,double>(Points, this->params.ransacCoef_scale, scale, inlier, outlier);
+            MVO::ransac<std::pair<cv::Point3f,cv::Point3f>,double>(Points, this->params.ransacCoef_scale, scale, inlier, outlier);
             this->nFeatureInlier = std::count(inlier.begin(), inlier.end(), true);
         }
 
@@ -849,6 +859,18 @@ void MVO::calcReconstructionErrorGT(Eigen::MatrixXd& depth){
     }
 }
 
+void MVO::update_scale_reference(const double scale){
+    if( MVO::scale_reference < 0 || this->is_start == false )
+        MVO::scale_reference = scale;
+    else{
+        // low-pass filter
+        // MVO::scale_reference = this->params.weightScaleReg * MVO::scale_reference + (1-this->params.weightScaleReg) * scale;
+
+        // limit slope
+        MVO::scale_reference = MVO::scale_reference + ((scale > MVO::scale_reference)?1:-1) * std::min(std::abs(scale - MVO::scale_reference), this->params.weightScaleReg);
+    }
+}
+
 template <typename DATA, typename FUNC>
 void MVO::ransac(const std::vector<DATA> &samples, const MVO::RansacCoef<DATA, FUNC> ransacCoef, FUNC& val, std::vector<bool> &inlier, std::vector<bool> &outlier){
     uint32_t ptNum = samples.size();
@@ -865,9 +887,9 @@ void MVO::ransac(const std::vector<DATA> &samples, const MVO::RansacCoef<DATA, F
     for( int it = 0; it < std::min(ransacCoef.iterMax, iterNUM); it++ ){
         // 1. fit using random points
         if (ransacCoef.weight.size() > 0)
-            sampleIdx = randweightedpick(ransacCoef.weight, ransacCoef.minPtNum);
+            sampleIdx = lsi::randweightedpick(ransacCoef.weight, ransacCoef.minPtNum);
         else
-            sampleIdx = randperm(ptNum, ransacCoef.minPtNum);
+            sampleIdx = lsi::randperm(ptNum, ransacCoef.minPtNum);
 
         sample.clear();
         for (uint32_t i = 0; i < sampleIdx.size(); i++){
@@ -915,184 +937,5 @@ void MVO::ransac(const std::vector<DATA> &samples, const MVO::RansacCoef<DATA, F
             inlier.push_back(dist[i] < ransacCoef.thDist);
             outlier.push_back(dist[i] > ransacCoef.thDistOut);
         }
-    }
-}
-
-std::vector<uint32_t> MVO::randperm(uint32_t ptNum, int minPtNum){
-    std::vector<uint32_t> vector;
-    for (uint32_t i = 0; i < ptNum; i++)
-        vector.push_back(i);
-    std::random_shuffle(vector.begin(), vector.end());
-    std::vector<uint32_t> sample(vector.begin(), vector.begin()+minPtNum);
-    return sample;
-}
-
-std::vector<uint32_t> MVO::randweightedpick(const std::vector<double> &h, int n /*=1*/){
-    int u = h.size();
-    int s_under;
-    double sum, rand_num;
-    std::vector<double> H = h;
-    std::vector<double> Hs, Hsc;
-    std::vector<uint32_t> result;
-
-    n = std::min(std::max(1, n), u);
-    std::vector<int> HI(u, 0);          // vector with #u ints.
-    std::iota(HI.begin(), HI.end(), 0); // Fill with 0, ..., u-1.
-    
-    for (int i = 0; i < n; i++){
-        // initial variables
-        Hs.clear();
-        Hsc.clear();
-        // random weight
-        sum = std::accumulate(H.begin(), H.end(), 0.0);
-        std::transform(H.begin(), H.end(), std::back_inserter(Hs),
-                       std::bind(std::multiplies<double>(), std::placeholders::_1, 1 / sum)); // divdie elements in H with the value of sum
-        std::partial_sum(Hs.begin(), Hs.end(), std::back_inserter(Hsc), std::plus<double>()); // cummulative sum.
-
-        // generate rand num btw 0 to 1
-        rand_num = ((double)rand() / (RAND_MAX));
-        // increase s_under if Hsc is lower than rand_num
-        s_under = std::count_if(Hsc.begin(), Hsc.end(), [&](double elem) { return elem < rand_num; });
-
-        result.push_back(HI[s_under]);
-        H.erase(H.begin() + s_under);
-        HI.erase(HI.begin() + s_under);
-    }
-    
-    return result;
-}
-
-void MVO::calculate_scale(const std::vector<std::pair<cv::Point3f,cv::Point3f>> &pts, double& scale){
-    double num = 0, den = 0;
-    for (uint32_t i = 0; i < pts.size(); i++){
-        num += (pts[i].first.x * pts[i].second.x + pts[i].first.y * pts[i].second.y + pts[i].first.z * pts[i].second.z);
-        den += (pts[i].first.x * pts[i].first.x + pts[i].first.y * pts[i].first.y + pts[i].first.z * pts[i].first.z);
-    }
-    scale = (num / pts.size() + MVO::scale_reference_weight * MVO::scale_reference) / (den / pts.size() + MVO::scale_reference_weight + 1e-10);
-
-    // double sum = 0;
-    // for (uint32_t i = 0; i < pts.size(); i++){
-    //     sum += (pts[i].first.x * pts[i].second.x + pts[i].first.y * pts[i].second.y + pts[i].first.z * pts[i].second.z + MVO::scale_reference_weight * ::scale_reference) / 
-    //     (pts[i].first.x * pts[i].first.x + pts[i].first.y * pts[i].first.y + pts[i].first.z * pts[i].first.z + MVO::scale_reference_weight + 1e-10);
-    // }
-    // scale = sum / pts.size();
-}
-
-void MVO::calculate_scale_error(const double& scale, const std::vector<std::pair<cv::Point3f,cv::Point3f>> &pts, std::vector<double>& dist){
-    dist.clear();
-    for (uint32_t i = 0; i < pts.size(); i++)
-        dist.push_back(cv::norm(pts[i].second - scale * pts[i].first));
-}
-
-void MVO::calculate_plane(const std::vector<cv::Point3f>& pts, std::vector<double>& plane){
-    // need exact three points
-    // return plane's unit normal vector (a, b, c) and distance from origin (d): ax + by + cz + d = 0
-    plane.clear();
-
-    if( pts.size() == 3 ){
-        Eigen::Vector3d a, b;
-        a << pts[1].x - pts[0].x, pts[1].y - pts[0].y, pts[1].z - pts[0].z;
-        b << pts[2].x - pts[0].x, pts[2].y - pts[0].y, pts[2].z - pts[0].z;
-        
-        Eigen::Vector3d n = a.cross(b);
-        n /= n.norm();
-
-        double d = - n(0)*pts[0].x - n(1)*pts[0].y - n(2)*pts[0].z;
-        plane.push_back(n(0));
-        plane.push_back(n(1));
-        plane.push_back(n(2));
-        plane.push_back(d);
-
-    }else{
-        cv::Point3f centroid(0,0,0);
-        for( uint32_t i = 0; i < pts.size(); i++ ){
-            centroid.x += pts[i].x;
-            centroid.y += pts[i].y;
-            centroid.z += pts[i].z;
-        }
-        centroid.x = centroid.x/pts.size();
-        centroid.y = centroid.y/pts.size();
-        centroid.z = centroid.z/pts.size();
-
-        double xx = 0, xy = 0, xz = 0, yy = 0, yz = 0, zz = 0;
-        for( uint32_t i = 0; i < pts.size(); i++ ){
-            cv::Point3f r = pts[i] - centroid;
-            xx += r.x * r.x;
-            xy += r.x * r.y;
-            xz += r.x * r.z;
-            yy += r.y * r.y;
-            yz += r.y * r.z;
-            zz += r.z * r.z;
-        }
-
-        double det_x = yy*zz - yz*yz;
-        double det_y = xx*zz - xz*xz;
-        double det_z = xx*yy - xy*xy;
-
-        double max = std::max(std::max(det_x, det_y), det_z);
-
-        if( max > 0 ){
-            Eigen::Vector3d n;
-            if( max == det_x )
-                n << det_x, xz*yz - xy*zz, xy*yz - xz*yy;
-            else if( max == det_y )
-                n << xz*yz - xy*zz, det_y, xy*xz - yz*xx;
-            else if( max == det_z )
-                n << xy*yz - xz*yy, xy*xz - yz*xx, det_z;
-
-            double norm = n.norm();
-            n /= norm;
-            
-            double d;
-            d = - n(0)*centroid.x - n(1)*centroid.y - n(2)*centroid.z;
-
-            plane.push_back(n(0));
-            plane.push_back(n(1));
-            plane.push_back(n(2));
-            plane.push_back(d);
-        }else{
-            plane.push_back(0);
-            plane.push_back(0);
-            plane.push_back(0);
-            plane.push_back(0);
-        }
-    }
-
-    if( std::abs(plane[1]) < 0.5 ){ // perpendicular to y-axis
-        plane.clear();
-        plane.push_back(0);
-        plane.push_back(0);
-        plane.push_back(0);
-        plane.push_back(0);
-    }
-}
-
-void MVO::calculate_plane_error(const std::vector<double>& plane, const std::vector<cv::Point3f>& pts, std::vector<double>& dist){
-    double norm = std::sqrt(std::pow(plane[0],2) + std::pow(plane[1],2) + std::pow(plane[2],2));
-    if( std::abs(norm) < 1e-10 ){
-        dist.clear();
-        for( uint32_t i = 0; i < pts.size(); i++ )
-            dist.push_back(1e10);
-    }else{
-        double a = plane[0]/norm;
-        double b = plane[1]/norm;
-        double c = plane[2]/norm;
-        double d = plane[3]/norm;
-
-        dist.clear();
-        for( uint32_t i = 0; i < pts.size(); i++ )
-            dist.push_back(std::abs(a * pts[i].x + b * pts[i].y + c * pts[i].z + d));
-    }
-}
-
-void MVO::update_scale_reference(const double scale){
-    if( MVO::scale_reference < 0 || this->is_start == false )
-        MVO::scale_reference = scale;
-    else{
-        // low-pass filter
-        // MVO::scale_reference = this->params.weightScaleReg * MVO::scale_reference + (1-this->params.weightScaleReg) * scale;
-
-        // limit slope
-        MVO::scale_reference = MVO::scale_reference + ((scale > MVO::scale_reference)?1:-1) * std::min(std::abs(scale - MVO::scale_reference), this->params.weightScaleReg);
     }
 }

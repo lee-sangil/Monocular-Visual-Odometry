@@ -157,7 +157,7 @@ class MVO{
 						const std::vector<bool>& inlier, const std::vector<bool>& outlier,
 						const Eigen::Matrix3d& R_E, const Eigen::Vector3d& t_E, const bool& success_E,
 						Eigen::Matrix4d& T, Eigen::Matrix4d& Toc, Eigen::Vector4d& Poc);
-	void update3DPoint(Feature& feature, const Eigen::Matrix4d Toc);
+	void update3DPoint(Feature& feature, const Eigen::Matrix4d& Toc, const Eigen::Matrix4d& T);
 	double calcReconstructionError(Eigen::Matrix4d& Toc);
 	double calcReconstructionError(Eigen::Matrix3d& R, Eigen::Vector3d& t);
 	void calcReconstructionErrorGT(Eigen::MatrixXd& depth);
@@ -166,15 +166,12 @@ class MVO{
 	// RANSAC
 	template <typename DATA, typename FUNC>
 	static void ransac(const std::vector<DATA>& sample, const MVO::RansacCoef<DATA, FUNC> ransacCoef, FUNC& val, std::vector<bool>& inlier, std::vector<bool>& outlier);
-	static std::vector<uint32_t> randperm(uint32_t ptNum, int minPtNum);
-	static std::vector<uint32_t> randweightedpick(const std::vector<double>& h, int n = 1);
 	static void calculate_scale(const std::vector<std::pair<cv::Point3f,cv::Point3f>>& pts, double& scale);
 	static void calculate_scale_error(const double& scale, const std::vector<std::pair<cv::Point3f,cv::Point3f>>& pts, std::vector<double>& dist);
 	static void calculate_plane(const std::vector<cv::Point3f>& pts, std::vector<double>& plane);
 	static void calculate_plane_error(const std::vector<double>& plane, const std::vector<cv::Point3f>& pts, std::vector<double>& dist);
 	static double scale_reference;
 	static double scale_reference_weight;
-	static Eigen::Matrix3d rotate_prior;
 
 	// Add additional feature within bound-box
 	void add_extra_features();
@@ -209,6 +206,8 @@ class MVO{
 	bool scale_initialized;
 	bool rotate_provided;
 	bool speed_provided;
+
+	Eigen::Matrix3d rotate_prior;
 
 	int nFeature;
 	int nFeatureMatched;

@@ -1,12 +1,9 @@
 #include "core/MVO.hpp"
-#include "core/utils.hpp"
-#include "core/numerics.hpp"
+#include "core/random.hpp"
 #include "core/time.hpp"
 #include "core/DepthFilter.hpp"
 
 #include <exception>
-
-uint32_t Feature::new_feature_id = 0;
 
 bool MVO::extract_features(){
     // Update features using KLT tracker
@@ -247,16 +244,14 @@ void MVO::add_feature(){
         newFeature.uv_pred = cv::Point2f(-1,-1);
         newFeature.life = 1; // the number of frames in where the feature is observed
         newFeature.bucket = cv::Point(col, row); // the location of bucket where the feature belong to
-        newFeature.point.setZero(4,1); // 3-dim homogeneous point in the local coordinates
-        newFeature.point(3) = 1;
+        newFeature.point << 0,0,0,1; // 3-dim homogeneous point in the local coordinates
         newFeature.is_alive = true;
         newFeature.is_matched = false; // matched between both frame
         newFeature.is_wide = false; // verify whether features btw the initial and current are wide enough
         newFeature.is_2D_inliered = false; // belong to major (or meaningful) movement
         newFeature.is_3D_reconstructed = false; // triangulation completion
         newFeature.is_3D_init = false; // scale-compensated
-        newFeature.point_init.setZero(4,1); // scale-compensated 3-dim homogeneous point in the global coordinates
-        newFeature.point_init(3) = 1;
+        newFeature.point_init << 0,0,0,1; // scale-compensated 3-dim homogeneous point in the global coordinates
         newFeature.point_var = 1e9;
         newFeature.type = Type::Unknown;
         newFeature.depth = new DepthFilter();
@@ -558,16 +553,14 @@ bool MVO::extract_roi_feature(cv::Rect& roi){
         newFeature.uv_pred = cv::Point2f(-1,-1);
         newFeature.life = 1; // the number of frames in where the feature is observed
         newFeature.bucket = cv::Point(col, row); // the location of bucket where the feature belong to
-        newFeature.point.setZero(4,1); // 3-dim homogeneous point in the local coordinates
-        newFeature.point(3) = 1;
+        newFeature.point << 0,0,0,1; // 3-dim homogeneous point in the local coordinates
         newFeature.is_alive = true;
         newFeature.is_matched = false; // matched between both frame
         newFeature.is_wide = false; // verify whether features btw the initial and current are wide enough
         newFeature.is_2D_inliered = false; // belong to major (or meaningful) movement
         newFeature.is_3D_reconstructed = false; // triangulation completion
         newFeature.is_3D_init = false; // scale-compensated
-        newFeature.point_init.setZero(4,1); // scale-compensated 3-dim homogeneous point in the global coordinates
-        newFeature.point_init(3) = 1;
+        newFeature.point_init << 0,0,0,1; // scale-compensated 3-dim homogeneous point in the global coordinates
         newFeature.point_var = 1e9;
         newFeature.type = Type::Unknown;
         newFeature.depth = new DepthFilter();
