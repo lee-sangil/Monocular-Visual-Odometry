@@ -33,6 +33,9 @@ MVO::MVO(){
 
     this->R_vec.reserve(4);
 	this->t_vec.reserve(4);
+
+    // random seed
+    lsi::seed();
 }
 
 MVO::MVO(std::string yaml):MVO(){

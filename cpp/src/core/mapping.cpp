@@ -785,7 +785,10 @@ bool MVO::scale_propagation(const Eigen::Matrix3d &R, Eigen::Vector3d &t, std::v
         }
 
     }else{
-        t = scale_from_height * t;
+        if( this->speed_provided )
+            t = MVO::scale_reference * t;
+        else
+            t = scale_from_height * t;
 
         this->nFeatureInlier = this->nFeature3DReconstructed;
         flag = true;

@@ -21,6 +21,7 @@ class DepthFilter{ // inverse-depth estimator
 	public:
 
 	DepthFilter(){};
+	void seed(const double a, const double b){this->a = a; this->b = b;};
 
 	// tau: standard variation of meas (=measurement), in usage, meas = inverse-depth, tau: standard variation of inverse-depth
 	void update(const double meas, const double tau);

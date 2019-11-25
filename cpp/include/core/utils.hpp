@@ -4,7 +4,9 @@
 #include "core/common.hpp"
 
 namespace lsi{
+	void seed();
 	double rand();
+	double randn();
 	void idx_randselect(Eigen::MatrixXd weight, Eigen::MatrixXd& mask, int& i, int& j);
 }
 

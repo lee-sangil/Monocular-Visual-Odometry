@@ -1,12 +1,9 @@
 #include "core/utils.hpp"
 #include "core/time.hpp"
 
-double lsi::rand(){
-    // Set seed
-    std::srand(lsi::toc());
-
-    return std::rand() / (double)RAND_MAX;
-}
+void lsi::seed(){std::srand(lsi::toc());}
+double lsi::rand(){return std::rand() / (double)RAND_MAX;}
+double lsi::randn(){return std::sqrt(-2.0 * std::log(lsi::rand())) * std::cos(2*M_PI*lsi::rand());}
 
 void lsi::idx_randselect(Eigen::MatrixXd weight, Eigen::MatrixXd& mask, int& idx_row, int& idx_col){
 
