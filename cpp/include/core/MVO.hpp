@@ -156,6 +156,7 @@ class MVO{
 						const std::vector<bool>& inlier, const std::vector<bool>& outlier,
 						const Eigen::Matrix3d& R_E, const Eigen::Vector3d& t_E, const bool& success_E,
 						Eigen::Matrix4d& T, Eigen::Matrix4d& Toc, Eigen::Vector4d& Poc);
+	void update3DPoint(Feature& feature, const Eigen::Matrix4d Toc);
 	double calcReconstructionError(Eigen::Matrix4d& Toc);
 	double calcReconstructionError(Eigen::Matrix3d& R, Eigen::Vector3d& t);
 	void calcReconstructionErrorGT(Eigen::MatrixXd& depth);

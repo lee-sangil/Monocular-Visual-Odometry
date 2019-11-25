@@ -257,6 +257,7 @@ void MVO::add_feature(){
         newFeature.is_3D_init = false; // scale-compensated
         newFeature.point_init.setZero(4,1); // scale-compensated 3-dim homogeneous point in the global coordinates
         newFeature.point_init(3) = 1;
+        newFeature.point_var = 1e9;
         newFeature.type = Type::Unknown;
         newFeature.depth = new DepthFilter();
 
@@ -567,6 +568,7 @@ bool MVO::extract_roi_feature(cv::Rect& roi){
         newFeature.is_3D_init = false; // scale-compensated
         newFeature.point_init.setZero(4,1); // scale-compensated 3-dim homogeneous point in the global coordinates
         newFeature.point_init(3) = 1;
+        newFeature.point_var = 1e9;
         newFeature.type = Type::Unknown;
         newFeature.depth = new DepthFilter();
 

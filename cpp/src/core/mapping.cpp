@@ -58,6 +58,8 @@ bool MVO::calculate_motion()
         // return true;
 
     case 0:
+        this->nFeatureInlier = this->nFeature3DReconstructed;
+
         /**** mapping without scaling ****/
         this->update3DPoints(R_, t_, inlier, outlier, T, Toc, Poc);
         break;
@@ -73,10 +75,13 @@ bool MVO::calculate_motion()
         /**** mapping and scaling with PnP only ****/
         if( this->scale_initialized == true ){
             this->findPoseFrom3DPoints(R, t, idxInlier, idxOutlier);
+            // this->nFeatureInlier = this->features.size(); // TODO
         }else{
             R = R_;
             t = t_;
+            this->nFeatureInlier = this->features.size();
         }
+
         this->update3DPoints(R, t, inlier, outlier, R_, t_, false, T, Toc, Poc); // overloading function
         break;
 
@@ -369,16 +374,23 @@ bool MVO::findPoseFrom3DPoints(Eigen::Matrix3d &R, Eigen::Vector3d &t, std::vect
         cv::cv2eigen(R_cv, R);
         cv::cv2eigen(t_vec, t);
 
-        idxOutlier.clear();
-        if( idxInlier.empty() ){
-            for (int i = 0; i < (int)nPoint; i++)
-                idxOutlier.push_back(i);
-        }else{
-            for (int i = 0, it = 0; i < (int)nPoint; i++){
-                if (idxInlier[it] == i)
-                    it++;
-                else
+        if( this->params.pnpMethod == MVO::PNP::LM || this->params.pnpMethod == MVO::PNP::ITERATIVE ){
+            this->nFeatureInlier = objectPoints.size();
+        }
+        else{
+            idxOutlier.clear();
+            if( idxInlier.empty() ){
+                for (int i = 0; i < (int)nPoint; i++)
                     idxOutlier.push_back(i);
+            }else{
+                int nInlier = 0;
+                for (int i = 0; i < (int)nPoint; i++){
+                    if (idxInlier[nInlier] == i)
+                        nInlier++;
+                    else
+                        idxOutlier.push_back(i);
+                }
+                this->nFeatureInlier = nInlier;
             }
         }
     }
@@ -510,7 +522,49 @@ void MVO::constructDepth(const std::vector<cv::Point2f> uv_prev, const std::vect
         }
     }
 }
-	
+
+void MVO::update3DPoint(Feature& feature, const Eigen::Matrix4d Toc){
+    // Update point under Gaussian model assumption
+    int key_idx = feature.life - 1 - (this->step - this->key_step);
+    double cur_var = 5/(cv::norm(feature.uv[key_idx] - feature.uv.back()));
+    if( feature.is_3D_init ){
+        if( this->params.updateInitPoint ){
+            double diffX = (Toc * feature.point - feature.point_init).norm();
+            if( diffX < 3*feature.point_var){
+                double prv_var = feature.point_var;
+                double new_var = 1 / ( (1 / prv_var) + (1 / cur_var) );
+                
+                feature.point_init = new_var/cur_var * Toc * feature.point + new_var/prv_var * feature.point_init;
+                feature.point_var = new_var;
+            }
+        }
+    }else if( feature.is_wide ){
+        feature.point_init = Toc * feature.point;
+        feature.point_var = cur_var;
+        feature.is_3D_init = true;
+        feature.frame_init = this->step;
+    }
+
+    // Use Depthfilter - combination of Gaussian and uniform model
+    // Eigen::Vector4d point_initframe = Toc * feature.point;
+    // double z = point_initframe(2);
+    
+    // double tau, tauInverse;
+    // tau = DepthFilter::computeTau(Toc, feature.point.block(0,0,3,1), z);
+    // tauInverse = DepthFilter::computeInverseTau(z, tau);
+    // if( feature.is_3D_init ){
+    //     if( this->params.updateInitPoint ){
+    //         feature.depth->update(1/z, tauInverse);
+    //         feature.point_init = this->TocRec[feature.frame_init] * feature.point;
+    //     }
+    // }else if( feature.is_wide ){
+    //     feature.point_init = Toc * feature.point;
+    //     feature.depth->update(1/z, tauInverse);
+    //     feature.is_3D_init = true;
+    //     feature.frame_init = this->step;
+    // }
+}
+
 // without PnP
 void MVO::update3DPoints(const Eigen::Matrix3d &R, const Eigen::Vector3d &t, 
                         const std::vector<bool> &inlier, const std::vector<bool> &outlier, 
@@ -528,29 +582,10 @@ void MVO::update3DPoints(const Eigen::Matrix3d &R, const Eigen::Vector3d &t,
     Poc = Toc.block(0,3,4,1);
     T = this->TocRec.back().inverse() * Toc;
     
-    int key_idx;
-    double tau, tauInverse, z;
-    Eigen::Vector4d point_initframe;
     for( uint32_t i = 0; i < this->features.size(); i++ ){
-        key_idx = this->features[i].life - 1 - (this->step - this->key_step);
         if( this->features[i].is_3D_reconstructed ){
             this->features[i].point.block(0,0,3,1) *= scale;
-            point_initframe = Toc * this->features[i].point;
-            z = point_initframe(2);
-            
-            tau = DepthFilter::computeTau(Toc, this->features[i].point.block(0,0,3,1), z);
-            tauInverse = DepthFilter::computeInverseTau(z, tau);
-            if( this->features[i].is_3D_init ){
-                if( this->params.updateInitPoint ){
-                    this->features[i].depth->update(1/z, tauInverse);
-                    this->features[i].point_init = this->TocRec[this->features[i].frame_init] * this->features[i].point;
-                }
-            }else if( this->features[i].is_wide ){
-                this->features[i].point_init = Toc * this->features[i].point;
-                this->features[i].depth->update(1/z, tauInverse);
-                this->features[i].is_3D_init = true;
-                this->features[i].frame_init = this->step;
-            }
+            update3DPoint(this->features[i], Toc);
         }
     }
 
@@ -578,29 +613,10 @@ void MVO::update3DPoints(const Eigen::Matrix3d &R, const Eigen::Vector3d &t,
     if(success_E){
         double scale = t_E.norm();
 
-        int key_idx;
-        double tau, tauInverse, z;
-        Eigen::Vector4d point_initframe;
         for( uint32_t i = 0; i < this->features.size(); i++ ){
             if( this->features[i].is_3D_reconstructed ){
                 this->features[i].point.block(0,0,3,1) *= scale;
-                point_initframe = Toc * this->features[i].point;
-                z = point_initframe(2);
-
-                key_idx = this->features[i].life - 1 - (this->step - this->key_step);
-                tau = DepthFilter::computeTau(Toc, this->features[i].point.block(0,0,3,1), z);
-                tauInverse = DepthFilter::computeInverseTau(z, tau);
-                if( this->features[i].is_3D_init ){
-                    if( this->params.updateInitPoint ){
-                        this->features[i].depth->update(1/z, tauInverse);
-                        this->features[i].point_init = this->TocRec[this->features[i].frame_init] * this->features[i].point;
-                    }
-                }else if( this->features[i].is_wide ){
-                    this->features[i].point_init = Toc * this->features[i].point;
-                    this->features[i].depth->update(1/z, tauInverse);
-                    this->features[i].is_3D_init = true;
-                    this->features[i].frame_init = this->step;
-                }
+                update3DPoint(this->features[i], Toc);
             }
         }
     }else{
@@ -631,31 +647,12 @@ void MVO::update3DPoints(const Eigen::Matrix3d &R, const Eigen::Vector3d &t,
         std::vector<bool> inliers;
         this->constructDepth(uv_prev, uv_curr, Rinv, tinv, X_prev, X_curr, inliers);
 
-        double tau, tauInverse, z;
-        Eigen::Vector4d point_initframe;
         for (uint32_t i = 0; i < nPoint; i++){
             // 2d inliers
             if(inliers[i]){
-                len = this->features[idx2D[i]].life;
-                point_initframe = Toc * this->features[idx2D[i]].point;
-                z = point_initframe(2);
-
-                tau = DepthFilter::computeTau(Toc, this->features[i].point.block(0,0,3,1), z);
-                tauInverse = DepthFilter::computeInverseTau(z, tau);
                 this->features[idx2D[i]].point = (Eigen::Vector4d() << X_curr[i], 1).finished();
 				this->features[idx2D[i]].is_3D_reconstructed = true;
-                
-                if( this->features[idx2D[i]].is_3D_init ){
-                    if( this->params.updateInitPoint ){
-                        this->features[idx2D[i]].depth->update(1/z, tauInverse);
-                        this->features[idx2D[i]].point_init = this->TocRec[this->features[idx2D[i]].frame_init] * this->features[idx2D[i]].point;
-                    }
-                }else if( this->features[idx2D[i]].is_wide ){
-                    this->features[idx2D[i]].point_init = Toc * this->features[idx2D[i]].point;
-                    this->features[idx2D[i]].depth->update(1/z, tauInverse);
-                    this->features[idx2D[i]].is_3D_init = true;
-                    this->features[idx2D[i]].frame_init = this->step;
-                }
+                update3DPoint(this->features[idx2D[i]], Toc);
             } // if(lambda_prev > 0 && lambda_curr > 0)
         } // for
     }

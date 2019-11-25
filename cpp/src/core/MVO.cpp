@@ -188,7 +188,7 @@ MVO::MVO(std::string yaml):MVO(){
             abort();
     }
 
-    switch( fSettings["PNP.Method"] ){
+    switch( fSettings["PnP.Method"] ){
         case 0:
             this->params.pnpMethod = MVO::PNP::LM;
             break;
