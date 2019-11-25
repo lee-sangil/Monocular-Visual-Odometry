@@ -230,14 +230,21 @@ int main(int argc, char * argv[]){
 	std::vector<int> sensorID;
 	lsi::sortImageAndImu(timeImu, timeRgb, sensorID);
 
+	// Read OxTS data
 	std::vector<double> timestamp, speed;
-	if( Parser::hasOption("-vel")){
+	std::vector<Eigen::Vector3d> imuRot;
+	std::vector<std::vector<double> > oxtsData;
+
+	if( Parser::hasOption("-vel") || Parser::hasOption("-imu") ){
 		std::string oxts_path;
 		oxts_path.append(inputFile).append("oxts/data/");
-
-		std::vector<std::vector<double> > oxtsData;
 		directoryReader(oxts_path.c_str(), oxtsData);
-		computeVehicleSpeed(oxtsData, speed);
+
+		if( Parser::hasOption("-vel") )
+			computeVehicleSpeed(oxtsData, speed);
+		
+		if( Parser::hasOption("-imu") )
+			computeImuRotation(oxtsData, imuRot);
 
 		std::string time_path;
 		time_path.append(inputFile).append("oxts/timestamps.txt");
@@ -245,23 +252,6 @@ int main(int argc, char * argv[]){
 
 		timestamp.erase(timestamp.begin(), timestamp.begin()+initFrame);
 		speed.erase(speed.begin(), speed.begin()+initFrame);
-	}
-
-	std::vector<Eigen::Vector3d> imuRot;
-	if( Parser::hasOption("-imu")){
-		std::string oxts_path;
-		oxts_path.append(inputFile).append("oxts/data/");
-
-		std::vector<std::vector<double> > oxtsData;
-		directoryReader(oxts_path.c_str(), oxtsData);
-		computeImuRotation(oxtsData, imuRot);
-
-		std::string time_path;
-		time_path.append(inputFile).append("oxts/timestamps.txt");
-		timeReader(time_path.c_str(), timestamp);
-
-		timestamp.erase(timestamp.begin(), timestamp.begin()+initFrame);
-		imuRot.erase(imuRot.begin(), imuRot.begin()+initFrame);
 	}
 
 	/**************************************************************************
@@ -311,10 +301,14 @@ int main(int argc, char * argv[]){
 				dirRgb.append(inputFile).append(rgbNameRaw[it_rgb]);
 				chk::getImgTUMdataset(dirRgb, image);
 
-				if( Parser::hasOption("-vel"))
-					vo->update_velocity(timestamp[it_rgb], speed[it_rgb]);
-				if( Parser::hasOption("-imu"))
-					vo->update_gyro(timestamp[it_rgb], imuRot[it_rgb]);
+				if( Parser::hasOption("-vel") || Parser::hasOption("-imu") ){
+					vo->update_timestamp(timestamp[it_rgb]);
+					
+					if( Parser::hasOption("-vel"))
+						vo->update_velocity(speed[it_rgb]);
+					if( Parser::hasOption("-imu"))
+						vo->update_gyro(imuRot[it_rgb]);
+				}
 				
 				vo->run(image);
 				

@@ -1083,7 +1083,7 @@ void MVO::calculate_plane_error(const std::vector<double>& plane, const std::vec
 }
 
 void MVO::update_scale_reference(const double scale){
-    if( MVO::scale_reference < 0 )
+    if( MVO::scale_reference < 0 || this->is_start == false )
         MVO::scale_reference = scale;
     else{
         // low-pass filter

@@ -317,9 +317,12 @@ void MVO::run(cv::Mat& image){
     // std::cout << "start: " << this->is_start << ", key_step: " << this->key_step << " " << std::endl;
 }
 
-void MVO::update_gyro(double timestamp, Eigen::Vector3d& gyro){
-    this->rotate_provided = true;
+void MVO::update_timestamp(double timestamp){
     this->timestampSinceKeyframe.push_back(timestamp);
+}
+
+void MVO::update_gyro(Eigen::Vector3d& gyro){
+    this->rotate_provided = true;
     this->gyroSinceKeyframe.push_back(gyro);
 
     std::vector<double> timestampDiff;
@@ -330,9 +333,8 @@ void MVO::update_gyro(double timestamp, Eigen::Vector3d& gyro){
     MVO::rotate_prior = this->params.Tci.block(0,0,3,3) * skew(-radian).exp() * this->params.Tic.block(0,0,3,3);
 }
 
-void MVO::update_velocity(double timestamp, double speed){
+void MVO::update_velocity(double speed){
     this->speed_provided = true;
-    this->timestampSinceKeyframe.push_back(timestamp);
     this->speedSinceKeyframe.push_back(speed);
 
     std::vector<double> timestampDiff;

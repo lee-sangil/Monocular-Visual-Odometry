@@ -122,8 +122,9 @@ class MVO{
 	void restart();
 	void refresh();
 	void run(cv::Mat& image);
-	void update_gyro(double timestamp, Eigen::Vector3d& gyro);
-	void update_velocity(double timestamp, double speed);
+	void update_timestamp(double timestamp);
+	void update_gyro(Eigen::Vector3d& gyro);
+	void update_velocity(double speed);
 	void plot();
 	void updateView();
 
