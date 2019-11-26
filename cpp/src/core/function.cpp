@@ -123,3 +123,50 @@ void MVO::calculate_plane_error(const std::vector<double>& plane, const std::vec
             dist.push_back(std::abs(a * pts[i].x + b * pts[i].y + c * pts[i].z + d));
     }
 }
+
+double MVO::calcReconstructionError(Eigen::Matrix4d& Toc){
+    std::vector<double> error;
+    error.reserve(this->features.size());
+    for( uint32_t i = 0; i < this->features.size(); i++ ){
+        error.push_back((Toc * this->features[i].point - this->features[i].point_init).norm());
+    }
+    std::sort(error.begin(), error.end());
+    return error[std::floor(error.size()/2)];
+}
+
+double MVO::calcReconstructionError(Eigen::Matrix3d& R, Eigen::Vector3d& t){
+    Eigen::Matrix4d Toc;
+    Toc.block(0,0,3,3) = R;
+    Toc.block(0,3,3,1) = t;
+    Toc(3,3) = 1;
+
+    return this->calcReconstructionError(Toc);
+}
+
+void MVO::calcReconstructionErrorGT(Eigen::MatrixXd& depth){
+    std::vector<double> idx;
+    for( uint32_t i = 0; i < this->features.size(); i++ ){
+        if( depth(this->features[i].uv.back().y, this->features[i].uv.back().x) > 0 && this->features[i].is_3D_reconstructed == true )
+            idx.push_back(i);
+    }
+
+    if( idx.size() > 0 ){
+        std::cerr << "* Reconstruction depth: ";
+
+        // median value
+        // std::sort(error.begin(), error.end());
+        // std::cerr << error[std::floor(error.size()/2)];
+
+        // all elements
+        for( uint32_t i = 0; i < idx.size(); i++ ){
+            std::cerr << this->features[idx[i]].point(2) << ' ';
+        }
+        std::cerr << std::endl;
+
+        std::cerr << "* Groundtruth depth: ";
+        for( uint32_t i = 0; i < idx.size(); i++ ){
+            std::cerr << depth(this->features[idx[i]].uv.back().y, this->features[idx[i]].uv.back().x) << ' ';
+        }
+        std::cerr << std::endl;
+    }
+}

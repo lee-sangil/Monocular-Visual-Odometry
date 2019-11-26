@@ -3,8 +3,6 @@
 
 #include "core/common.hpp"
 
-typedef  std::vector< std::tuple<cv::Point2f, Eigen::Vector3d> > ptsROI_t;
-
 class MVO{
 	public:
 
@@ -77,10 +75,6 @@ class MVO{
 		double min_px_dist = 7.0;
 		double px_wide = 12.0;
 		double max_epiline_dist = 20.0;
-
-		// Statistical model
-		double var_theta = std::pow(90.0 / 1241.0 / 2, 2);
-		double var_point = 1.0;
 		
 		// 3D reconstruction
 		double vehicle_height;
@@ -114,7 +108,7 @@ class MVO{
 	void set_image(cv::Mat& image);
 
 	// Get feature 
-	ptsROI_t get_points() const;
+	std::vector< std::tuple<cv::Point2f, Eigen::Vector3d> > get_points() const;
 	std::vector<Feature> get_features() const;
 	cv::Point2f calculateRotWarp(cv::Point2f uv);
 	
@@ -223,8 +217,6 @@ class MVO{
 	std::vector<Eigen::Matrix4d> TocRec;
 	std::vector<Eigen::Vector4d> PocRec;
 
-	std::vector<uint32_t> idxTemplate;
-	std::vector<bool> inlierTemplate;
 	std::vector<cv::Mat> prevPyramidTemplate, currPyramidTemplate;
 	Eigen::MatrixXd MapMatrixTemplate;
 	Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> * eigenSolver;

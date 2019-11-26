@@ -15,21 +15,8 @@ bool MVO::calculate_motion()
     Eigen::Matrix3d R_;
     Eigen::Vector3d t_;
 
-    /**** exact criteria ****/
     this->verify_solutions(this->R_vec, this->t_vec, R_, t_);
-    
-    /**** simple criteria ****/
-    // Eigen::Matrix3d Identity = Eigen::Matrix3d::Identity();
-    // if( (this->R_vec[0] - Identity).norm() < (this->R_vec[2] - Identity).norm() ) R_ = this->R_vec[0];
-    // else R_ = this->R_vec[2];
-
-    // if( this->t_vec[0](2) > 0) t_ = this->t_vec[1];
-    // else t_ = this->t_vec[0];
-    // this->verify_solutions(R_, t_);
-
     std::cerr << "# Verify unique pose: " << lsi::toc() << std::endl;
-    // std::cerr << "R diag: " << R_.diagonal().transpose() << std::endl;
-    // std::cerr << "t: " << t_.transpose() << std::endl;
 
     /**************************************************
      * Mapping
@@ -42,18 +29,6 @@ bool MVO::calculate_motion()
 	std::vector<int> idxInlier, idxOutlier;
     
     switch (this->params.mappingOption) {
-        /**** no mapping and scaling ****/
-        // T.setIdentity();
-        // T.block(0,0,3,3) = R_.transpose(); 
-        // T.block(0,3,3,1) = -R_.transpose()*t_;
-        // Toc = this->TocRec.back() * T;
-        // Poc = Toc.block(0,3,4,1);
-
-        // TRec.push_back(T);
-        // TocRec.push_back(Toc);
-        // PocRec.push_back(Poc);
-        // return true;
-
     case 0:
         this->nFeatureInlier = this->nFeature3DReconstructed;
 
@@ -149,7 +124,6 @@ bool MVO::calculate_motion()
         return false;
     }else{
         std::cerr << "Temporal velocity: " << T.block(0,3,3,1).norm() << std::endl;
-        std::cerr << "nFeatures3DReconstructed: " << this->nFeature3DReconstructed << std::endl;
 
         // Save solution
         TRec.push_back(T);
@@ -810,53 +784,6 @@ bool MVO::scale_propagation(const Eigen::Matrix3d &R, Eigen::Vector3d &t, std::v
         return false;
     else
         return flag;
-}
-
-double MVO::calcReconstructionError(Eigen::Matrix4d& Toc){
-    std::vector<double> error;
-    error.reserve(this->features.size());
-    for( uint32_t i = 0; i < this->features.size(); i++ ){
-        error.push_back((Toc * this->features[i].point - this->features[i].point_init).norm());
-    }
-    std::sort(error.begin(), error.end());
-    return error[std::floor(error.size()/2)];
-}
-
-double MVO::calcReconstructionError(Eigen::Matrix3d& R, Eigen::Vector3d& t){
-    Eigen::Matrix4d Toc;
-    Toc.block(0,0,3,3) = R;
-    Toc.block(0,3,3,1) = t;
-    Toc(3,3) = 1;
-
-    return this->calcReconstructionError(Toc);
-}
-
-void MVO::calcReconstructionErrorGT(Eigen::MatrixXd& depth){
-    std::vector<double> idx;
-    for( uint32_t i = 0; i < this->features.size(); i++ ){
-        if( depth(this->features[i].uv.back().y, this->features[i].uv.back().x) > 0 && this->features[i].is_3D_reconstructed == true )
-            idx.push_back(i);
-    }
-
-    if( idx.size() > 0 ){
-        std::cerr << "* Reconstruction depth: ";
-
-        // median value
-        // std::sort(error.begin(), error.end());
-        // std::cerr << error[std::floor(error.size()/2)];
-
-        // all elements
-        for( uint32_t i = 0; i < idx.size(); i++ ){
-            std::cerr << this->features[idx[i]].point(2) << ' ';
-        }
-        std::cerr << std::endl;
-
-        std::cerr << "* Groundtruth depth: ";
-        for( uint32_t i = 0; i < idx.size(); i++ ){
-            std::cerr << depth(this->features[idx[i]].uv.back().y, this->features[idx[i]].uv.back().x) << ' ';
-        }
-        std::cerr << std::endl;
-    }
 }
 
 void MVO::update_scale_reference(const double scale){

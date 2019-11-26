@@ -65,6 +65,16 @@ bool MVO::update_features(){
         return true;
 }
 
+cv::Point2f MVO::calculateRotWarp(cv::Point2f uv){
+    Eigen::Vector3d pixel, warpedPixel;
+    cv::Point2f warpedUV;
+    pixel << uv.x, uv.y, 1;
+    warpedPixel = this->params.K * this->rotate_prior * this->params.Kinv * pixel;
+    warpedUV.x = warpedPixel(0)/warpedPixel(2);
+    warpedUV.y = warpedPixel(1)/warpedPixel(2);
+    return warpedUV;
+}
+
 void MVO::klt_tracker(std::vector<cv::Point2f>& fwd_pts, std::vector<bool>& validity){
     std::vector<cv::Point2f> pts, bwd_pts;
     pts.reserve(this->nFeature);
@@ -75,8 +85,6 @@ void MVO::klt_tracker(std::vector<cv::Point2f>& fwd_pts, std::vector<bool>& vali
     // Forward-backward error evaluation
     std::vector<cv::Mat>& prevPyr = this->prevPyramidTemplate;
     std::vector<cv::Mat>& currPyr = this->currPyramidTemplate;
-    prevPyr.clear();
-    currPyr.clear();
     std::cerr << "### Prepare variables: " << lsi::toc() << std::endl;
 
     cv::buildOpticalFlowPyramid(this->prev_image, prevPyr, cv::Size(21,21), 3, true);
@@ -116,10 +124,8 @@ void MVO::delete_dead_features(){
         if( this->features[i].is_alive == false ){
             if( this->features[i].life > 2 ){
                 this->features_dead.push_back(this->features[i]);
-                // std::cout << "features_dead increase, ";
             }
             this->features.erase(this->features.begin()+i);
-            // std::cout << "features decreases" << std::endl;
         }else{
             i++;
         }
@@ -167,9 +173,6 @@ void MVO::add_feature(){
     int row, col;
     lsi::idx_randselect(this->bucket.prob, this->bucket.saturated, row, col);
     cv::Rect roi = cv::Rect(col*bkSize.width+1, row*bkSize.height+1, bkSize.width, bkSize.height);
-    
-    // std::cout << "mask:" << std::endl << this->bucket.saturated << std::endl;
-    // std::cout << "row: " << row << ", col: " << col << std::endl;
 
     roi.x = std::max(bkSafety, (uint32_t)roi.x);
     roi.y = std::max(bkSafety, (uint32_t)roi.y);
@@ -177,8 +180,8 @@ void MVO::add_feature(){
     roi.height = std::min(this->params.imSize.height-bkSafety, (uint32_t)roi.y+roi.height)-roi.y;
 
     // Seek index of which feature is extracted specific bucket
-    std::vector<uint32_t>& idxBelongToBucket = this->idxTemplate;
-    idxBelongToBucket.clear();
+    std::vector<uint32_t> idxBelongToBucket;
+    idxBelongToBucket.reserve(this->nFeature);
 
     for( int l = 0; l < this->nFeature; l++ ){
         for( int ii = std::max(col-1,0); ii <= std::min(col+1,this->bucket.grid.width-1); ii++){
@@ -200,7 +203,6 @@ void MVO::add_feature(){
     
     if( keypoints.size() == 0 ){
         this->bucket.saturated(row,col) = 0.0;
-        // std::cout << "Feature cannot be found!" << std::endl;
         return;
     }else{
         for( uint32_t l = 0; l < keypoints.size(); l++ ){
@@ -273,13 +275,10 @@ void MVO::add_feature(){
 
         // Assign high weight for ground
         for( int i = 0; i < this->bucket.prob.rows(); i++ ){
-            // weight.block(i,0,1,weight.cols()) /= std::pow(weight.rows(),2);
             this->bucket.prob.block(i,0,1,this->bucket.prob.cols()) *= i+1;
         }
-        // std::cout << "Feature is added!" << std::endl;
     }else{
         this->bucket.saturated(row,col) = 0.0;
-        // std::cout << "Feature cannot be found!" << std::endl;
     }
 }
 
@@ -450,7 +449,6 @@ void MVO::add_extra_features(){
 
         // Assign high weight for ground
         for( int i = 0; i < this->bucket.prob.rows(); i++ ){
-            // weight.block(i,0,1,weight.cols()) /= std::pow(weight.rows(),2);
             this->bucket.prob.block(i,0,1,this->bucket.prob.cols()) *= i+1;
         }
 
@@ -484,8 +482,8 @@ bool MVO::extract_roi_feature(cv::Rect& roi){
     col = (roi.y-1) / this->bucket.size.width;
 
     // Seek index of which feature is extracted specific bucket
-    std::vector<uint32_t>& idxBelongToBucket = this->idxTemplate;
-    idxBelongToBucket.clear();
+    std::vector<uint32_t> idxBelongToBucket;
+    idxBelongToBucket.reserve(this->nFeature);
 
     for( int l = 0; l < this->nFeature; l++ ){
         for( int ii = std::max(col-1,0); ii <= std::min(col+1,this->bucket.grid.width-1); ii++){

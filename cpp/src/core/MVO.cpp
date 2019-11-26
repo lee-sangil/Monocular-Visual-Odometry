@@ -149,8 +149,6 @@ MVO::MVO(std::string yaml):MVO(){
 
     this->features.reserve(this->bucket.max_features);
     this->features_backup.reserve(this->bucket.max_features);
-    this->idxTemplate.reserve(this->bucket.max_features);
-    this->inlierTemplate.reserve(this->bucket.max_features);
     this->prevPyramidTemplate.reserve(10);
     this->currPyramidTemplate.reserve(10);
 
@@ -318,8 +316,6 @@ void MVO::run(cv::Mat& image){
 
     if( !std::all_of(success.begin(), success.end(), [](bool b){return b;}) )
         this->restart();
-    
-    // std::cout << "start: " << this->is_start << ", key_step: " << this->key_step << " " << std::endl;
 }
 
 void MVO::update_timestamp(double timestamp){
@@ -354,21 +350,11 @@ std::vector<Feature> MVO::get_features() const {
     return this->features;
 }
 
-ptsROI_t MVO::get_points() const
+std::vector< std::tuple<cv::Point2f, Eigen::Vector3d> > MVO::get_points() const
 {
-    ptsROI_t ptsROI;
+    std::vector< std::tuple<cv::Point2f, Eigen::Vector3d> > ptsROI;
     for( uint32_t i = 0; i < this->features.size(); i++ ){
         ptsROI.push_back( std::make_tuple(this->features[i].uv.back(), this->features[i].point.block(0, 0, 3, 1) ) );
     }
     return ptsROI;
-}
-
-cv::Point2f MVO::calculateRotWarp(cv::Point2f uv){
-    Eigen::Vector3d pixel, warpedPixel;
-    cv::Point2f warpedUV;
-    pixel << uv.x, uv.y, 1;
-    warpedPixel = this->params.K * this->rotate_prior * this->params.Kinv * pixel;
-    warpedUV.x = warpedPixel(0)/warpedPixel(2);
-    warpedUV.y = warpedPixel(1)/warpedPixel(2);
-    return warpedUV;
 }
