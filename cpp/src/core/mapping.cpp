@@ -4,18 +4,18 @@
 #include "core/time.hpp"
 #include "core/DepthFilter.hpp"
 
-bool MVO::calculate_motion()
+bool MVO::calculateMotion()
 {
-    if (!this->is_start)
+    if (!this->is_start_)
         return true;
 
     /**************************************************
      * Solve two-fold ambiguity
      **************************************************/
-    Eigen::Matrix3d R_;
-    Eigen::Vector3d t_;
+    Eigen::Matrix3d R_unique;
+    Eigen::Vector3d t_unique;
 
-    this->verify_solutions(this->R_vec, this->t_vec, R_, t_);
+    this->verifySolutions(this->R_vec_, this->t_vec_, R_unique, t_unique);
     std::cerr << "# Verify unique pose: " << lsi::toc() << std::endl;
 
     /**************************************************
@@ -26,131 +26,131 @@ bool MVO::calculate_motion()
     Eigen::Matrix4d T, Toc;
     Eigen::Vector4d Poc;
     std::vector<bool> inlier, outlier;
-	std::vector<int> idxInlier, idxOutlier;
+	std::vector<int> idx_inlier, idx_outlier;
     
-    switch (this->params.mappingOption) {
+    switch (this->params_.mapping_option) {
     case 0:
-        this->nFeatureInlier = this->nFeature3DReconstructed;
+        this->num_feature_inlier_ = this->num_feature_3D_reconstructed_;
 
         /**** mapping without scaling ****/
-        this->update3DPoints(R_, t_, inlier, outlier, T, Toc, Poc);
+        this->update3DPoints(R_unique, t_unique, inlier, outlier, T, Toc, Poc);
         break;
 
     case 1:
         /**** mapping and scaling with essential 3d reconstruction only ****/
-        this->scale_propagation(R_ ,t_, inlier, outlier);
-        std::cerr << "Essential 3D error: " << this->calcReconstructionError(R_, t_) << std::endl;
-        this->update3DPoints(R_, t_, inlier, outlier, T, Toc, Poc); // overloading function
+        this->scalePropagation(R_unique ,t_unique, inlier, outlier);
+        std::cerr << "Essential 3D error: " << this->calcReconstructionError(R_unique, t_unique) << std::endl;
+        this->update3DPoints(R_unique, t_unique, inlier, outlier, T, Toc, Poc); // overloading function
         break;
 
     case 2:
         /**** mapping and scaling with PnP only ****/
-        if( this->scale_initialized == true ){
-            this->findPoseFrom3DPoints(R, t, idxInlier, idxOutlier);
-            // this->nFeatureInlier = this->features.size(); // TODO
+        if( this->is_scale_initialized_ == true ){
+            this->findPoseFrom3DPoints(R, t, idx_inlier, idx_outlier);
+            // this->num_feature_inlier_ = this->features_.size(); // TODO
         }else{
-            R = R_;
-            t = t_;
-            this->nFeatureInlier = this->features.size();
+            R = R_unique;
+            t = t_unique;
+            this->num_feature_inlier_ = this->features_.size();
         }
 
-        this->update3DPoints(R, t, inlier, outlier, R_, t_, false, T, Toc, Poc); // overloading function
+        this->update3DPoints(R, t, inlier, outlier, R_unique, t_unique, false, T, Toc, Poc); // overloading function
         break;
 
     case 3:
         /**** use both PnP and essential 3d reconstruction - original ****/
-        if (this->findPoseFrom3DPoints(R, t, idxInlier, idxOutlier)){
+        if (this->findPoseFrom3DPoints(R, t, idx_inlier, idx_outlier)){
             std::cerr << "# Find pose from PnP: " << lsi::toc() << std::endl;
             std::cerr << "PnP 3D error: " << this->calcReconstructionError(R, t) << std::endl;
 
             // Update 3D points
-            bool success = this->scale_propagation(R_, t_, inlier, outlier);
+            bool success = this->scalePropagation(R_unique, t_unique, inlier, outlier);
             std::cerr << "# Find scale from Essential: " << lsi::toc() << std::endl;
             
             // Update 3D points
-            this->update3DPoints(R, t, inlier, outlier, R_, t_, success, T, Toc, Poc); // overloading function
+            this->update3DPoints(R, t, inlier, outlier, R_unique, t_unique, success, T, Toc, Poc); // overloading function
             std::cout << "Update 3D Points with PnP, ";
         }else{
             std::cerr << "# Find pose from PnP: " << lsi::toc() << std::endl;
 
             // Update 3D points
-            bool success = this->scale_propagation(R_ ,t_, inlier, outlier);
+            bool success = this->scalePropagation(R_unique ,t_unique, inlier, outlier);
             std::cerr << "# Find scale from Essential: " << lsi::toc() << std::endl;
 
             if (!success){
                 std::cerr << "There are few inliers matching scale." << std::endl;
                 return false;
             }
-            std::cerr << "Essential 3D error: " << this->calcReconstructionError(R_, t_) << std::endl;
+            std::cerr << "Essential 3D error: " << this->calcReconstructionError(R_unique, t_unique) << std::endl;
 
-            this->update3DPoints(R_, t_, inlier, outlier, T, Toc, Poc); // overloading function
+            this->update3DPoints(R_unique, t_unique, inlier, outlier, T, Toc, Poc); // overloading function
             std::cout << "Update 3D Points with Essential Constraint, ";
         }
         break;
 
     case 4:
         /**** use both PnP and essential 3d reconstruction - modified ****/
-        if( this->scale_propagation(R_, t_, inlier, outlier) ){
+        if( this->scalePropagation(R_unique, t_unique, inlier, outlier) ){
             std::cerr << "# Find scale from Essential: " << lsi::toc() << std::endl;
 
-            R = R_;
-            t = t_;
+            R = R_unique;
+            t = t_unique;
 
-            this->findPoseFrom3DPoints(R, t, idxInlier, idxOutlier);
+            this->findPoseFrom3DPoints(R, t, idx_inlier, idx_outlier);
             std::cerr << "# Find pose from PnP: " << lsi::toc() << std::endl;
 
             // Update 3D points
-            this->update3DPoints(R, t, inlier, outlier, R_, t_, true, T, Toc, Poc);
+            this->update3DPoints(R, t, inlier, outlier, R_unique, t_unique, true, T, Toc, Poc);
             std::cout << "Update 3D Points with PnP, ";
         }else{
             std::cerr << "# Find scale from Essential: " << lsi::toc() << std::endl;
 
-            this->findPoseFrom3DPoints(R, t, idxInlier, idxOutlier);
+            this->findPoseFrom3DPoints(R, t, idx_inlier, idx_outlier);
             std::cerr << "# Find pose from PnP: " << lsi::toc() << std::endl;
 
             // Update 3D points
-            this->update3DPoints(R, t, inlier, outlier, R_, t_, false, T, Toc, Poc);
+            this->update3DPoints(R, t, inlier, outlier, R_unique, t_unique, false, T, Toc, Poc);
             std::cout << "Update 3D Points with Essential Constraint, ";
         }
         break;
     }
-    std::cerr << "nFeature3DReconstructed: " << (double) this->nFeature3DReconstructed / this->nFeature * 100 << '%' << std::endl;
-    std::cerr << "nFeature3DInliered: " << (double) this->nFeatureInlier / this->nFeature * 100 << '%' << std::endl;
+    std::cerr << "num_feature_3D_reconstructed_: " << (double) this->num_feature_3D_reconstructed_ / this->num_feature_ * 100 << '%' << std::endl;
+    std::cerr << "num_feature_3DInliered: " << (double) this->num_feature_inlier_ / this->num_feature_ * 100 << '%' << std::endl;
 
     /**** ****/
-    std::cerr << "nFeatureInlier: " << this->nFeatureInlier << " " << std::endl;
-    if (this->nFeatureInlier < this->params.thInlier){
+    std::cerr << "num_feature_inlier_: " << this->num_feature_inlier_ << " " << std::endl;
+    if (this->num_feature_inlier_ < this->params_.th_inlier){
         std::cerr << "There are few inliers reconstructed and accorded in 3D." << std::endl;
         return false;
     }else{
         std::cerr << "Temporal velocity: " << T.block(0,3,3,1).norm() << std::endl;
 
         // Save solution
-        TRec.push_back(T);
-        TocRec.push_back(Toc);
-        PocRec.push_back(Poc);
+        TRec_.push_back(T);
+        TocRec_.push_back(Toc);
+        PocRec_.push_back(Poc);
 
-        this->scale_initialized = true;
+        this->is_scale_initialized_ = true;
         return true;
     }
 }
 
-bool MVO::verify_solutions(const std::vector<Eigen::Matrix3d>& R_vec, const std::vector<Eigen::Vector3d>& t_vec, Eigen::Matrix3d& R, Eigen::Vector3d& t){
+bool MVO::verifySolutions(const std::vector<Eigen::Matrix3d>& R_vec, const std::vector<Eigen::Vector3d>& t_vec, Eigen::Matrix3d& R, Eigen::Vector3d& t){
     
 	bool success;
 
 	// Extract homogeneous 2D point which is inliered with essential constraint
-	std::vector<int> idx_2DInlier;
-	for( int i = 0; i < this->nFeature; i++ )
-		if( this->features[i].is_2D_inliered )
-			idx_2DInlier.push_back(i);
+	std::vector<int> idx_2D_inlier;
+	for( int i = 0; i < this->num_feature_; i++ )
+		if( this->features_[i].is_2D_inliered )
+			idx_2D_inlier.push_back(i);
 
     int key_idx;
 	std::vector<cv::Point2f> uv_prev, uv_curr;
-    for (uint32_t i = 0; i < idx_2DInlier.size(); i++){
-        key_idx = this->features[idx_2DInlier[i]].life - 1 - (this->step - this->key_step);
-        uv_prev.emplace_back(this->features[idx_2DInlier[i]].uv[key_idx]);
-		uv_curr.emplace_back(this->features[idx_2DInlier[i]].uv.back());
+    for (uint32_t i = 0; i < idx_2D_inlier.size(); i++){
+        key_idx = this->features_[idx_2D_inlier[i]].life - 1 - (this->step_ - this->keystep_);
+        uv_prev.emplace_back(this->features_[idx_2D_inlier[i]].uv[key_idx]);
+		uv_curr.emplace_back(this->features_[idx_2D_inlier[i]].uv.back());
     }
 
 	// Find reasonable rotation and translational vector
@@ -165,13 +165,13 @@ bool MVO::verify_solutions(const std::vector<Eigen::Matrix3d>& R_vec, const std:
 		std::vector<bool> inlier;
 		this->constructDepth(uv_prev, uv_curr, R1, t1, X_prev, X_curr, inlier);
 
-		int nInlier = 0;
+		int num_inlier = 0;
 		for( uint32_t i = 0; i < inlier.size(); i++ )
 			if( inlier[i] )
-				nInlier++;
+				num_inlier++;
 
-		if( nInlier > max_num ){
-			max_num = nInlier;
+		if( num_inlier > max_num ){
+			max_num = num_inlier;
 			max_inlier = inlier;
             opt_X_curr = X_curr;
 			
@@ -181,14 +181,14 @@ bool MVO::verify_solutions(const std::vector<Eigen::Matrix3d>& R_vec, const std:
 	}
 
 	// Store 3D characteristics in features
-	if( max_num < this->nFeature2DInliered*0.5 )
+	if( max_num < this->num_feature_2D_inliered_*0.5 )
 		success = false;
 	else{
 		for( int i = 0; i < max_num; i++ ){
 			if( max_inlier[i] ){
-				this->features[idx_2DInlier[i]].point = (Eigen::Vector4d() << opt_X_curr[i], 1).finished();
-				this->features[idx_2DInlier[i]].is_3D_reconstructed = true;
-                this->nFeature3DReconstructed++;
+				this->features_[idx_2D_inlier[i]].point_curr = (Eigen::Vector4d() << opt_X_curr[i], 1).finished();
+				this->features_[idx_2D_inlier[i]].is_3D_reconstructed = true;
+                this->num_feature_3D_reconstructed_++;
             }
 		}
 		success = true;
@@ -197,22 +197,22 @@ bool MVO::verify_solutions(const std::vector<Eigen::Matrix3d>& R_vec, const std:
 	return success;
 }
 
-bool MVO::verify_solutions(const Eigen::Matrix3d& R, const Eigen::Vector3d& t){
+bool MVO::verifySolutions(const Eigen::Matrix3d& R, const Eigen::Vector3d& t){
     
 	bool success;
 
 	// Extract homogeneous 2D point which is inliered with essential constraint
-	std::vector<int> idx_2DInlier;
-	for( int i = 0; i < this->nFeature; i++ )
-		if( this->features[i].is_2D_inliered )
-			idx_2DInlier.push_back(i);
+	std::vector<int> idx_2D_inlier;
+	for( int i = 0; i < this->num_feature_; i++ )
+		if( this->features_[i].is_2D_inliered )
+			idx_2D_inlier.push_back(i);
 
     int key_idx;
 	std::vector<cv::Point2f> uv_prev, uv_curr;
-    for (uint32_t i = 0; i < idx_2DInlier.size(); i++){
-        key_idx = this->features[idx_2DInlier[i]].life - 1 - (this->step - this->key_step);
-        uv_prev.emplace_back(this->features[idx_2DInlier[i]].uv[key_idx]);
-		uv_curr.emplace_back(this->features[idx_2DInlier[i]].uv.back());
+    for (uint32_t i = 0; i < idx_2D_inlier.size(); i++){
+        key_idx = this->features_[idx_2D_inlier[i]].life - 1 - (this->step_ - this->keystep_);
+        uv_prev.emplace_back(this->features_[idx_2D_inlier[i]].uv[key_idx]);
+		uv_curr.emplace_back(this->features_[idx_2D_inlier[i]].uv.back());
     }
 
 	// Find reasonable rotation and translational vector
@@ -220,20 +220,20 @@ bool MVO::verify_solutions(const Eigen::Matrix3d& R, const Eigen::Vector3d& t){
     std::vector<bool> inlier;
     this->constructDepth(uv_prev, uv_curr, R, t, X_prev, X_curr, inlier);
 
-    int nInlier = 0;
+    int num_inlier = 0;
     for( uint32_t i = 0; i < inlier.size(); i++ )
         if( inlier[i] )
-            nInlier++;
+            num_inlier++;
     
 	// Store 3D characteristics in features
-	if( nInlier < this->nFeature2DInliered*0.5 )
+	if( num_inlier < this->num_feature_2D_inliered_*0.5 )
 		success = false;
 	else{
 		for( uint32_t i = 0; i < inlier.size(); i++ ){
 			if( inlier[i] ){
-				this->features[idx_2DInlier[i]].point = (Eigen::Vector4d() << X_curr[i], 1).finished();
-				this->features[idx_2DInlier[i]].is_3D_reconstructed = true;
-                this->nFeature3DReconstructed++;
+				this->features_[idx_2D_inlier[i]].point_curr = (Eigen::Vector4d() << X_curr[i], 1).finished();
+				this->features_[idx_2D_inlier[i]].is_3D_reconstructed = true;
+                this->num_feature_3D_reconstructed_++;
 			}
 		}
 		success = true;
@@ -242,97 +242,97 @@ bool MVO::verify_solutions(const Eigen::Matrix3d& R, const Eigen::Vector3d& t){
 	return success;
 }
 
-bool MVO::findPoseFrom3DPoints(Eigen::Matrix3d &R, Eigen::Vector3d &t, std::vector<int>& idxInlier, std::vector<int>& idxOutlier){    
+bool MVO::findPoseFrom3DPoints(Eigen::Matrix3d &R, Eigen::Vector3d &t, std::vector<int>& idx_inlier, std::vector<int>& idx_outlier){    
     // Seek index of which feature is 3D reconstructed currently,
     // and 3D initialized previously
 	bool flag;
 
     std::vector<int> idx;
-    for (int i = 0; i < this->nFeature; i++)
-        if (this->features[i].is_3D_init)
+    for (int i = 0; i < this->num_feature_; i++)
+        if (this->features_[i].is_3D_init)
             idx.push_back(i);
     
-    const uint32_t nPoint = idx.size();
+    const uint32_t num_pts = idx.size();
 
     // Use RANSAC to find suitable scale
-    if (nPoint > (uint32_t)this->params.thInlier){
-        std::vector<cv::Point3f> objectPoints;
-        std::vector<cv::Point2f> imagePoints;
-        for (uint32_t i = 0; i < nPoint; i++)
+    if (num_pts > (uint32_t)this->params_.th_inlier){
+        std::vector<cv::Point3f> object_pts;
+        std::vector<cv::Point2f> image_pts;
+        for (uint32_t i = 0; i < num_pts; i++)
         {
-            objectPoints.emplace_back(this->features[idx[i]].point_init(0), this->features[idx[i]].point_init(1), this->features[idx[i]].point_init(2));
-            imagePoints.emplace_back(this->features[idx[i]].uv.back().x, this->features[idx[i]].uv.back().y); // return last element of uv
+            object_pts.emplace_back(this->features_[idx[i]].point_init(0), this->features_[idx[i]].point_init(1), this->features_[idx[i]].point_init(2));
+            image_pts.emplace_back(this->features_[idx[i]].uv.back().x, this->features_[idx[i]].uv.back().y); // return last element of uv
         }
 
         // r_vec = cv::Mat::zeros(3,1,CV_32F);
         // t_vec = cv::Mat::zeros(3,1,CV_32F);
 
-        cv::Mat R_, r_vec, t_vec;
+        cv::Mat R_cv, r_vec, t_vec;
         if( R.determinant() < .1){
-            Eigen::Matrix3d R_prev = this->TocRec.back().block(0,0,3,3).transpose();
-            Eigen::Vector3d t_prev = -R_prev * this->TocRec.back().block(0,3,3,1);
-            Eigen::Vector3d speed_prev = this->TRec.back().block(0,3,3,1);
+            Eigen::Matrix3d R_prev = this->TocRec_.back().block(0,0,3,3).transpose();
+            Eigen::Vector3d t_prev = -R_prev * this->TocRec_.back().block(0,3,3,1);
+            Eigen::Vector3d speed_prev = this->TRec_.back().block(0,3,3,1);
 
-            cv::eigen2cv(R_prev, R_);
+            cv::eigen2cv(R_prev, R_cv);
             cv::eigen2cv((Eigen::Vector3d) (t_prev - speed_prev), t_vec);
-            cv::Rodrigues(R_, r_vec);
+            cv::Rodrigues(R_cv, r_vec);
         }else{
-            cv::eigen2cv(R, R_);
+            cv::eigen2cv(R, R_cv);
             cv::eigen2cv(t, t_vec);
-            cv::Rodrigues(R_, r_vec);
+            cv::Rodrigues(R_cv, r_vec);
         }
 
-        switch( this->params.pnpMethod ){
+        switch( this->params_.pnp_method ){
             case MVO::PNP::LM : 
             case MVO::PNP::ITERATIVE : {
-                bool success = cv::solvePnP(objectPoints, imagePoints, this->params.Kcv, cv::noArray(), r_vec, t_vec, true, cv::SOLVEPNP_ITERATIVE);
+                bool success = cv::solvePnP(object_pts, image_pts, this->params_.Kcv, cv::noArray(), r_vec, t_vec, true, cv::SOLVEPNP_ITERATIVE);
                 flag = success;
                 break;
             }
             case MVO::PNP::AP3P : {
-                bool success = cv::solvePnPRansac(objectPoints, imagePoints, this->params.Kcv, cv::noArray(),
+                bool success = cv::solvePnPRansac(object_pts, image_pts, this->params_.Kcv, cv::noArray(),
                                                 r_vec, t_vec, true, 1e3,
-                                                this->params.reprojError, 0.99, idxInlier, cv::SOLVEPNP_AP3P);
+                                                this->params_.reproj_error, 0.99, idx_inlier, cv::SOLVEPNP_AP3P);
                 if (!success){
-                    success = cv::solvePnPRansac(objectPoints, imagePoints, this->params.Kcv, cv::noArray(),
+                    success = cv::solvePnPRansac(object_pts, image_pts, this->params_.Kcv, cv::noArray(),
                                                 r_vec, t_vec, true, 1e3,
-                                                2 * this->params.reprojError, 0.99, idxInlier, cv::SOLVEPNP_AP3P);
+                                                2 * this->params_.reproj_error, 0.99, idx_inlier, cv::SOLVEPNP_AP3P);
                 }
                 flag = success;
                 break;
             }
             case MVO::PNP::EPNP : {
-                bool success = cv::solvePnPRansac(objectPoints, imagePoints, this->params.Kcv, cv::noArray(),
+                bool success = cv::solvePnPRansac(object_pts, image_pts, this->params_.Kcv, cv::noArray(),
                                                 r_vec, t_vec, true, 1e3,
-                                                this->params.reprojError, 0.99, idxInlier, cv::SOLVEPNP_EPNP);
+                                                this->params_.reproj_error, 0.99, idx_inlier, cv::SOLVEPNP_EPNP);
                 if (!success){
-                    success = cv::solvePnPRansac(objectPoints, imagePoints, this->params.Kcv, cv::noArray(),
+                    success = cv::solvePnPRansac(object_pts, image_pts, this->params_.Kcv, cv::noArray(),
                                                 r_vec, t_vec, true, 1e3,
-                                                2 * this->params.reprojError, 0.99, idxInlier, cv::SOLVEPNP_EPNP);
+                                                2 * this->params_.reproj_error, 0.99, idx_inlier, cv::SOLVEPNP_EPNP);
                 }
                 flag = success;
                 break;
             }
             case MVO::PNP::DLS : {
-                bool success = cv::solvePnPRansac(objectPoints, imagePoints, this->params.Kcv, cv::noArray(),
+                bool success = cv::solvePnPRansac(object_pts, image_pts, this->params_.Kcv, cv::noArray(),
                                                 r_vec, t_vec, true, 1e3,
-                                                this->params.reprojError, 0.99, idxInlier, cv::SOLVEPNP_DLS);
+                                                this->params_.reproj_error, 0.99, idx_inlier, cv::SOLVEPNP_DLS);
                 if (!success){
-                    success = cv::solvePnPRansac(objectPoints, imagePoints, this->params.Kcv, cv::noArray(),
+                    success = cv::solvePnPRansac(object_pts, image_pts, this->params_.Kcv, cv::noArray(),
                                                 r_vec, t_vec, true, 1e3,
-                                                2 * this->params.reprojError, 0.99, idxInlier, cv::SOLVEPNP_DLS);
+                                                2 * this->params_.reproj_error, 0.99, idx_inlier, cv::SOLVEPNP_DLS);
                 }
                 flag = success;
                 break;
             }
             case MVO::PNP::UPNP : {
-                bool success = cv::solvePnPRansac(objectPoints, imagePoints, this->params.Kcv, cv::noArray(),
+                bool success = cv::solvePnPRansac(object_pts, image_pts, this->params_.Kcv, cv::noArray(),
                                                 r_vec, t_vec, true, 1e3,
-                                                this->params.reprojError, 0.99, idxInlier, cv::SOLVEPNP_UPNP);
+                                                this->params_.reproj_error, 0.99, idx_inlier, cv::SOLVEPNP_UPNP);
                 if (!success){
-                    success = cv::solvePnPRansac(objectPoints, imagePoints, this->params.Kcv, cv::noArray(),
+                    success = cv::solvePnPRansac(object_pts, image_pts, this->params_.Kcv, cv::noArray(),
                                                 r_vec, t_vec, true, 1e3,
-                                                2 * this->params.reprojError, 0.99, idxInlier, cv::SOLVEPNP_UPNP);
+                                                2 * this->params_.reproj_error, 0.99, idx_inlier, cv::SOLVEPNP_UPNP);
                 }
                 flag = success;
                 break;
@@ -340,34 +340,33 @@ bool MVO::findPoseFrom3DPoints(Eigen::Matrix3d &R, Eigen::Vector3d &t, std::vect
         }
         std::cerr << "## Solve PnP: " << lsi::toc() << std::endl;
 
-        cv::Mat R_cv;
         cv::Rodrigues(r_vec, R_cv);
         cv::cv2eigen(R_cv, R);
         cv::cv2eigen(t_vec, t);
 
-        if( this->params.pnpMethod == MVO::PNP::LM || this->params.pnpMethod == MVO::PNP::ITERATIVE ){
-            this->nFeatureInlier = objectPoints.size();
+        if( this->params_.pnp_method == MVO::PNP::LM || this->params_.pnp_method == MVO::PNP::ITERATIVE ){
+            this->num_feature_inlier_ = object_pts.size();
         }
         else{
-            idxOutlier.clear();
-            if( idxInlier.empty() ){
-                for (int i = 0; i < (int)nPoint; i++)
-                    idxOutlier.push_back(i);
+            idx_outlier.clear();
+            if( idx_inlier.empty() ){
+                for (int i = 0; i < (int)num_pts; i++)
+                    idx_outlier.push_back(i);
             }else{
-                int nInlier = 0;
-                for (int i = 0; i < (int)nPoint; i++){
-                    if (idxInlier[nInlier] == i)
-                        nInlier++;
+                int num_inlier = 0;
+                for (int i = 0; i < (int)num_pts; i++){
+                    if (idx_inlier[num_inlier] == i)
+                        num_inlier++;
                     else
-                        idxOutlier.push_back(i);
+                        idx_outlier.push_back(i);
                 }
-                this->nFeatureInlier = nInlier;
+                this->num_feature_inlier_ = num_inlier;
             }
         }
     }
     else{
-        idxInlier.clear();
-        idxOutlier.clear();
+        idx_inlier.clear();
+        idx_outlier.clear();
         R = Eigen::Matrix3d::Identity();
         t = Eigen::Vector3d::Zero();
         flag = false;
@@ -381,16 +380,16 @@ void MVO::constructDepth(const std::vector<cv::Point2f> uv_prev, const std::vect
                         std::vector<bool> &inlier){
 
     std::cerr << "## Init constructDepth: " << lsi::toc() << std::endl;
-    const uint32_t nPoint = uv_prev.size();
+    const uint32_t num_pts = uv_prev.size();
 
-    switch(this->params.triangulationMethod){
+    switch(this->params_.triangulation_method){
         case MVO::TRIANGULATION::MIDP : {
             Eigen::Matrix<double,3,3> A, A0, A1;
             Eigen::Vector3d b;
             
             // Eigen::Matrix<double,3,4> P0, P1;
-            // P0 << this->params.K, Eigen::Vector3d::Zero();
-            // P1 << this->params.K * R, this->params.K * t;
+            // P0 << this->params_.K, Eigen::Vector3d::Zero();
+            // P1 << this->params_.K * R, this->params_.K * t;
 
             Eigen::Matrix3d M0, M1;
             Eigen::Vector3d c0, c1, u0, u1;
@@ -399,12 +398,12 @@ void MVO::constructDepth(const std::vector<cv::Point2f> uv_prev, const std::vect
             // c0 = -M0*P0.block(0,3,3,1);
             // M1 = P1.block(0,0,3,3).inverse();
             // c1 = -M1*P1.block(0,3,3,1);
-            M0 = this->params.Kinv;
-            M1 = R.inverse() * this->params.Kinv;
+            M0 = this->params_.Kinv;
+            M1 = R.inverse() * this->params_.Kinv;
             // c0 = Eigen::Vector3d::Zero();
             c1 = -R.inverse() * t;
 
-            for( uint32_t i = 0; i < nPoint; i++ ){
+            for( uint32_t i = 0; i < num_pts; i++ ){
                 u0 = M0 * (Eigen::Vector3d() << uv_prev[i].x, uv_prev[i].y, 1).finished();
                 u1 = M1 * (Eigen::Vector3d() << uv_curr[i].x, uv_curr[i].y, 1).finished();
 
@@ -425,23 +424,23 @@ void MVO::constructDepth(const std::vector<cv::Point2f> uv_prev, const std::vect
         case MVO::TRIANGULATION::LLS : {
             std::vector<Eigen::Vector3d> x_prev, x_curr;
             for( uint32_t i = 0; i < uv_prev.size(); i++ ){
-                x_prev.emplace_back((uv_prev[i].x - this->params.cx)/this->params.fx, (uv_prev[i].y - this->params.cy)/this->params.fy, 1);
-                x_curr.emplace_back((uv_curr[i].x - this->params.cx)/this->params.fx, (uv_curr[i].y - this->params.cy)/this->params.fy, 1);
+                x_prev.emplace_back((uv_prev[i].x - this->params_.cx)/this->params_.fx, (uv_prev[i].y - this->params_.cy)/this->params_.fy, 1);
+                x_curr.emplace_back((uv_curr[i].x - this->params_.cx)/this->params_.fx, (uv_curr[i].y - this->params_.cy)/this->params_.fy, 1);
             }
 
-            Eigen::MatrixXd& M_matrix = this->MapMatrixTemplate;
-            M_matrix.resize(3*nPoint, nPoint+1);
+            Eigen::MatrixXd& M_matrix = this->map_matrix_template_;
+            M_matrix.resize(3*num_pts, num_pts+1);
             M_matrix.setZero();
 
-            for (uint32_t i = 0; i < nPoint; i++){
+            for (uint32_t i = 0; i < num_pts; i++){
                 M_matrix.block(3*i,i,3,1) = skew(x_curr[i])*R*x_prev[i];
-                M_matrix.block(3*i,nPoint,3,1) = skew(x_curr[i])*t;
+                M_matrix.block(3*i,num_pts,3,1) = skew(x_curr[i])*t;
             }
             std::cerr << "## Construct MtM: " << lsi::toc() << std::endl;
 
             Eigen::MatrixXd V;
-            uint32_t idxMinEigen = nPoint;
-            switch( this->params.SVDMethod){
+            uint32_t idx_minimum_eigenval = num_pts;
+            switch( this->params_.svd_method){
                 case MVO::SVD::JACOBI:{
                     Eigen::JacobiSVD<Eigen::MatrixXd> svd(M_matrix, Eigen::ComputeThinV);
                     V = svd.matrixV();
@@ -476,17 +475,17 @@ void MVO::constructDepth(const std::vector<cv::Point2f> uv_prev, const std::vect
                 }
                 case MVO::SVD::Eigen:{
                     Eigen::MatrixXd MtM_ = M_matrix.transpose()*M_matrix;
-                    this->eigenSolver->compute(MtM_, Eigen::ComputeEigenvectors);
+                    this->eigen_solver_->compute(MtM_, Eigen::ComputeEigenvectors);
 
-                    V = this->eigenSolver->eigenvectors();
-                    idxMinEigen = 0;
+                    V = this->eigen_solver_->eigenvectors();
+                    idx_minimum_eigenval = 0;
                     break;
                 }
             }
             std::cerr << "## Compute eigenvector: " << lsi::toc() << std::endl;
 
-            for (uint32_t i = 0; i < nPoint; i++){
-                X_prev.push_back( V(i,idxMinEigen) / V(nPoint,idxMinEigen) * x_prev[i] );
+            for (uint32_t i = 0; i < num_pts; i++){
+                X_prev.push_back( V(i,idx_minimum_eigenval) / V(num_pts,idx_minimum_eigenval) * x_prev[i] );
                 X_curr.push_back( R*X_prev.back() + t );
                 inlier.push_back( X_prev.back()(2) > 0 && X_curr.back()(2) > 0 );
             }
@@ -496,16 +495,16 @@ void MVO::constructDepth(const std::vector<cv::Point2f> uv_prev, const std::vect
 
 void MVO::update3DPoint(Feature& feature, const Eigen::Matrix4d& Toc, const Eigen::Matrix4d& T){
     // // Update point under Gaussian model assumption
-    // int key_idx = feature.life - 1 - (this->step - this->key_step);
+    // int key_idx = feature.life - 1 - (this->step_ - this>keystep_);
     // double cur_var = 5/(cv::norm(feature.uv[key_idx] - feature.uv.back()));
     // if( feature.is_3D_init ){
-    //     if( this->params.updateInitPoint ){
-    //         double diffX = (Toc * feature.point - feature.point_init).norm();
+    //     if( this->params_.update_init_point ){
+    //         double diffX = (Toc * feature.point_curr - feature.point_init).norm();
     //         if( diffX < 3*feature.point_var){
     //             double prv_var = feature.point_var;
     //             double new_var = 1 / ( (1 / prv_var) + (1 / cur_var) );
                 
-    //             feature.point_init = new_var/cur_var * Toc * feature.point + new_var/prv_var * feature.point_init;
+    //             feature.point_init = new_var/cur_var * Toc * feature.point_curr + new_var/prv_var * feature.point_init;
     //             feature.point_var = new_var;
     //         }
     //     }
@@ -518,35 +517,41 @@ void MVO::update3DPoint(Feature& feature, const Eigen::Matrix4d& Toc, const Eige
 
     // Use Depthfilter - combination of Gaussian and uniform model
     Eigen::Vector3d point_initframe;
-    double z, tau, tauInverse;
+    double z, tau, tau_inverse;
 
     if( feature.is_3D_init ){
-        Eigen::Matrix4d Tkc = this->TocRec[feature.frame_init-1].inverse() * Toc;
-        point_initframe = Tkc.block(0,0,3,4) * feature.point;
+        Eigen::Matrix4d Tkc = this->TocRec_[feature.frame_init-1].inverse() * Toc;
+        point_initframe = Tkc.block(0,0,3,4) * feature.point_curr;
         z = point_initframe(2);
 
         tau = DepthFilter::computeTau(Tkc, point_initframe);
-        tauInverse = DepthFilter::computeInverseTau(z, tau);
+        tau_inverse = DepthFilter::computeInverseTau(z, tau);
 
-        if( this->params.updateInitPoint ){
-            feature.depth->update(1/z, tauInverse);
-            feature.point_init = Toc * Tkc.inverse() * (Eigen::Vector4d() << point_initframe / z / feature.depth->get_mean(), 1).finished();
-            feature.point_var = feature.depth->get_variance();
+        if( this->params_.update_init_point ){
+            feature.depthfilter->update(1/z, tau_inverse);
+            feature.point_init = this->TocRec_[feature.frame_init-1] * (Eigen::Vector4d() << point_initframe / z / feature.depthfilter->getMean(), 1).finished();
+            feature.point_var = feature.depthfilter->getVariance();
         }
 
     }else{ // if( feature.is_wide ){
-        point_initframe = T.block(0,0,3,4) * feature.point;
+        point_initframe = T.block(0,0,3,4) * feature.point_curr;
         z = point_initframe(2);
 
         tau = DepthFilter::computeTau(T, point_initframe);
-        tauInverse = DepthFilter::computeInverseTau(z, tau);
+        tau_inverse = DepthFilter::computeInverseTau(z, tau);
 
-        feature.depth->update(1/z, tauInverse);
-        feature.point_init = Toc * T.inverse() * (Eigen::Vector4d() << point_initframe / z / feature.depth->get_mean(), 1).finished();
-        feature.point_var = feature.depth->get_variance();
+        feature.depthfilter->update(1/z, tau_inverse);
+        feature.point_init = Toc * T.inverse() * (Eigen::Vector4d() << point_initframe / z / feature.depthfilter->getMean(), 1).finished();
+        feature.point_var = feature.depthfilter->getVariance();
         feature.is_3D_init = true;
-        feature.frame_init = this->step;
+        feature.frame_init = this->step_;
     }
+
+    if( feature.point_var > this->params_.max_point_var )
+        feature.is_alive = false;
+
+    if( feature.id < 100)
+        std::cerr << "& " << feature.id << " " << z << " " << feature.depthfilter->getMean() << " " << tau << " " << tau_inverse << " " << feature.point_var << " " << feature.depthfilter->getA() << " " << feature.depthfilter->getB() << std::endl;
 }
 
 // without PnP
@@ -558,18 +563,18 @@ void MVO::update3DPoints(const Eigen::Matrix3d &R, const Eigen::Vector3d &t,
     
     // Seek index of which feature is 3D reconstructed currently
     // and 3D initialized previously
-    Eigen::Matrix4d T_;
-    T_.setIdentity();
-    T_.block(0,0,3,3) = R.transpose();
-    T_.block(0,3,3,1) = -R.transpose()*t;
-    Toc = this->TocRec[this->key_step] * T_;
+    Eigen::Matrix4d tform;
+    tform.setIdentity();
+    tform.block(0,0,3,3) = R.transpose();
+    tform.block(0,3,3,1) = -R.transpose()*t;
+    Toc = this->TocRec_[this->keystep_] * tform;
     Poc = Toc.block(0,3,4,1);
-    T = this->TocRec.back().inverse() * Toc;
+    T = this->TocRec_.back().inverse() * Toc;
     
-    for( uint32_t i = 0; i < this->features.size(); i++ ){
-        if( this->features[i].is_3D_reconstructed ){
-            this->features[i].point.block(0,0,3,1) *= scale;
-            update3DPoint(this->features[i], Toc, T);
+    for( uint32_t i = 0; i < this->features_.size(); i++ ){
+        if( this->features_[i].is_3D_reconstructed ){
+            this->features_[i].point_curr.block(0,0,3,1) *= scale;
+            update3DPoint(this->features_[i], Toc, T);
         }
     }
 
@@ -587,7 +592,7 @@ void MVO::update3DPoints(const Eigen::Matrix3d &R, const Eigen::Vector3d &t,
     Toc.block(0,0,3,3) = R.transpose();
     Toc.block(0,3,3,1) = -R.transpose()*t;
     Poc = Toc.block(0,3,4,1);
-    T = this->TocRec.back().inverse() * Toc;
+    T = this->TocRec_.back().inverse() * Toc;
 
     Eigen::Matrix4d Tco;
     Tco.setIdentity();
@@ -597,10 +602,10 @@ void MVO::update3DPoints(const Eigen::Matrix3d &R, const Eigen::Vector3d &t,
     if(success_E){
         double scale = t_E.norm();
 
-        for( uint32_t i = 0; i < this->features.size(); i++ ){
-            if( this->features[i].is_3D_reconstructed ){
-                this->features[i].point.block(0,0,3,1) *= scale;
-                update3DPoint(this->features[i], Toc, T);
+        for( uint32_t i = 0; i < this->features_.size(); i++ ){
+            if( this->features_[i].is_3D_reconstructed ){
+                this->features_[i].point_curr.block(0,0,3,1) *= scale;
+                update3DPoint(this->features_[i], Toc, T);
             }
         }
     }else{
@@ -612,156 +617,156 @@ void MVO::update3DPoints(const Eigen::Matrix3d &R, const Eigen::Vector3d &t,
         
         // Initialize 3D points in global coordinates
         // Extract Homogeneous 2D point which is inliered with essential constraint
-        std::vector<int> idx2D;
-        for (uint32_t i = 0; i < this->features.size(); i++){
-            if (this->features[i].is_2D_inliered)
-                idx2D.push_back(i);
+        std::vector<int> idx_2D;
+        for (uint32_t i = 0; i < this->features_.size(); i++){
+            if (this->features_[i].is_2D_inliered)
+                idx_2D.push_back(i);
         }
         
-        const uint32_t nPoint = idx2D.size();
+        const uint32_t num_pts = idx_2D.size();
         int len;
         std::vector<cv::Point2f> uv_prev, uv_curr;
-        for (uint32_t i = 0; i < nPoint; i++){
-            len = this->features[idx2D[i]].life;
-            uv_prev.emplace_back(this->features[idx2D[i]].uv[len-2]);
-            uv_curr.emplace_back(this->features[idx2D[i]].uv.back());
+        for (uint32_t i = 0; i < num_pts; i++){
+            len = this->features_[idx_2D[i]].life;
+            uv_prev.emplace_back(this->features_[idx_2D[i]].uv[len-2]);
+            uv_curr.emplace_back(this->features_[idx_2D[i]].uv.back());
         }
         
         std::vector<Eigen::Vector3d> X_prev, X_curr;
         std::vector<bool> inliers;
         this->constructDepth(uv_prev, uv_curr, Rinv, tinv, X_prev, X_curr, inliers);
 
-        for (uint32_t i = 0; i < nPoint; i++){
+        for (uint32_t i = 0; i < num_pts; i++){
             // 2d inliers
             if(inliers[i]){
-                this->features[idx2D[i]].point = (Eigen::Vector4d() << X_curr[i], 1).finished();
-				this->features[idx2D[i]].is_3D_reconstructed = true;
-                update3DPoint(this->features[idx2D[i]], Toc, T);
+                this->features_[idx_2D[i]].point_curr = (Eigen::Vector4d() << X_curr[i], 1).finished();
+				this->features_[idx_2D[i]].is_3D_reconstructed = true;
+                update3DPoint(this->features_[idx_2D[i]], Toc, T);
             } // if(lambda_prev > 0 && lambda_curr > 0)
         } // for
     }
 
-    int Feature3Dconstructed = 0;
-    for (uint32_t i = 0; i < this->features.size(); i++){
-        if(this->features[i].is_3D_reconstructed)
-            Feature3Dconstructed++;
+    int num_reconstructed = 0;
+    for (uint32_t i = 0; i < this->features_.size(); i++){
+        if(this->features_[i].is_3D_reconstructed)
+            num_reconstructed++;
     }
-    this->nFeature3DReconstructed = Feature3Dconstructed;
+    this->num_feature_3D_reconstructed_ = num_reconstructed;
     std::cerr << "# Update 3D points with PnP: " << lsi::toc() << std::endl;
 }
 
-bool MVO::scale_propagation(const Eigen::Matrix3d &R, Eigen::Vector3d &t, std::vector<bool> &inlier, std::vector<bool> &outlier){
+bool MVO::scalePropagation(const Eigen::Matrix3d &R, Eigen::Vector3d &t, std::vector<bool> &inlier, std::vector<bool> &outlier){
     inlier.clear();
     outlier.clear();
 
     double scale = 0, scale_from_height = 0;
     bool flag;
 
-    MVO::scale_reference_weight = this->params.weightScaleRef;
+    MVO::s_scale_reference_weight_ = this->params_.weight_scale_ref;
 
     // Initialization
     // initialze scale, in the case of the first time
-    if( !this->speed_provided ){
+    if( !this->is_speed_provided_ ){
         cv::Point2f uv_curr;
         Eigen::Vector4d point_curr;
-        std::vector<cv::Point3f> roadCandidate;
-        std::vector<uint32_t> roadIdx;
+        std::vector<cv::Point3f> road_candidate;
+        std::vector<uint32_t> road_idx;
 
-        for (int i = 0; i < nFeature; i++){
-            if( this->features[i].is_3D_reconstructed ){
-                uv_curr = this->features[i].uv.back(); //latest feature
+        for (int i = 0; i < num_feature_; i++){
+            if( this->features_[i].is_3D_reconstructed ){
+                uv_curr = this->features_[i].uv.back(); //latest feature
 
-                if (uv_curr.y > this->params.imSize.height * 0.5 
-                && uv_curr.y > this->params.imSize.height - 0.7 * uv_curr.x 
-                && uv_curr.y > this->params.imSize.height + 0.7 * (uv_curr.x - this->params.imSize.width)){
-                    point_curr = this->features[i].point;
-                    roadCandidate.emplace_back(point_curr(0),point_curr(1),point_curr(2));
-                    roadIdx.push_back(i);
+                if (uv_curr.y > this->params_.im_size.height * 0.5 
+                && uv_curr.y > this->params_.im_size.height - 0.7 * uv_curr.x 
+                && uv_curr.y > this->params_.im_size.height + 0.7 * (uv_curr.x - this->params_.im_size.width)){
+                    point_curr = this->features_[i].point_curr;
+                    road_candidate.emplace_back(point_curr(0),point_curr(1),point_curr(2));
+                    road_idx.push_back(i);
                 }
             }
         }
 
-        if( roadIdx.size() > (uint32_t) this->params.thInlier ){
+        if( road_idx.size() > (uint32_t) this->params_.th_inlier ){
             std::vector<double> plane;
-            std::vector<bool> planeInlier, planeOutlier;
-            MVO::ransac<cv::Point3f, std::vector<double>>(roadCandidate, this->params.ransacCoef_plane, plane, planeInlier, planeOutlier);
+            std::vector<bool> plane_inlier, plane_outlier;
+            MVO::ransac<cv::Point3f, std::vector<double>>(road_candidate, this->params_.ransac_coef_plane, plane, plane_inlier, plane_outlier);
 
-            if( planeInlier.size() > (uint32_t) this->params.thInlier ){
-                for( uint32_t i = 0; i < roadIdx.size(); i++ ){
-                    if( planeInlier[i] )
-                        this->features[roadIdx[i]].type = Type::Road;
+            if( plane_inlier.size() > (uint32_t) this->params_.th_inlier ){
+                for( uint32_t i = 0; i < road_idx.size(); i++ ){
+                    if( plane_inlier[i] )
+                        this->features_[road_idx[i]].type = Type::Road;
                     // else
-                    //     this->features[roadIdx[i]].type = Type::Unknown;
+                    //     this->features_[road_idx[i]].type = Type::Unknown;
                 }
-                scale_from_height = this->params.vehicle_height / std::abs(plane[3]);
+                scale_from_height = this->params_.vehicle_height / std::abs(plane[3]);
 
-                this->update_scale_reference(scale_from_height);
+                this->updateScaleReference(scale_from_height);
             }
         }
     }
 
-    if (this->scale_initialized)
+    if (this->is_scale_initialized_)
     {
         // Seek index of which feature is 3D reconstructed currently,
         // and 3D initialized previously
         std::vector<int> idx;
-        for (uint32_t i = 0; i < this->features.size(); i++){
-            if( this->features[i].is_3D_reconstructed && this->features[i].is_3D_init)
+        for (uint32_t i = 0; i < this->features_.size(); i++){
+            if( this->features_[i].is_3D_reconstructed && this->features_[i].is_3D_init)
                 idx.push_back(i);
         }
-        uint32_t nPoint = idx.size();
+        uint32_t num_pts = idx.size();
 
-        if( this->scale_reference_weight < 0 ){ // Use reference scale directly
-            scale = this->scale_reference;
-            this->nFeatureInlier = this->nFeature3DReconstructed;
+        if( this->s_scale_reference_weight_ < 0 ){ // Use reference scale directly
+            scale = MVO::s_scale_reference_;
+            this->num_feature_inlier_ = this->num_feature_3D_reconstructed_;
         }
-        else if ( nPoint > this->params.ransacCoef_scale.minPtNum){ // Use RANSAC to find suitable scale
-            Eigen::Matrix4d T_;
-            T_.setIdentity();
-            T_.block(0,0,3,3) = R;
-            T_.block(0,3,3,1) = t;
+        else if ( num_pts > this->params_.ransac_coef_scale.min_num_point){ // Use RANSAC to find suitable scale
+            Eigen::Matrix4d tform;
+            tform.setIdentity();
+            tform.block(0,0,3,3) = R;
+            tform.block(0,3,3,1) = t;
 
             std::vector<std::pair<cv::Point3f,cv::Point3f>> Points;
             Eigen::Vector4d init_point, expt_point, curr_point;
-            this->params.ransacCoef_scale.weight.clear();
+            this->params_.ransac_coef_scale.weight.clear();
             
-            for (uint32_t i = 0; i < nPoint; i++){
-                curr_point = this->features[idx[i]].point;
+            for (uint32_t i = 0; i < num_pts; i++){
+                curr_point = this->features_[idx[i]].point_curr;
 
                 // Get initialized 3D point
-                init_point = this->TocRec[this->key_step].inverse() * this->features[idx[i]].point_init;
+                init_point = this->TocRec_[this->keystep_].inverse() * this->features_[idx[i]].point_init;
                 
                 // Get expected 3D point by transforming the coordinates of the observed 3d point
-                expt_point = T_.inverse() * curr_point;
+                expt_point = tform.inverse() * curr_point;
 
                 Points.emplace_back(cv::Point3f(expt_point(0),expt_point(1),expt_point(2)),
                                     cv::Point3f(init_point(0),init_point(1),init_point(2)));
                 
                 // RANSAC weight
-                this->params.ransacCoef_scale.weight.push_back( std::atan( -curr_point(2)/5 + 3 ) + M_PI / 2 );
+                this->params_.ransac_coef_scale.weight.push_back( std::atan( -curr_point(2)/5 + 3 ) + M_PI / 2 );
             }
 
-            MVO::ransac<std::pair<cv::Point3f,cv::Point3f>,double>(Points, this->params.ransacCoef_scale, scale, inlier, outlier);
-            this->nFeatureInlier = std::count(inlier.begin(), inlier.end(), true);
+            MVO::ransac<std::pair<cv::Point3f,cv::Point3f>,double>(Points, this->params_.ransac_coef_scale, scale, inlier, outlier);
+            this->num_feature_inlier_ = std::count(inlier.begin(), inlier.end(), true);
         }
 
         // Use the previous scale, if the scale cannot be found
-        // But do not use the previous scale when the velocity reference is fetched directly (scale_reference_weight < 0)
-        if ( this->scale_reference_weight >= 0 && (nPoint <= this->params.ransacCoef_scale.minPtNum || inlier.size() < (std::size_t)this->params.thInlier || scale == 0) )
+        // But do not use the previous scale when the velocity reference is fetched directly (s_scale_reference_weight_ < 0)
+        if ( MVO::s_scale_reference_weight_ >= 0 && (num_pts <= this->params_.ransac_coef_scale.min_num_point || inlier.size() < (std::size_t)this->params_.th_inlier || scale == 0) )
         {
             std::cerr << "There are a few SCALE FACTOR INLIERS" << std::endl;
 
             inlier.clear();
             outlier.clear();
 
-            scale = (this->TRec.back().block(0,3,3,1)).norm();
+            scale = (this->TRec_.back().block(0,3,3,1)).norm();
 
             // Update scale
             t = scale * t;
             flag = false;
 
         }else{
-            std::cerr << "@ scale_from_height: " << MVO::scale_reference << ", " << "scale: " << scale << std::endl;
+            std::cerr << "@ scale_from_height: " << MVO::s_scale_reference_ << ", " << "scale: " << scale << std::endl;
 
             // Update scale
             t = scale * t;
@@ -769,12 +774,12 @@ bool MVO::scale_propagation(const Eigen::Matrix3d &R, Eigen::Vector3d &t, std::v
         }
 
     }else{
-        if( this->speed_provided )
-            t = MVO::scale_reference * t;
+        if( this->is_speed_provided_ )
+            t = MVO::s_scale_reference_ * t;
         else
             t = scale_from_height * t;
 
-        this->nFeatureInlier = this->nFeature3DReconstructed;
+        this->num_feature_inlier_ = this->num_feature_3D_reconstructed_;
         flag = true;
     }
 
@@ -786,65 +791,65 @@ bool MVO::scale_propagation(const Eigen::Matrix3d &R, Eigen::Vector3d &t, std::v
         return flag;
 }
 
-void MVO::update_scale_reference(const double scale){
-    if( MVO::scale_reference < 0 || this->is_start == false )
-        MVO::scale_reference = scale;
+void MVO::updateScaleReference(const double scale){
+    if( MVO::s_scale_reference_ < 0 || this->is_start_ == false )
+        MVO::s_scale_reference_ = scale;
     else{
         // low-pass filter
-        // MVO::scale_reference = this->params.weightScaleReg * MVO::scale_reference + (1-this->params.weightScaleReg) * scale;
+        // MVO::s_scale_reference_ = this->params_.weightScaleReg * MVO::s_scale_reference_ + (1-this->params_.weightScaleReg) * scale;
 
         // limit slope
-        MVO::scale_reference = MVO::scale_reference + ((scale > MVO::scale_reference)?1:-1) * std::min(std::abs(scale - MVO::scale_reference), this->params.weightScaleReg);
+        MVO::s_scale_reference_ = MVO::s_scale_reference_ + ((scale > MVO::s_scale_reference_)?1:-1) * std::min(std::abs(scale - MVO::s_scale_reference_), this->params_.weight_scale_reg);
     }
 }
 
 template <typename DATA, typename FUNC>
-void MVO::ransac(const std::vector<DATA> &samples, const MVO::RansacCoef<DATA, FUNC> ransacCoef, FUNC& val, std::vector<bool> &inlier, std::vector<bool> &outlier){
-    uint32_t ptNum = samples.size();
+void MVO::ransac(const std::vector<DATA> &samples, const MVO::RansacCoef<DATA, FUNC> param, FUNC& val, std::vector<bool> &inlier, std::vector<bool> &outlier){
+    uint32_t num_pts = samples.size();
 
-    std::vector<uint32_t> sampleIdx;
+    std::vector<uint32_t> sample_idx;
     std::vector<DATA> sample;
     std::vector<double> dist;
-    dist.reserve(ptNum);
+    dist.reserve(num_pts);
 
-    int iterNUM = 1e5;
+    int num_iteration = 1e5;
     uint32_t max_inlier = 0;
-    double InlrRatio;
+    double inlier_ratio;
 
-    for( int it = 0; it < std::min(ransacCoef.iterMax, iterNUM); it++ ){
+    for( int it = 0; it < std::min(param.max_iteration, num_iteration); it++ ){
         // 1. fit using random points
-        if (ransacCoef.weight.size() > 0)
-            sampleIdx = lsi::randweightedpick(ransacCoef.weight, ransacCoef.minPtNum);
+        if (param.weight.size() > 0)
+            sample_idx = lsi::randweightedpick(param.weight, param.min_num_point);
         else
-            sampleIdx = lsi::randperm(ptNum, ransacCoef.minPtNum);
+            sample_idx = lsi::randperm(num_pts, param.min_num_point);
 
         sample.clear();
-        for (uint32_t i = 0; i < sampleIdx.size(); i++){
-            sample.push_back(samples[sampleIdx[i]]);
+        for (uint32_t i = 0; i < sample_idx.size(); i++){
+            sample.push_back(samples[sample_idx[i]]);
         }
 
-        ransacCoef.calculate_func(sample, val);
-        ransacCoef.calculate_dist(val, samples, dist);
+        param.calculate_func(sample, val);
+        param.calculate_dist(val, samples, dist);
 
         std::vector<bool> in1;
-        uint32_t nInlier = 0;
+        uint32_t num_inlier = 0;
         for (uint32_t i = 0; i < dist.size(); i++){
-            if( dist[i] < ransacCoef.thDist ){
+            if( dist[i] < param.th_dist ){
                 in1.push_back( true );
-                nInlier++;
+                num_inlier++;
             }else{
                 in1.push_back( false );
             }
         }
 
-        if (nInlier > max_inlier){
-            max_inlier = nInlier;
+        if (num_inlier > max_inlier){
+            max_inlier = num_inlier;
             inlier = in1;
-            InlrRatio = (double)max_inlier / (double)ptNum + 1e-16;
-            iterNUM = static_cast<int>(std::floor(std::log(1 - ransacCoef.thInlrRatio) / std::log(1 - std::pow(InlrRatio, ransacCoef.minPtNum))));
+            inlier_ratio = (double)max_inlier / (double)num_pts + 1e-16;
+            num_iteration = static_cast<int>(std::floor(std::log(1 - param.th_inlier_ratio) / std::log(1 - std::pow(inlier_ratio, param.min_num_point))));
         }
     }
-    std::cerr << "Ransac iterations: " << std::min(ransacCoef.iterMax, iterNUM) << std::endl;
+    std::cerr << "Ransac iterations: " << std::min(param.max_iteration, num_iteration) << std::endl;
 
     if (max_inlier == 0){
         inlier.clear();
@@ -855,14 +860,14 @@ void MVO::ransac(const std::vector<DATA> &samples, const MVO::RansacCoef<DATA, F
             if (inlier[i])
                 sample.push_back(samples[i]);
         
-        ransacCoef.calculate_func(sample, val);
-        ransacCoef.calculate_dist(val, samples, dist);
+        param.calculate_func(sample, val);
+        param.calculate_dist(val, samples, dist);
 
         inlier.clear();
         outlier.clear();
         for (uint32_t i = 0; i < dist.size(); i++){
-            inlier.push_back(dist[i] < ransacCoef.thDist);
-            outlier.push_back(dist[i] > ransacCoef.thDistOut);
+            inlier.push_back(dist[i] < param.th_dist);
+            outlier.push_back(dist[i] > param.th_dist_outlier);
         }
     }
 }

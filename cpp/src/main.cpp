@@ -98,18 +98,20 @@ int main(int argc, char * argv[]){
 		oxts_path.append(inputFile).append("oxts/data/");
 		directoryReader(oxts_path.c_str(), oxtsData);
 
-		if( Parser::hasOption("-vel") )
+		if( Parser::hasOption("-vel") ){
 			computeVehicleSpeed(oxtsData, speed);
+			speed.erase(speed.begin(), speed.begin()+initFrame);
+		}
 		
-		if( Parser::hasOption("-imu") )
+		if( Parser::hasOption("-imu") ){
 			computeImuRotation(oxtsData, imuRot);
+			imuRot.erase(imuRot.begin(), imuRot.begin()+initFrame);
+		}
 
 		std::string time_path;
 		time_path.append(inputFile).append("oxts/timestamps.txt");
 		timeReader(time_path.c_str(), timestamp);
-
 		timestamp.erase(timestamp.begin(), timestamp.begin()+initFrame);
-		speed.erase(speed.begin(), speed.begin()+initFrame);
 	}
 
 	/**************************************************************************
@@ -160,12 +162,12 @@ int main(int argc, char * argv[]){
 				chk::getImgTUMdataset(dirRgb, image);
 
 				if( Parser::hasOption("-vel") || Parser::hasOption("-imu") ){
-					vo->update_timestamp(timestamp[it_rgb]);
+					vo->updateTimestamp(timestamp[it_rgb]);
 
 					if( Parser::hasOption("-vel"))
-						vo->update_velocity(speed[it_rgb]);
+						vo->updateVelocity(speed[it_rgb]);
 					if( Parser::hasOption("-imu"))
-						vo->update_gyro(imuRot[it_rgb]);
+						vo->updateGyro(imuRot[it_rgb]);
 				}
 				
 				vo->run(image);
@@ -173,7 +175,7 @@ int main(int argc, char * argv[]){
 				if( Parser::hasOption("-gt") ){
 					std::ostringstream dirDepth;
 					dirDepth << inputFile << "full_depth/" << std::setfill('0') << std::setw(10) << it_rgb+initFrame << ".bin";
-					Eigen::MatrixXd depth = read_binary(dirDepth.str().c_str(), vo->params.imSize.height, vo->params.imSize.width);
+					Eigen::MatrixXd depth = read_binary(dirDepth.str().c_str(), vo->params_.im_size.height, vo->params_.im_size.width);
 					vo->calcReconstructionErrorGT(depth);
 				}
 				
@@ -337,34 +339,34 @@ bool grabActiveKey(MVO * vo, char key){
 	switch (key){
 	case 'a':
 	case 'A':
-		vo->params.view.height /= D_METER;
-		vo->params.view.height = std::max(vo->params.view.height,5.0);
+		vo->params_.view.height /= D_METER;
+		vo->params_.view.height = std::max(vo->params_.view.height,5.0);
 		break;
 	case 'd':
 	case 'D':
-		vo->params.view.height *= D_METER;
+		vo->params_.view.height *= D_METER;
 		break;
 	case 'h':
 	case 'H':
-		vo->params.view.roll += D_RADIAN;
+		vo->params_.view.roll += D_RADIAN;
 		break;
 	case 'j':
 	case 'J':
-		vo->params.view.pitch -= D_RADIAN;
+		vo->params_.view.pitch -= D_RADIAN;
 		break;
 	case 'k':
 	case 'K':
-		vo->params.view.pitch += D_RADIAN;
+		vo->params_.view.pitch += D_RADIAN;
 		break;
 	case 'l':
 	case 'L':
-		vo->params.view.roll -= D_RADIAN;
+		vo->params_.view.roll -= D_RADIAN;
 		break;
 	case 'e':
 	case 'E':
-		vo->params.view.height =  vo->params.view.heightDefault;
-		vo->params.view.roll =    vo->params.view.rollDefault;
-		vo->params.view.pitch =   vo->params.view.pitchDefault;
+		vo->params_.view.height =  vo->params_.view.height_default;
+		vo->params_.view.roll =    vo->params_.view.roll_default;
+		vo->params_.view.pitch =   vo->params_.view.pitch_default;
 		break;
 	default:
 		return false;

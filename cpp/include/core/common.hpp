@@ -46,7 +46,7 @@
 
 #define D_METER 1.2
 #define D_RADIAN M_PI/24
-#define YAML_VERSION 2.1
+#define YAML_VERSION 2.2
 
 enum Type{Unknown,Dynamic,Road,};
 
@@ -57,8 +57,8 @@ typedef struct Bucket{
 	int max_features = 400;
 	cv::Size grid;
 	cv::Size size;
-	cv::Mat cvMass;
-	cv::Mat cvProb;
+	cv::Mat cv_mass;
+	cv::Mat cv_prob;
 	Eigen::MatrixXd mass;
 	Eigen::MatrixXd prob;
 	Eigen::MatrixXd saturated;
@@ -73,7 +73,7 @@ typedef struct Feature{
 	std::vector< cv::Point2f > uv;
 	cv::Point2f uv_pred;
 	cv::Point bucket;
-	Eigen::Vector4d point;
+	Eigen::Vector4d point_curr;
 	Eigen::Vector4d point_init;
 	double point_var;
 	bool is_alive;
@@ -83,7 +83,7 @@ typedef struct Feature{
 	bool is_3D_reconstructed;
 	bool is_3D_init;
 	Type type;
-	DepthFilter * depth;
+	DepthFilter * depthfilter;
 }Feature;
 
 #endif //__COMMON_HPP__

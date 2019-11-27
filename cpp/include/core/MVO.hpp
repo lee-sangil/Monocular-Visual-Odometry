@@ -29,11 +29,11 @@ class MVO{
 
 	template <typename DATA, typename FUNC>
 	struct RansacCoef{
-		int iterMax = 1e4;
-		double minPtNum = 5;
-		double thInlrRatio = 0.9;
-		double thDist = 0.5;
-		double thDistOut = 5.0;
+		int max_iteration = 1e4;
+		double min_num_point = 5;
+		double th_inlier_ratio = 0.9;
+		double th_dist = 0.5;
+		double th_dist_outlier = 5.0;
 		std::vector<double> weight;
 		std::function<void(const std::vector<DATA>&, FUNC&)> calculate_func;
 		std::function<void(const FUNC, const std::vector<DATA>&, std::vector<double>&)> calculate_dist;
@@ -43,15 +43,15 @@ class MVO{
 		double height;
 		double roll;
 		double pitch;
-		double heightDefault = 20;
-		double rollDefault = -M_PI/2;
-		double pitchDefault = 0;
+		double height_default = 20;
+		double roll_default = -M_PI/2;
+		double pitch_default = 0;
 		Eigen::Matrix3d R = Eigen::Matrix3d::Identity();
 		Eigen::Vector3d t = Eigen::Vector3d::Zero();
 		Eigen::Matrix3d K;
 		Eigen::Matrix<double,3,4> P;
-		cv::Size imSize;
-		cv::Point3d upperLeft, upperRight, lowerLeft, lowerRight;
+		cv::Size im_size;
+		cv::Point3d upper_left, upper_right, lower_left, lower_right;
 	};
 
 	struct Parameter{
@@ -59,34 +59,35 @@ class MVO{
 		double k1, k2, p1, p2, k3;
 		Eigen::Matrix3d K, Kinv;
 		cv::Mat Kcv;
-		std::vector<double> radialDistortion;
-		std::vector<double> tangentialDistortion;
-		std::vector<double> distCoeffs;
-		cv::Size imSize;
-		bool applyCLAHE = false;
+		std::vector<double> radial_distortion;
+		std::vector<double> tangential_distortion;
+		std::vector<double> dist_coeffs;
+		cv::Size im_size;
+		bool apply_clahe = false;
 
 		Eigen::Matrix4d Tci, Tic;
 
-		MVO::RansacCoef<std::pair<cv::Point3f,cv::Point3f>, double> ransacCoef_scale;
-		MVO::RansacCoef<cv::Point3f, std::vector<double>> ransacCoef_plane;
+		MVO::RansacCoef<std::pair<cv::Point3f,cv::Point3f>, double> ransac_coef_scale;
+		MVO::RansacCoef<cv::Point3f, std::vector<double>> ransac_coef_plane;
 		
-		int thInlier = 5;
-		double thRatioKeyFrame = 0.9;
+		int th_inlier = 5;
+		double th_ratio_keyframe = 0.9;
 		double min_px_dist = 7.0;
-		double px_wide = 12.0;
+		double th_px_wide = 12.0;
 		double max_epiline_dist = 20.0;
-		
+		double max_point_var = 0.1;
+
 		// 3D reconstruction
 		double vehicle_height;
-		double initScale;
-		double weightScaleRef;
-		double weightScaleReg;
-		double reprojError;
-		MVO::SVD SVDMethod;
-		MVO::TRIANGULATION triangulationMethod;
-		MVO::PNP pnpMethod;
-		int updateInitPoint;
-		int mappingOption;
+		double init_scale;
+		double weight_scale_ref;
+		double weight_scale_reg;
+		double reproj_error;
+		MVO::SVD svd_method;
+		MVO::TRIANGULATION triangulation_method;
+		MVO::PNP pnp_method;
+		int update_init_point;
+		int mapping_option;
 
 		// drawing
 		MVO::ViewCam view;
@@ -94,50 +95,50 @@ class MVO{
 
 	public:
 
-	Parameter params;
+	Parameter params_;
 	
 	public:
 
 	MVO();
 	MVO(std::string yaml);
 	~MVO(){
-		delete this->eigenSolver;
+		delete this->eigen_solver_;
 	}
 	
 	// Set image
-	void set_image(cv::Mat& image);
+	void setImage(cv::Mat& image);
 
 	// Get feature 
-	std::vector< std::tuple<cv::Point2f, Eigen::Vector3d> > get_points() const;
-	std::vector<Feature> get_features() const;
+	std::vector< std::tuple<cv::Point2f, Eigen::Vector3d> > getPoints() const;
+	std::vector<Feature> getFeatures() const;
 	cv::Point2f calculateRotWarp(cv::Point2f uv);
 	
 	// Script operations
 	void restart();
 	void refresh();
 	void run(cv::Mat& image);
-	void update_timestamp(double timestamp);
-	void update_gyro(Eigen::Vector3d& gyro);
-	void update_velocity(double speed);
+	void updateTimestamp(double timestamp);
+	void updateGyro(Eigen::Vector3d& gyro);
+	void updateVelocity(double speed);
 	void plot();
 	void updateView();
 
 	// Feature operations
-	void klt_tracker(std::vector<cv::Point2f>& points, std::vector<bool>& validity);
-	void update_bucket();
-	bool extract_features();
-	bool update_features();
-	void delete_dead_features();
-	void add_features();
-	void add_feature();
+	void kltTracker(std::vector<cv::Point2f>& points, std::vector<bool>& validity);
+	void updateBucket();
+	bool extractFeatures();
+	bool updateFeatures();
+	void deleteDeadFeatures();
+	void addFeatures();
+	void addFeature();
 
 	// Calculations
-	bool calculate_essential();
-	bool calculate_motion();
-	bool verify_solutions(const Eigen::Matrix3d& R, const Eigen::Vector3d& t);
-	bool verify_solutions(const std::vector<Eigen::Matrix3d>& R_vec, const std::vector<Eigen::Vector3d>& t_vec,
+	bool calculateEssential();
+	bool calculateMotion();
+	bool verifySolutions(const Eigen::Matrix3d& R, const Eigen::Vector3d& t);
+	bool verifySolutions(const std::vector<Eigen::Matrix3d>& R_vec, const std::vector<Eigen::Vector3d>& t_vec,
 						  Eigen::Matrix3d& R, Eigen::Vector3d& t);
-	bool scale_propagation(const Eigen::Matrix3d& R, Eigen::Vector3d& t,
+	bool scalePropagation(const Eigen::Matrix3d& R, Eigen::Vector3d& t,
 						   std::vector<bool>& inlier, std::vector<bool>& outlier);
 	bool findPoseFrom3DPoints(Eigen::Matrix3d &R, Eigen::Vector3d &t, std::vector<int>& inlier, std::vector<int>& outlier);
 	void constructDepth(const std::vector<cv::Point2f> uv_prev, const std::vector<cv::Point2f> uv_curr, 
@@ -155,71 +156,71 @@ class MVO{
 	double calcReconstructionError(Eigen::Matrix4d& Toc);
 	double calcReconstructionError(Eigen::Matrix3d& R, Eigen::Vector3d& t);
 	void calcReconstructionErrorGT(Eigen::MatrixXd& depth);
-	void update_scale_reference(const double scale);
+	void updateScaleReference(const double scale);
 
 	// RANSAC
 	template <typename DATA, typename FUNC>
 	static void ransac(const std::vector<DATA>& sample, const MVO::RansacCoef<DATA, FUNC> ransacCoef, FUNC& val, std::vector<bool>& inlier, std::vector<bool>& outlier);
-	static void calculate_scale(const std::vector<std::pair<cv::Point3f,cv::Point3f>>& pts, double& scale);
-	static void calculate_scale_error(const double& scale, const std::vector<std::pair<cv::Point3f,cv::Point3f>>& pts, std::vector<double>& dist);
-	static void calculate_plane(const std::vector<cv::Point3f>& pts, std::vector<double>& plane);
-	static void calculate_plane_error(const std::vector<double>& plane, const std::vector<cv::Point3f>& pts, std::vector<double>& dist);
-	static double scale_reference;
-	static double scale_reference_weight;
+	static void calculateScale(const std::vector<std::pair<cv::Point3f,cv::Point3f>>& pts, double& scale);
+	static void calculateScaleError(const double& scale, const std::vector<std::pair<cv::Point3f,cv::Point3f>>& pts, std::vector<double>& dist);
+	static void calculatePlane(const std::vector<cv::Point3f>& pts, std::vector<double>& plane);
+	static void calculatePlaneError(const std::vector<double>& plane, const std::vector<cv::Point3f>& pts, std::vector<double>& dist);
+	static double s_scale_reference_;
+	static double s_scale_reference_weight_;
 
 	// Add additional feature within bound-box
-	void add_extra_features();
-	void extract_roi_features(std::vector<cv::Rect> rois, std::vector<int> nFeature);
-	bool extract_roi_feature(cv::Rect& roi);
-	std::vector<Feature> features_extra;
+	void addExtraFeatures();
+	void extractRoiFeatures(std::vector<cv::Rect> rois, std::vector<int> nFeature);
+	bool extractRoiFeature(cv::Rect& roi);
+	std::vector<Feature> features_extra_;
 
 	private:
 
-	uint32_t step;
-	uint32_t key_step;
-	std::vector<uint32_t> keystepVec;
+	uint32_t step_;
+	uint32_t keystep_;
+	std::vector<uint32_t> keystep_array_;
 
-	std::vector<double> timestampSinceKeyframe;
-	std::vector<double> speedSinceKeyframe;
-	std::vector<Eigen::Vector3d> gyroSinceKeyframe;
+	std::vector<double> timestamp_since_keyframe_;
+	std::vector<double> speed_since_keyframe_;
+	std::vector<Eigen::Vector3d> gyro_since_keyframe_;
 	
-	cv::Mat prev_image;
-	cv::Mat cur_image;
-	cv::Mat undist_image;
+	cv::Mat prev_image_;
+	cv::Mat curr_image_;
+	cv::Mat undistorted_image_;
 
-	cv::Ptr<cv::CLAHE> cvClahe;
-	cv::Mat distMap1, distMap2;
+	cv::Ptr<cv::CLAHE> cvClahe_;
+	cv::Mat distort_map1_, distort_map2_;
 	// cv::Ptr<cv::DescriptorExtractor> descriptor;
 
-	Bucket bucket;
-	std::vector<Feature> features;
-	std::vector<Feature> features_backup;
-	std::vector<Feature> features_dead; // for debugging with plot
+	Bucket bucket_;
+	std::vector<Feature> features_;
+	std::vector<Feature> features_backup_;
+	std::vector<Feature> features_dead_; // for debugging with plot
 
-	bool is_start;
-	bool scale_initialized;
-	bool rotate_provided;
-	bool speed_provided;
+	bool is_start_;
+	bool is_scale_initialized_;
+	bool is_rotate_provided_;
+	bool is_speed_provided_;
 
-	Eigen::Matrix3d rotate_prior;
+	Eigen::Matrix3d rotate_prior_;
 
-	int nFeature;
-	int nFeatureMatched;
-	int nFeature2DInliered;
-	int nFeature3DReconstructed;
-	int nFeatureInlier;
+	int num_feature_;
+	int num_feature_matched_;
+	int num_feature_2D_inliered_;
+	int num_feature_3D_reconstructed_;
+	int num_feature_inlier_;
 
-	cv::Mat essentialMat;
-	Eigen::Matrix3d fundamentalMat;
-	std::vector<Eigen::Matrix3d> R_vec;
-	std::vector<Eigen::Vector3d> t_vec;
-	std::vector<Eigen::Matrix4d> TRec;
-	std::vector<Eigen::Matrix4d> TocRec;
-	std::vector<Eigen::Vector4d> PocRec;
+	cv::Mat essential_;
+	Eigen::Matrix3d fundamental_;
+	std::vector<Eigen::Matrix3d> R_vec_;
+	std::vector<Eigen::Vector3d> t_vec_;
+	std::vector<Eigen::Matrix4d> TRec_;
+	std::vector<Eigen::Matrix4d> TocRec_;
+	std::vector<Eigen::Vector4d> PocRec_;
 
-	std::vector<cv::Mat> prevPyramidTemplate, currPyramidTemplate;
-	Eigen::MatrixXd MapMatrixTemplate;
-	Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> * eigenSolver;
+	std::vector<cv::Mat> prev_pyramid_template_, curr_pyramid_template_;
+	Eigen::MatrixXd map_matrix_template_;
+	Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> * eigen_solver_;
 };
 
 #endif //__MVO_HPP__
