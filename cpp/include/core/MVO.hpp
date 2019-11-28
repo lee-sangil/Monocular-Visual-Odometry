@@ -102,7 +102,7 @@ class MVO{
 	MVO();
 	MVO(std::string yaml);
 	~MVO(){
-		delete this->eigen_solver_;
+		delete eigen_solver_;
 	}
 	
 	// Set image

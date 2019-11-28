@@ -21,21 +21,21 @@ void DepthFilter::update(const double meas, const double tau){
 		double F = C1 * (a_+1)/(a_+b_+1) + C2 * a_/(a_+b_+1);
 		double E = C1 * (a_+1)/(a_+b_+1) * (a_+2)/(a_+b_+2) + C2 * a_/(a_+b_+1) * (a_+1)/(a_+b_+2);
 
-		this->a_ = (E-F)/(F-E/F);
-		this->b_ = this->a_ * (1-F)/F;
-		this->mean_ = mean_new;
-		this->sigma_ = sigma_new;
+		a_ = (E-F)/(F-E/F);
+		b_ = a_ * (1-F)/F;
+		mean_ = mean_new;
+		sigma_ = sigma_new;
 	}else{
-		this->mean_ = meas;
-		this->sigma_ = tau; // 1/DEPTH_MIN/DEPTH_MIN/36
-		this->initialize_ = true;
+		mean_ = meas;
+		sigma_ = tau; // 1/DEPTH_MIN/DEPTH_MIN/36
+		initialize_ = true;
 	}
 }
 
-double DepthFilter::getMean() const {return this->mean_;}
-double DepthFilter::getVariance() const {return this->sigma_ * this->sigma_;}
-double DepthFilter::getA() const {return this->a_;}
-double DepthFilter::getB() const {return this->b_;}
+double DepthFilter::getMean() const {return mean_;}
+double DepthFilter::getVariance() const {return sigma_ * sigma_;}
+double DepthFilter::getA() const {return a_;}
+double DepthFilter::getB() const {return b_;}
 
 double DepthFilter::computeTau(const Eigen::Matrix4d& Toc, const Eigen::Vector3d& p){
 	Eigen::Vector3d t = Toc.block(0,3,3,1);
