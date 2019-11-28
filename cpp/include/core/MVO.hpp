@@ -87,6 +87,7 @@ class MVO{
 		MVO::TRIANGULATION triangulation_method;
 		MVO::PNP pnp_method;
 		int update_init_point;
+		int output_filtered_depth;
 		int mapping_option;
 
 		// drawing

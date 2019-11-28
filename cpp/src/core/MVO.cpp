@@ -156,12 +156,13 @@ MVO::MVO(std::string yaml):MVO(){
 
     // 3D reconstruction
     params_.init_scale =           1;
-    params_.vehicle_height =       fSettings["Scale.reference_height"]; // in meter
-    params_.weight_scale_ref =     fSettings["Scale.reference_weight"];
-	params_.weight_scale_reg =     fSettings["Scale.regularization_weight"];
-    params_.reproj_error =         fSettings["PnP.reprojection_error"];
-    params_.update_init_point =    fSettings["Debug.update_init_points"];
-    params_.mapping_option =       fSettings["Debug.mapping_options"];
+    params_.vehicle_height =            fSettings["Scale.reference_height"]; // in meter
+    params_.weight_scale_ref =          fSettings["Scale.reference_weight"];
+	params_.weight_scale_reg =          fSettings["Scale.regularization_weight"];
+    params_.reproj_error =              fSettings["PnP.reprojection_error"];
+    params_.update_init_point =         fSettings["Debug.update_init_points"];
+    params_.output_filtered_depth =     fSettings["Debug.output_filtered_depths"];
+    params_.mapping_option =            fSettings["Debug.mapping_options"];
 
     eigen_solver_ = new Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd>();
 
@@ -356,9 +357,14 @@ std::vector<Feature> MVO::getFeatures() const {
 
 std::vector< std::tuple<cv::Point2f, Eigen::Vector3d> > MVO::getPoints() const
 {
+    Eigen::Matrix4d Tco = TocRec_.back().inverse();
     std::vector< std::tuple<cv::Point2f, Eigen::Vector3d> > ptsROI;
     for( uint32_t i = 0; i < features_.size(); i++ ){
-        ptsROI.push_back( std::make_tuple(features_[i].uv.back(), features_[i].point_curr.block(0, 0, 3, 1) ) );
+        if( params_.output_filtered_depth )
+            ptsROI.push_back( std::make_tuple(features_[i].uv.back(), Tco.block(0,0,3,4) * features_[i].point_init ) );
+        else
+            ptsROI.push_back( std::make_tuple(features_[i].uv.back(), features_[i].point_curr.block(0, 0, 3, 1) ) );
+        
     }
     return ptsROI;
 }
