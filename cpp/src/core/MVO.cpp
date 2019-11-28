@@ -312,13 +312,16 @@ void MVO::run(cv::Mat& image){
 
     // extract_roi_features(rois, num_feature_);   // Extract extra features in rois
 
-    std::array<bool,3> success;
-    success[0] = extractFeatures();       // Extract and update features
-    success[1] = calculateEssential();    // RANSAC for calculating essential/fundamental matrix
-    success[2] = calculateMotion();       // Extract rotational and translational from fundamental matrix
-
-    if( !std::all_of(success.begin(), success.end(), [](bool b){return b;}) )
+    if( extractFeatures() && calculateEssential() && calculateMotion() == false )
         restart();
+
+    // std::array<bool,3> success;
+    // success[0] = extractFeatures();       // Extract and update features
+    // success[1] = calculateEssential();    // RANSAC for calculating essential/fundamental matrix
+    // success[2] = calculateMotion();       // Extract rotational and translational from fundamental matrix
+
+    // if( !std::all_of(success.begin(), success.end(), [](bool b){return b;}) )
+    //     restart();
 }
 
 void MVO::updateTimestamp(double timestamp){

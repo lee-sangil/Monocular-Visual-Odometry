@@ -339,6 +339,9 @@ bool MVO::calculateEssential()
         std::cerr << "key step: " << keystep_ << ' ' << std::endl;
     }
 
+    if( (int) points1.size() < params_.th_inlier )
+        return false;
+
     cv::Mat inlier_mat;
     essential_ = cv::findEssentialMat(points1, points2, params_.Kcv, cv::RANSAC, 0.999, 1.5, inlier_mat);
     std::cerr << "# Calculate essential: " << lsi::toc() << std::endl;
@@ -347,12 +350,12 @@ bool MVO::calculateEssential()
     cv::cv2eigen(essential_, E_);
     fundamental_ = params_.Kinv.transpose() * E_ * params_.Kinv;
 
-    double error;
-    std::vector<double> essential_error;
-    for( uint32_t i = 0; i < points1.size(); i++ ){
-        error = (Eigen::Vector3d() << points2[i].x,points2[i].y,1).finished().transpose() * params_.Kinv.transpose() * E_ * params_.Kinv * (Eigen::Vector3d() << points1[i].x,points1[i].y,1).finished();
-        essential_error.push_back(error);
-    }
+    // double error;
+    // std::vector<double> essential_error;
+    // for( uint32_t i = 0; i < points1.size(); i++ ){
+    //     error = (Eigen::Vector3d() << points2[i].x,points2[i].y,1).finished().transpose() * params_.Kinv.transpose() * E_ * params_.Kinv * (Eigen::Vector3d() << points1[i].x,points1[i].y,1).finished();
+    //     essential_error.push_back(error);
+    // }
 
     uint32_t inlier_cnt = 0;
     bool* inlier = inlier_mat.ptr<bool>(0);
@@ -361,8 +364,8 @@ bool MVO::calculateEssential()
             features_[idx_static[i]].is_2D_inliered = true;
             inlier_cnt++;
         // }else if( essential_error[i] > 1e-4 ){
-        }else{
-            features_[idx_static[i]].type = Type::Dynamic;
+        // }else{
+        //     features_[idx_static[i]].type = Type::Dynamic;
         }
     }
     num_feature_2D_inliered_ = inlier_cnt;

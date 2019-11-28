@@ -15,7 +15,7 @@ bool MVO::calculateMotion()
     Eigen::Matrix3d R_unique;
     Eigen::Vector3d t_unique;
 
-    verifySolutions(R_vec_, t_vec_, R_unique, t_unique);
+    if( !verifySolutions(R_vec_, t_vec_, R_unique, t_unique) ) return false;
     std::cerr << "# Verify unique pose: " << lsi::toc() << std::endl;
 
     /**************************************************
@@ -38,7 +38,7 @@ bool MVO::calculateMotion()
 
     case 1:
         /**** mapping and scaling with essential 3d reconstruction only ****/
-        scalePropagation(R_unique ,t_unique, inlier, outlier);
+        if( !scalePropagation(R_unique ,t_unique, inlier, outlier) ) return false;
         std::cerr << "Essential 3D error: " << calcReconstructionError(R_unique, t_unique) << std::endl;
         update3DPoints(R_unique, t_unique, inlier, outlier, T, Toc, Poc); // overloading function
         break;
