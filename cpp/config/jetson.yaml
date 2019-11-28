@@ -1,23 +1,6 @@
 %YAML:1.0
 
-#--------------------------------------------------------------------------------------------
-# IMU Parameters (fixed).
-#--------------------------------------------------------------------------------------------
-
-# IMU data rate
-IMU.dps: 185
-
-# Threshold of small angle (<1/2deg)
-IMU.nSmallAngle: 0.008726646
-
-# IMU sensor noise
-IMU.sigma_g: 1.6968e-04
-IMU.sigma_wg: 1.9393e-05
-IMU.sigma_a: 2.0000e-3
-IMU.sigma_wa: 3.0000e-3
-
-# Gravity
-IMU.nG: 9.8082
+Version: 2.2
 
 #--------------------------------------------------------------------------------------------
 # Camera Parameters (fixed).
@@ -63,75 +46,94 @@ LiDAR.T: [-0.4822433, -0.0082169, 0.4185907]
 #--------------------------------------------------------------------------------------------
 
 # Number of features
-Feature.num: 500
+Feature.number: 800
 
 # Number of features matching per image 
-Feature.thInlier: 6
+Feature.minimum_num_inlier: 6
 
 # Threshold ratio for keyframe, which is updated when nFeatureMatched < nFeature * ratio
 # if threshold is 1, keyframe effect is disappeared.
-Feature.thRatioKeyFrame: 0.8
+Feature.minimum_matching_ratio: 0.75
 
 # Min. feature distance between for extraction
-Feature.min_px_dist: 15
+Feature.minimum_distance_between: 5
 
 # Min. feature distance between for reconstruction
-Feature.px_wide: 5
+Feature.minimum_triangulation_baseline: 5
+
+# Max. distance between the epipolar line and feature predicted by gyro
+Feature.maximum_epiline_distance: 20
 
 # Bucket safety region (px)
-Bucket.safety: 20
+Bucket.border_safety: 20
 
 # Bucket size
-Bucket.rows: 16
-Bucket.cols: 8
+Bucket.rows: 8
+Bucket.cols: 16
 
 #--------------------------------------------------------------------------------------------
 # Reconstruction Parameters (tunable).
 #--------------------------------------------------------------------------------------------
 
 # Iteration
-RANSAC.iterMax: 1000
-
-# Min. number of samples
-RANSAC.nSample: 1
+RANSAC.maximum_iteration: 1000
 
 # Inlier ratio
-RANSAC.thInlrRatio: 0.99
+RANSAC.threshold_inlier_ratio: 0.99
+
+# Min. number of samples
+RANSAC.scale.num_sample: 1
+#RANSAC.plane.num_sample: 3
 
 # Inlier threshold
-RANSAC.thDist: 0.1
+RANSAC.scale.threshold_dist_inlier: 0.5
+RANSAC.plane.threshold_dist_inlier: 0.01
 
 # Rejection threshold
-RANSAC.thDistOut: 1
+RANSAC.scale.threshold_dist_outlier: 1
+RANSAC.plane.threshold_dist_outlier: 0.5
 
-# Vehicel height
-Scale.height: 1.5
+# Vehicle height (meter)
+Scale.reference_height: 1.65
+
+# For scale-propagation, the weight for scale referenced from a vehicle's fixed height
+# If you choose *negative* value, scale-propagation does not executed. It means that the 
+# algorithm *does not minimize* the difference between initialized 3d points and reconstructed points.
+Scale.reference_weight: 10
+
+# For scale-propagation, regularization weight for scale smoothness
+Scale.regularization_weight: 0.2
 
 # SVD Methods: mid-point(0: recommended), linear least square(1)
-Triangulation.Method: 0
+Triangulation.method: 0
 
 # From above, if 1 is chosen: Jacobi(0), BDC(1), OpenCV(2), Eigen(3: recommended)
 Triangulation.SVD: 3
 
 # Reconstruction method: LM(0), Iterative(1), AP3P Ransac(2), EPNP Ransac(3), DLS Ransac(4), UPNP Ransac(5)
-PnP.Method: 4
+PnP.method: 2
 
 # Min. Reprojection error
-PnP.threshold: 0.01
+PnP.reprojection_error: 0.2
+
+# Depth filter
+DepthFilter.minimum_depth: 0.1
+DepthFilter.pixel_noise: 1
+DepthFilter.maximum_variance: 0.001
 
 #--------------------------------------------------------------------------------------------
 # Display Parameters (tunable).
 #--------------------------------------------------------------------------------------------
 
 # viewCam settings
-viewCam.height: 40
+viewCam.height: 20
 
 # viewCam settings in degree
 viewCam.roll: 0
 viewCam.pitch: -45
 
 # Initialized 3D points are updated(1) for each frame or not(0)
-Debug.updateInitPoints: 1
+Debug.update_init_points: 1
 
 # Mapping option: no scaling(0), only essential constraint(1), only PnP(2), both essential and pnp(3), both essential and pnp modified(4)
-Debug.mappingOptions: 1
+Debug.mapping_options: 1
