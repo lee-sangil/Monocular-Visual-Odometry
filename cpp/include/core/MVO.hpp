@@ -110,7 +110,7 @@ class MVO{
 	void setImage(cv::Mat& image);
 
 	// Get feature 
-	std::vector< std::tuple<cv::Point2f, Eigen::Vector3d> > getPoints() const;
+	std::vector< std::tuple<cv::Point2f, cv::Point2f, Eigen::Vector3d> > getPoints() const;
 	std::vector<Feature> getFeatures() const;
 	cv::Point2f calculateRotWarp(cv::Point2f uv);
 	

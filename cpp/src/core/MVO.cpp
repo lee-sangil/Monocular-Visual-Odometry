@@ -355,16 +355,23 @@ std::vector<Feature> MVO::getFeatures() const {
     return features_;
 }
 
-std::vector< std::tuple<cv::Point2f, Eigen::Vector3d> > MVO::getPoints() const
+std::vector< std::tuple<cv::Point2f, cv::Point2f, Eigen::Vector3d> > MVO::getPoints() const
 {
     Eigen::Matrix4d Tco = TocRec_.back().inverse();
-    std::vector< std::tuple<cv::Point2f, Eigen::Vector3d> > ptsROI;
+    std::vector< std::tuple<cv::Point2f, cv::Point2f, Eigen::Vector3d> > pts;
+    cv::Point2f uv_curr, uv_prev;
     for( uint32_t i = 0; i < features_.size(); i++ ){
-        if( params_.output_filtered_depth )
-            ptsROI.push_back( std::make_tuple(features_[i].uv.back(), Tco.block(0,0,3,4) * features_[i].point_init ) );
+        uv_curr = features_[i].uv.back();
+        if( features_[i].uv.size() > 1)
+            uv_prev = features_[i].uv[features_[i].life - 2];
         else
-            ptsROI.push_back( std::make_tuple(features_[i].uv.back(), features_[i].point_curr.block(0, 0, 3, 1) ) );
+            uv_prev = cv::Point2f(-1,-1);
+            
+        if( params_.output_filtered_depth )
+            pts.push_back( std::make_tuple(uv_prev, uv_curr, Tco.block(0,0,3,4) * features_[i].point_init ) );
+        else
+            pts.push_back( std::make_tuple(uv_prev, uv_curr, features_[i].point_curr.block(0, 0, 3, 1) ) );
         
     }
-    return ptsROI;
+    return pts;
 }
