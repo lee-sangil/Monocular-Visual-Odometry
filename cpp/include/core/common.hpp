@@ -46,7 +46,7 @@
 
 #define D_METER 1.2
 #define D_RADIAN M_PI/24
-#define YAML_VERSION 2.2
+#define YAML_VERSION 2.3
 
 enum Type{Unknown,Dynamic,Road,};
 

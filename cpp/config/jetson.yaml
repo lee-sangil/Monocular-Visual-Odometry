@@ -1,6 +1,6 @@
 %YAML:1.0
 
-Version: 2.2
+Version: 2.3
 
 #--------------------------------------------------------------------------------------------
 # Camera Parameters (fixed).
@@ -134,6 +134,9 @@ viewCam.pitch: -45
 
 # Initialized 3D points are updated(1) for each frame or not(0)
 Debug.update_init_points: 1
+
+# Display output of depth filter(1) or depth reconstructed instantly(0)
+Debug.output_filtered_depths: 1
 
 # Mapping option: no scaling(0), only essential constraint(1), only PnP(2), both essential and pnp(3), both essential and pnp modified(4)
 Debug.mapping_options: 1

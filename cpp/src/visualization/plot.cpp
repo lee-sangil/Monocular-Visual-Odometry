@@ -238,16 +238,28 @@ void MVO::plot(){
 	 * 			Reconstructed Depth
 	 * *****************************************/
 	cv::Mat recon_img = cv::Mat::zeros(curr_image_.size(), CV_8UC3);
-	int r,g,b;
+	int r,g,b, depth;
 	for( uint32_t i = 0; i < features_.size(); i++ ){
-		if( features_[i].is_3D_init ){
-			point = Tco * features_[i].point_init;
-		// if( features_[i].is_3D_reconstructed ){
-		// 	point = features_[i].point;
-			r = std::min((int) (point(2)*5), 255);
-			g = std::max(255 - (int) (point(2)*3), 30);
-			b = std::max(80 - (int) point(2), 0);
-			cv::circle(recon_img, cv::Point(features_[i].uv.back().x, features_[i].uv.back().y), 5, cv::Scalar(b, g, r), CV_FILLED);
+		if( params_.output_filtered_depth ){
+			if( features_[i].is_3D_init ){
+				point = Tco * features_[i].point_init;
+				depth = (int) point(2);
+
+				r = std::exp(-depth/150) * std::min(depth*18, 255);
+				g = std::exp(-depth/150) * std::max(255 - depth*8, 30);
+				b = std::exp(-depth/150) * std::max(100 - depth, 0);
+				cv::circle(recon_img, cv::Point(features_[i].uv.back().x, features_[i].uv.back().y), 5, cv::Scalar(b, g, r), CV_FILLED);
+			}
+		}else{
+			if( features_[i].is_3D_reconstructed ){
+				point = features_[i].point_curr;
+				depth = point(2);
+
+				r = std::exp(-depth/150) * std::min(depth*18, 255);
+				g = std::exp(-depth/150) * std::max(255 - depth*8, 30);
+				b = std::exp(-depth/150) * std::max(100 - depth, 0);
+				cv::circle(recon_img, cv::Point(features_[i].uv.back().x, features_[i].uv.back().y), 5, cv::Scalar(b, g, r), CV_FILLED);
+			}
 		}
 	}
 
