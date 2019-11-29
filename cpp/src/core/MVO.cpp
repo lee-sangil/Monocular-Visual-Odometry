@@ -116,7 +116,7 @@ MVO::MVO(std::string yaml):MVO(){
     params_.th_ratio_keyframe =  fSettings["Feature.minimum_matching_ratio"];
     params_.min_px_dist =        fSettings["Feature.minimum_distance_between"];
     params_.th_px_wide =         fSettings["Feature.minimum_triangulation_baseline"];
-    params_.max_epiline_dist =   fSettings["Feature.maximum_epiline_distance"];
+    params_.max_dist =           fSettings["Feature.maximum_prediction_distance"];
 
     // RANSAC parameter
     params_.ransac_coef_scale.max_iteration =      fSettings["RANSAC.maximum_iteration"];

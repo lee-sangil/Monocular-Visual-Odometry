@@ -33,15 +33,15 @@ void MVO::plot(){
 	for( int i = 0; i < num_feature_; i++ ){
 		if( features_[i].type == Type::Dynamic || features_[i].is_2D_inliered == false ){
 			cv::circle(img, cv::Point(features_[i].uv.back().x, features_[i].uv.back().y), 3, cv::Scalar(255,0,0), 1);
-			if( is_rotate_provided_ && features_[i].uv_pred.x > 0 && features_[i].uv_pred.y > 0 )
+			if( features_[i].uv_pred.x > 0 && features_[i].uv_pred.y > 0 )
 				cv::drawMarker(img, cv::Point(features_[i].uv_pred.x, features_[i].uv_pred.y), cv::Scalar(255,0,0), cv::MARKER_CROSS, 5);
 		}else if( features_[i].type == Type::Road ){
 			cv::circle(img, cv::Point(features_[i].uv.back().x, features_[i].uv.back().y), 3, cv::Scalar(50,50,255), 1);
-			if( is_rotate_provided_ && features_[i].uv_pred.x > 0 && features_[i].uv_pred.y > 0 )
+			if( features_[i].uv_pred.x > 0 && features_[i].uv_pred.y > 0 )
 				cv::drawMarker(img, cv::Point(features_[i].uv_pred.x, features_[i].uv_pred.y), cv::Scalar(50,50,255), cv::MARKER_CROSS, 5);
 		}else{
 			cv::circle(img, cv::Point(features_[i].uv.back().x, features_[i].uv.back().y), 3, cv::Scalar(0,200,0), 1);
-			if( is_rotate_provided_ && features_[i].uv_pred.x > 0 && features_[i].uv_pred.y > 0 )
+			if( features_[i].uv_pred.x > 0 && features_[i].uv_pred.y > 0 )
 				cv::drawMarker(img, cv::Point(features_[i].uv_pred.x, features_[i].uv_pred.y), cv::Scalar(0,200,0), cv::MARKER_CROSS, 5);
 		}
 	}
@@ -71,7 +71,7 @@ void MVO::plot(){
 					cv::circle(traj, cv::Point(uv(0)/uv(2), uv(1)/uv(2)), 1, cv::Scalar(128,128,200), CV_FILLED);
 					break;
 				case Type::Dynamic:
-					cv::circle(traj, cv::Point(uv(0)/uv(2), uv(1)/uv(2)), 1, cv::Scalar(200,128,128), CV_FILLED);
+					cv::circle(traj, cv::Point(uv(0)/uv(2), uv(1)/uv(2)), 1, cv::Scalar(100,50,50), CV_FILLED);
 					break;
 				}
 			}
@@ -90,10 +90,10 @@ void MVO::plot(){
 					cv::circle(traj, cv::Point(uv(0)/uv(2), uv(1)/uv(2)), 1, cv::Scalar(128,128,200), CV_FILLED);
 					break;
 				case Type::Dynamic:
-					cv::circle(traj, cv::Point(uv(0)/uv(2), uv(1)/uv(2)), 1, cv::Scalar(200,128,128), CV_FILLED);
+					cv::circle(traj, cv::Point(uv(0)/uv(2), uv(1)/uv(2)), 1, cv::Scalar(100,50,50), CV_FILLED);
 					break;
 				}
-				if( features_[i].is_3D_reconstructed && features_[i].frame_init < step_ )
+				if( features_[i].is_3D_reconstructed && features_[i].frame_init < step_ && features_[i].type != Type::Dynamic )
 					cv::circle(traj, cv::Point(uv(0)/uv(2), uv(1)/uv(2)), 1, cv::Scalar(0,255,0), CV_FILLED);
 			}
 		}
@@ -241,7 +241,7 @@ void MVO::plot(){
 	int r,g,b, depth;
 	for( uint32_t i = 0; i < features_.size(); i++ ){
 		if( params_.output_filtered_depth ){
-			if( features_[i].is_3D_init ){
+			if( features_[i].is_3D_init && features_[i].type != Type::Dynamic){
 				point = Tco * features_[i].point_init;
 				depth = (int) point(2);
 
@@ -251,7 +251,7 @@ void MVO::plot(){
 				cv::circle(recon_img, cv::Point(features_[i].uv.back().x, features_[i].uv.back().y), 5, cv::Scalar(b, g, r), CV_FILLED);
 			}
 		}else{
-			if( features_[i].is_3D_reconstructed ){
+			if( features_[i].is_3D_reconstructed && features_[i].type != Type::Dynamic ){
 				point = features_[i].point_curr;
 				depth = point(2);
 

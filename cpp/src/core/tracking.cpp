@@ -37,20 +37,30 @@ bool MVO::updateFeatures(){
         kltTracker(points, validity);
         std::cerr << "## KLT tracker: " << lsi::toc() << std::endl;
 
+        Eigen::Matrix<double,3,4> Tco = TocRec_.back().inverse().block(0,0,3,4);
         for( int i = 0; i < num_feature_; i++ ){
             if( validity[i] && features_[i].is_alive ){
                 cv::Point2f uv_prev = features_[i].uv.back();
                 features_[i].life++;
-                if( is_rotate_provided_ )
-                    features_[i].uv_pred = calculateRotWarp(uv_prev);
+
+                if( is_rotate_provided_ ) features_[i].uv_pred = warpWithIMU(uv_prev);
+                else if( features_[i].is_3D_init ) features_[i].uv_pred = warpWithPreviousMotion(Tco * features_[i].point_init);
+
                 features_[i].uv.push_back(points[i]);
                 features_[i].is_matched = true;
                 num_feature_matched_++;
 
-                Eigen::Vector3d epiLine = fundamental_ * (Eigen::Vector3d() << uv_prev.x, uv_prev.y, 1).finished();
-                double dist_from_epiline = std::abs(epiLine(0)*features_[i].uv_pred.x + epiLine(1)*features_[i].uv_pred.y + epiLine(2)) / epiLine.topRows(2).norm();
-                if( is_rotate_provided_ && is_start_ && dist_from_epiline > params_.max_epiline_dist )
-                    features_[i].type = Type::Dynamic;
+                if( is_rotate_provided_ ){
+                    Eigen::Vector3d epiLine = fundamental_ * (Eigen::Vector3d() << uv_prev.x, uv_prev.y, 1).finished();
+                    double dist_from_epiline = std::abs(epiLine(0)*features_[i].uv_pred.x + epiLine(1)*features_[i].uv_pred.y + epiLine(2)) / epiLine.topRows(2).norm();
+                    if( is_start_ && dist_from_epiline > params_.max_dist )
+                        features_[i].type = Type::Dynamic;
+                }else if( features_[i].is_3D_init ){
+                    double dist_from_predicted_point = cv::norm(features_[i].uv_pred - features_[i].uv.back());
+                    if( is_start_ && dist_from_predicted_point > params_.max_dist )
+                        features_[i].type = Type::Dynamic;
+                }
+                
             }else
                 features_[i].is_alive = false;
         }
@@ -65,7 +75,7 @@ bool MVO::updateFeatures(){
         return true;
 }
 
-cv::Point2f MVO::calculateRotWarp(cv::Point2f uv){
+cv::Point2f MVO::warpWithIMU(cv::Point2f uv){
     Eigen::Vector3d pixel, warpedPixel;
     cv::Point2f warpedUV;
     pixel << uv.x, uv.y, 1;
@@ -75,8 +85,20 @@ cv::Point2f MVO::calculateRotWarp(cv::Point2f uv){
     return warpedUV;
 }
 
+cv::Point2f MVO::warpWithPreviousMotion(Eigen::Vector3d p){
+    Eigen::Vector3d warpedPixel;
+    cv::Point2f warpedUV;
+    Eigen::Matrix3d Rinv = TRec_.back().block(0,0,3,3).transpose();
+    Eigen::Vector3d t = TRec_.back().block(0,3,3,1);
+    
+    warpedPixel = params_.K * Rinv * (p-t);
+    warpedUV.x = warpedPixel(0)/warpedPixel(2);
+    warpedUV.y = warpedPixel(1)/warpedPixel(2);
+    return warpedUV;
+}
+
 void MVO::kltTracker(std::vector<cv::Point2f>& fwd_pts, std::vector<bool>& validity){
-    std::vector<cv::Point2f> pts, bwd_pts;
+    std::vector<cv::Point2f> pts, bwd_pts, fwd_bwd_pts;
     pts.reserve(num_feature_);
     bwd_pts.reserve(num_feature_);
     for( int i = 0; i < num_feature_; i++ )
@@ -94,6 +116,7 @@ void MVO::kltTracker(std::vector<cv::Point2f>& fwd_pts, std::vector<bool>& valid
     cv::Mat status, err;
     cv::calcOpticalFlowPyrLK(prevPyr, currPyr, pts, fwd_pts, status, err);
     cv::calcOpticalFlowPyrLK(currPyr, prevPyr, fwd_pts, bwd_pts, status, err);
+    cv::calcOpticalFlowPyrLK(prevPyr, currPyr, bwd_pts, fwd_bwd_pts, status, err);
     std::cerr << "### Calculate optical flows: " << lsi::toc() << std::endl;
     
     // Calculate bi-directional error( = validity ): validity = ~border_invalid & error_valid

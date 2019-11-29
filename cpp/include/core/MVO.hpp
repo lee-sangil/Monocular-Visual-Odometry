@@ -74,7 +74,7 @@ class MVO{
 		double th_ratio_keyframe = 0.9;
 		double min_px_dist = 7.0;
 		double th_px_wide = 12.0;
-		double max_epiline_dist = 20.0;
+		double max_dist = 20.0;
 		double max_point_var = 0.1;
 
 		// 3D reconstruction
@@ -112,7 +112,8 @@ class MVO{
 	// Get feature 
 	std::vector< std::tuple<cv::Point2f, cv::Point2f, Eigen::Vector3d> > getPoints() const;
 	std::vector<Feature> getFeatures() const;
-	cv::Point2f calculateRotWarp(cv::Point2f uv);
+	cv::Point2f warpWithIMU(cv::Point2f uv);
+	cv::Point2f warpWithPreviousMotion(Eigen::Vector3d p);
 	
 	// Script operations
 	void restart();
