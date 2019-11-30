@@ -119,9 +119,8 @@ class MVO{
 	void restart();
 	void refresh();
 	void run(cv::Mat& image);
-	void updateTimestamp(double timestamp);
-	void updateGyro(Eigen::Vector3d& gyro);
-	void updateVelocity(double speed);
+	void updateGyro(double timestamp, Eigen::Vector3d& gyro);
+	void updateVelocity(double timestamp, double speed);
 	void plot();
 	void updateView();
 
@@ -182,7 +181,8 @@ class MVO{
 	uint32_t keystep_;
 	std::vector<uint32_t> keystep_array_;
 
-	std::vector<double> timestamp_since_keyframe_;
+	std::vector<double> timestamp_speed_since_keyframe_;
+	std::vector<double> timestamp_imu_since_keyframe_;
 	std::vector<double> speed_since_keyframe_;
 	std::vector<Eigen::Vector3d> gyro_since_keyframe_;
 	

@@ -45,7 +45,12 @@ void MVO::plot(){
 				cv::drawMarker(img, cv::Point(features_[i].uv_pred.x, features_[i].uv_pred.y), cv::Scalar(0,200,0), cv::MARKER_CROSS, 5);
 		}
 	}
-	cv::imshow("MVO", img);
+	if( img.rows > 500 ){
+		cv::Mat img_resize;
+		cv::resize(img, img_resize, cv::Size(img.cols/2,img.rows/2));
+		cv::imshow("MVO", img_resize);
+	}else
+		cv::imshow("MVO", img);
 
 	/*******************************************
 	 * 				Trajectory
@@ -93,17 +98,15 @@ void MVO::plot(){
 					cv::circle(traj, cv::Point(uv(0)/uv(2), uv(1)/uv(2)), 1, cv::Scalar(100,50,50), CV_FILLED);
 					break;
 				}
-				if( features_[i].is_3D_reconstructed && features_[i].frame_init < step_ && features_[i].type != Type::Dynamic )
-					cv::circle(traj, cv::Point(uv(0)/uv(2), uv(1)/uv(2)), 1, cv::Scalar(0,255,0), CV_FILLED);
+				if( params_.output_filtered_depth ){
+					if( features_[i].is_3D_init && features_[i].frame_init < step_ && features_[i].type != Type::Dynamic )
+						cv::circle(traj, cv::Point(uv(0)/uv(2), uv(1)/uv(2)), 1, cv::Scalar(0,255,0), CV_FILLED);
+				}else{
+					if( features_[i].is_3D_reconstructed && features_[i].frame_init < step_ && features_[i].type != Type::Dynamic )
+						cv::circle(traj, cv::Point(uv(0)/uv(2), uv(1)/uv(2)), 1, cv::Scalar(0,255,0), CV_FILLED);
+				}
 			}
 		}
-		// if( features_[i].is_3D_reconstructed){
-		// 	uv = params_.view.P * features_[i].point;
-		// 	if( uv(2) > 1 ){
-		// 		int radius = (int) std::max(std::min(1e3 * features_[i].point_var,5.0),1.0);
-		// 		cv::circle(traj, cv::Point(uv(0)/uv(2), uv(1)/uv(2)), radius, cv::Scalar(0,200,255));
-		// 	}
-		// }
 	}
 
 	// Trajectory
@@ -237,7 +240,7 @@ void MVO::plot(){
 	/*******************************************
 	 * 			Reconstructed Depth
 	 * *****************************************/
-	cv::Mat recon_img = cv::Mat::zeros(curr_image_.size(), CV_8UC3);
+	cv::Mat distance = cv::Mat::zeros(curr_image_.size(), CV_8UC3);
 	int r,g,b, depth;
 	for( uint32_t i = 0; i < features_.size(); i++ ){
 		if( params_.output_filtered_depth ){
@@ -248,7 +251,7 @@ void MVO::plot(){
 				r = std::exp(-depth/150) * std::min(depth*18, 255);
 				g = std::exp(-depth/150) * std::max(255 - depth*8, 30);
 				b = std::exp(-depth/150) * std::max(100 - depth, 0);
-				cv::circle(recon_img, cv::Point(features_[i].uv.back().x, features_[i].uv.back().y), 5, cv::Scalar(b, g, r), CV_FILLED);
+				cv::circle(distance, cv::Point(features_[i].uv.back().x, features_[i].uv.back().y), 5, cv::Scalar(b, g, r), CV_FILLED);
 			}
 		}else{
 			if( features_[i].is_3D_reconstructed && features_[i].type != Type::Dynamic ){
@@ -258,10 +261,15 @@ void MVO::plot(){
 				r = std::exp(-depth/150) * std::min(depth*18, 255);
 				g = std::exp(-depth/150) * std::max(255 - depth*8, 30);
 				b = std::exp(-depth/150) * std::max(100 - depth, 0);
-				cv::circle(recon_img, cv::Point(features_[i].uv.back().x, features_[i].uv.back().y), 5, cv::Scalar(b, g, r), CV_FILLED);
+				cv::circle(distance, cv::Point(features_[i].uv.back().x, features_[i].uv.back().y), 5, cv::Scalar(b, g, r), CV_FILLED);
 			}
 		}
 	}
 
-	cv::imshow("Depth", recon_img);
+	if( distance.rows > 500 ){
+		cv::Mat img_resize;
+		cv::resize(distance, img_resize, cv::Size(distance.cols/2,distance.rows/2));
+		cv::imshow("Depth", img_resize);
+	}else
+		cv::imshow("Depth", distance);
 }

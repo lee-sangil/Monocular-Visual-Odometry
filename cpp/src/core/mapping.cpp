@@ -124,6 +124,7 @@ bool MVO::calculateMotion()
         return false;
     }else{
         std::cerr << "Temporal velocity: " << T.block(0,3,3,1).norm() << std::endl;
+        std::cout << "Optimized scale: " << t_unique.norm() << std::endl;
 
         // Save solution
         TRec_.push_back(T);
@@ -743,7 +744,9 @@ bool MVO::scalePropagation(const Eigen::Matrix3d &R, Eigen::Vector3d &t, std::ve
                                     cv::Point3f(init_point(0),init_point(1),init_point(2)));
                 
                 // RANSAC weight
-                params_.ransac_coef_scale.weight.push_back( std::atan( -curr_point(2)/5 + 3 ) + M_PI / 2 );
+                // params_.ransac_coef_scale.weight.push_back( std::atan( -curr_point(2)/5 + 3 ) + M_PI / 2 );
+                // params_.ransac_coef_scale.weight.push_back( std::atan( -features_[i].point_var * 1e4 ) + M_PI / 2 );
+                params_.ransac_coef_scale.weight.push_back( 1/features_[i].point_var );
             }
 
             MVO::ransac<std::pair<cv::Point3f,cv::Point3f>,double>(Points, params_.ransac_coef_scale, scale, inlier, outlier);

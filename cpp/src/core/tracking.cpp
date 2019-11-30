@@ -53,12 +53,24 @@ bool MVO::updateFeatures(){
                 if( is_rotate_provided_ ){
                     Eigen::Vector3d epiLine = fundamental_ * (Eigen::Vector3d() << uv_prev.x, uv_prev.y, 1).finished();
                     double dist_from_epiline = std::abs(epiLine(0)*features_[i].uv_pred.x + epiLine(1)*features_[i].uv_pred.y + epiLine(2)) / epiLine.topRows(2).norm();
-                    if( is_start_ && dist_from_epiline > params_.max_dist )
-                        features_[i].type = Type::Dynamic;
+                    if( is_start_){
+                        // if( dist_from_epiline > params_.max_dist ){
+                        //     features_[i].type = Type::Dynamic;
+                        //     features_[i].is_3D_init = false;
+                        // }else{
+                        //     if( features_[i].type == Type::Dynamic ) features_[i].type = Type::Unknown;
+                        // }
+                    }
                 }else if( features_[i].is_3D_init ){
                     double dist_from_predicted_point = cv::norm(features_[i].uv_pred - features_[i].uv.back());
-                    if( is_start_ && dist_from_predicted_point > params_.max_dist )
-                        features_[i].type = Type::Dynamic;
+                    if( is_start_ ){
+                        // if( dist_from_predicted_point > params_.max_dist ){
+                        //     features_[i].type = Type::Dynamic;
+                        //     features_[i].is_3D_init = false;
+                        // }else{
+                        //     if( features_[i].type == Type::Dynamic ) features_[i].type = Type::Unknown;
+                        // }
+                    }
                 }
                 
             }else
@@ -116,7 +128,7 @@ void MVO::kltTracker(std::vector<cv::Point2f>& fwd_pts, std::vector<bool>& valid
     cv::Mat status, err;
     cv::calcOpticalFlowPyrLK(prevPyr, currPyr, pts, fwd_pts, status, err);
     cv::calcOpticalFlowPyrLK(currPyr, prevPyr, fwd_pts, bwd_pts, status, err);
-    cv::calcOpticalFlowPyrLK(prevPyr, currPyr, bwd_pts, fwd_bwd_pts, status, err);
+    // cv::calcOpticalFlowPyrLK(prevPyr, currPyr, bwd_pts, fwd_bwd_pts, status, err);
     std::cerr << "### Calculate optical flows: " << lsi::toc() << std::endl;
     
     // Calculate bi-directional error( = validity ): validity = ~border_invalid & error_valid
@@ -135,6 +147,10 @@ void MVO::kltTracker(std::vector<cv::Point2f>& fwd_pts, std::vector<bool>& valid
         border_invalid = (fwd_pts[i].x <= 0) | (fwd_pts[i].x >= params_.im_size.width) | (fwd_pts[i].y <= 0) | (fwd_pts[i].y >= params_.im_size.height);
         error_valid = cv::norm(pts[i] - bwd_pts[i]) < std::min( (double) cv::norm(pts[i] - fwd_pts[i])/5.0, 1.0);
         // desc_valid = cv::norm(features_[i].desc - desc.row(i));
+        // if( !error_valid ){
+        //     error_valid = cv::norm(fwd_pts[i] - fwd_bwd_pts[i]) < std::min( (double) cv::norm(fwd_pts[i] - bwd_pts[i])/5.0, 1.0);
+        //     features_[i].uv.back() = bwd_pts[i];
+        // }
 
         validity.push_back(!border_invalid & error_valid);
         // bool valid = ~border_invalid & status.at<uchar>(i);// & err.at<float>(i) < std::min( cv::norm(pts[i] - fwd_pts[i])/5.0, 2.0);
@@ -338,28 +354,27 @@ bool MVO::calculateEssential()
         keystep_array_.push_back(step_);
 
         if( is_speed_provided_ ){
-            double last_timestamp = timestamp_since_keyframe_.back();
+            double last_timestamp = timestamp_speed_since_keyframe_.back();
             double last_speed = speed_since_keyframe_.back();
 
-            timestamp_since_keyframe_.clear();
+            timestamp_speed_since_keyframe_.clear();
             speed_since_keyframe_.clear();
 
-            timestamp_since_keyframe_.push_back(last_timestamp);
+            timestamp_speed_since_keyframe_.push_back(last_timestamp);
             speed_since_keyframe_.push_back(last_speed);
         }
 
         if( is_rotate_provided_ ){
-            double last_timestamp = timestamp_since_keyframe_.back();
+            double last_timestamp = timestamp_imu_since_keyframe_.back();
             Eigen::Vector3d last_gyro = gyro_since_keyframe_.back();
 
-            timestamp_since_keyframe_.clear();
+            timestamp_imu_since_keyframe_.clear();
             gyro_since_keyframe_.clear();
 
-            timestamp_since_keyframe_.push_back(last_timestamp);
+            timestamp_imu_since_keyframe_.push_back(last_timestamp);
             gyro_since_keyframe_.push_back(last_gyro);
         }
-
-        std::cerr << "key step: " << keystep_ << ' ' << std::endl;
+        std::cout << "key step: " << keystep_ << ' ' << std::endl;
     }
 
     if( (int) points1.size() < params_.th_inlier )

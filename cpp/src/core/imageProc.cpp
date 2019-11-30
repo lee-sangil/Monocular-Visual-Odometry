@@ -14,30 +14,31 @@ void chk::downScaleImg(const cv::Mat& img, cv::Mat& img_lower){ // input : doubl
 	}
 }
 
-
-void chk::getImageFile(const std::string& nameFile, std::vector<double>& timestampFile, std::vector<std::string>& file_contents){
+void chk::getImageFile(const std::string& nameFile, std::vector<double>& timestampFile, std::vector<std::string>& file_contents, bool flag){
 	std::ifstream file(nameFile);
 	std::cout << "- Read: " << nameFile << std::endl;
 	std::string str;
 	
 	while(std::getline(file,str)){
 		if(str[0] != '#'){
-			// // Dataset recorded with embedded board
-			// std::string seq = str.substr(0, str.find('\t'));
-			// std::stringstream ss;
-			// ss << std::setw(6) << std::setfill('0') << seq << ".jpg";
-			// file_contents.push_back(ss.str());
-			
-			// str.erase(0,seq.length()+1);
-			// // str = str.substr(0,str.length()-1); // erase '\r'
-			// timestampFile.push_back(std::stod(str));
+			if( flag ){
+				// Dataset recorded with embedded board
+				std::string seq = str.substr(0, str.find('\t'));
+				std::stringstream ss;
+				ss << std::setw(6) << std::setfill('0') << seq << ".jpg";
+				file_contents.push_back(ss.str());
+				
+				str.erase(0,seq.length()+1);
+				// str = str.substr(0,str.length()-1); // erase '\r'
+				timestampFile.push_back(std::stod(str)/1e9);
+			}else{
+				// Dataset provided by Hyundai MNsoft
+				std::string seq = str.substr(0, str.find(' '));
+				timestampFile.push_back(std::stod(seq));
 
-			// Dataset provided by Hyundai MNsoft
-			std::string seq = str.substr(0, str.find(' '));
-			timestampFile.push_back(std::stod(seq));
-
-			str.erase(0,seq.length()+1);
-			file_contents.push_back(str);
+				str.erase(0,seq.length()+1);
+				file_contents.push_back(str);
+			}
 		}
 	}
 //	std::cout<<"read complete. length: "<<file_contents.size()<<std::endl;
@@ -79,6 +80,16 @@ void chk::getIMUFile(const std::string& nameFile, std::vector<double>& timestamp
 //	std::cout<<"read complete. length: "<<file_contents.size()<<std::endl;
 }
 
+void chk::getImgTUMdataset(const std::string& imgFileName, cv::Mat& outputGreyImg){//output rgb : 8uc1
+
+	// read color image
+	outputGreyImg = cv::imread(imgFileName, CV_8U);      // read a grayscale image
+
+	if( outputGreyImg.empty() )
+		std::cout << "Error: empty image!" << std::endl;
+	
+}
+
 std::string chk::dtos(double x) {
 	std::stringstream s;  // Allocates memory on stack
 	s << std::fixed << x;
@@ -92,16 +103,38 @@ typedef struct sensor{
 	sensor(double time, int id):time(time),id(id){};
 }sensor;
 
-void lsi::sortImageAndImu(const std::vector<double> timeImu, const std::vector<double> timeRgb, std::vector<int>& sensorID){
+void lsi::sortTimestamps(const std::vector<double> time_0, const std::vector<double> time_1, std::vector<int>& sensorID){
 	std::vector<sensor> sensorArray;
-	std::vector<int> idIMU(timeImu.size(),1), idRGB(timeRgb.size(),2);
 
-	for( uint32_t i = 0; i < timeImu.size(); i++){
-		sensor data = sensor(timeImu[i],1);
+	for( uint32_t i = 0; i < time_0.size(); i++){
+		sensor data = sensor(time_0[i],0);
 		sensorArray.push_back(data);
 	}
-	for( uint32_t i = 0; i < timeRgb.size(); i++){
-		sensor data = sensor(timeRgb[i],2);
+	for( uint32_t i = 0; i < time_1.size(); i++){
+		sensor data = sensor(time_1[i],1);
+		sensorArray.push_back(data);
+	}
+	
+	std::sort(sensorArray.begin(), sensorArray.end(), [](const sensor &a, const sensor &b){return a.time < b.time;});
+
+	for( uint32_t i = 0; i < sensorArray.size(); i++){
+		sensorID.push_back(sensorArray[i].id);
+	}
+}
+
+void lsi::sortTimestamps(const std::vector<double> time_0, const std::vector<double> time_1, const std::vector<double> time_2, std::vector<int>& sensorID){
+	std::vector<sensor> sensorArray;
+
+	for( uint32_t i = 0; i < time_0.size(); i++){
+		sensor data = sensor(time_0[i],0);
+		sensorArray.push_back(data);
+	}
+	for( uint32_t i = 0; i < time_1.size(); i++){
+		sensor data = sensor(time_1[i],1);
+		sensorArray.push_back(data);
+	}
+	for( uint32_t i = 0; i < time_2.size(); i++){
+		sensor data = sensor(time_2[i],2);
 		sensorArray.push_back(data);
 	}
 
@@ -110,31 +143,4 @@ void lsi::sortImageAndImu(const std::vector<double> timeImu, const std::vector<d
 	for( uint32_t i = 0; i < sensorArray.size(); i++){
 		sensorID.push_back(sensorArray[i].id);
 	}
-}
-
-
-void chk::getImgPairTUMdataset(const std::string& imgFileName, const std::string& depthFileName, cv::Mat& outputGreyImg, cv::Mat& outputDepthImg){//output rgb : 8uc1 , depth : double
-
-	// read color image & depth
-	cv::Mat imgColor, depthRaw;
-	imgColor = cv::imread(imgFileName, CV_8U);      // read a grayscale image
-	depthRaw = cv::imread(depthFileName, CV_16U);    // read a grayscale image
-
-	// return the results
-	outputGreyImg = imgColor;
-	outputDepthImg = depthRaw;
-
-	imgColor.release();
-	depthRaw.release();
-}
-
-
-void chk::getImgTUMdataset(const std::string& imgFileName, cv::Mat& outputGreyImg){//output rgb : 8uc1
-
-	// read color image
-	outputGreyImg = cv::imread(imgFileName, CV_8U);      // read a grayscale image
-
-	if( outputGreyImg.empty() )
-		std::cout << "Error: empty image!" << std::endl;
-	
 }

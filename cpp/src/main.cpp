@@ -7,13 +7,15 @@
 #include <opencv2/imgcodecs.hpp>
 #include <dirent.h>
 
-Eigen::MatrixXd read_binary(const char* filename, const int rows, const int cols);
-std::vector<double> oxtsReader(const char * filePath, const std::string & txtName);
-void timeReader(const char * filePath, std::vector<double>& timestamp);
-void computeVehicleSpeed( std::vector<std::vector<double> > oxtsData, std::vector<double>& speed);
-void computeImuRotation( std::vector<std::vector<double> > oxtsData, std::vector<Eigen::Vector3d>& imuRot);
-void directoryReader(const char * filePath, std::vector<std::vector<double> >& oxtsData);
-bool grabActiveKey(MVO * vo, char key);
+std::vector<std::vector<double> > fileReader(const std::string&);
+Eigen::MatrixXd read_binary(const char*, const int, const int);
+std::vector<double> oxtsReader(const char*, const std::string & txtName);
+void CANReader(const std::string&, std::vector<double>&, std::vector<double>&);
+void timeReader(const char *, std::vector<double>&);
+void computeVehicleSpeed( std::vector<std::vector<double> >, std::vector<double>&);
+void computeImuRotation( std::vector<std::vector<double> >, std::vector<Eigen::Vector3d>&);
+void directoryReader(const char *, std::vector<std::vector<double> >&);
+bool grabActiveKey(MVO *, char);
 
 int main(int argc, char * argv[]){
 
@@ -21,6 +23,9 @@ int main(int argc, char * argv[]){
     if(!Parser::hasOption("-i")){
 		std::cout << "Error, invalid arguments.\n\n"
 				"\tMandatory -i: Input directory.\n"
+				"\tOptional -kitti: Reading kitti format.\n"
+				"\tOptional -jetson: Reading jetson format.\n"
+				"\tOptional -hyundai: Reading hyundai format.\n"
 				"\tOptional -c: Camera setting .yaml file (default: /path/to/input_directory/camera.yaml).\n"
 				"\tOptional -o: Output directory (default path: ./CamTrajectory.txt).\n"
 				"\tOptional -fi: initial frame (default: 0).\n"
@@ -78,41 +83,53 @@ int main(int argc, char * argv[]){
 	image_path.append(inputFile).append("image.txt");
 	imu_path.append(inputFile).append("imu.txt");
 
-	chk::getImageFile(image_path.c_str(), timeRgb, rgbNameRaw);
-	chk::getIMUFile(imu_path.c_str(), timeImu, imuDataRaw);
+	chk::getImageFile(image_path.c_str(), timeRgb, rgbNameRaw, Parser::hasOption("-jetson"));
+	// chk::getIMUFile(imu_path.c_str(), timeImu, imuDataRaw);
 	std::cout << "- Read successfully." << std::endl;
 
 	rgbNameRaw.erase(rgbNameRaw.begin(), rgbNameRaw.begin()+initFrame);
 	timeRgb.erase(timeRgb.begin(), timeRgb.begin()+initFrame);
 
-	std::vector<int> sensorID;
-	lsi::sortImageAndImu(timeImu, timeRgb, sensorID);
-
 	// Read OxTS data
-	std::vector<double> timestamp, speed;
+	std::vector<double> timestamp_speed, timestamp_imu, speed;
 	std::vector<Eigen::Vector3d> imuRot;
-	std::vector<std::vector<double> > oxtsData;
 
-	if( Parser::hasOption("-vel") || Parser::hasOption("-imu") ){
-		std::string oxts_path;
-		oxts_path.append(inputFile).append("oxts/data/");
-		directoryReader(oxts_path.c_str(), oxtsData);
+	if( Parser::hasOption("-kitti") ){
+		if( Parser::hasOption("-vel") || Parser::hasOption("-imu") ){
+			std::vector<std::vector<double> > oxtsData;
+			std::string oxts_path;
+			oxts_path.append(inputFile).append("oxts/data/");
+			directoryReader(oxts_path.c_str(), oxtsData);
 
+			if( Parser::hasOption("-vel") ){
+				computeVehicleSpeed(oxtsData, speed);
+				speed.erase(speed.begin(), speed.begin()+initFrame);
+			}
+			
+			if( Parser::hasOption("-imu") ){
+				computeImuRotation(oxtsData, imuRot);
+				imuRot.erase(imuRot.begin(), imuRot.begin()+initFrame);
+			}
+
+			std::string time_path;
+			time_path.append(inputFile).append("oxts/timestamps.txt");
+			timeReader(time_path.c_str(), timestamp_speed);
+			timestamp_speed.erase(timestamp_speed.begin(), timestamp_speed.begin()+initFrame);
+			timestamp_imu.assign(timestamp_speed.begin(), timestamp_speed.end());
+			
+			timeRgb.clear();
+			timeRgb.assign(timestamp_speed.begin(), timestamp_speed.end());
+		}
+	}else if( Parser::hasOption("-jetson") ){
 		if( Parser::hasOption("-vel") ){
-			computeVehicleSpeed(oxtsData, speed);
-			speed.erase(speed.begin(), speed.begin()+initFrame);
+			std::string can_path;
+			can_path.append(inputFile).append("/can.txt");
+			CANReader(can_path, timestamp_speed, speed);
 		}
-		
-		if( Parser::hasOption("-imu") ){
-			computeImuRotation(oxtsData, imuRot);
-			imuRot.erase(imuRot.begin(), imuRot.begin()+initFrame);
-		}
-
-		std::string time_path;
-		time_path.append(inputFile).append("oxts/timestamps.txt");
-		timeReader(time_path.c_str(), timestamp);
-		timestamp.erase(timestamp.begin(), timestamp.begin()+initFrame);
 	}
+
+	std::vector<int> sensorID;
+	lsi::sortTimestamps(timestamp_speed, timestamp_imu, timeRgb, sensorID);
 
 	/**************************************************************************
 	 *  Construct MVO object
@@ -139,36 +156,35 @@ int main(int argc, char * argv[]){
 	std::string dirRgb;
 
 	int length;
-	if( Parser::hasOption("-fl") )
-		length = Parser::getIntOption("-fl");
-	else
-		length = sensorID.size();
+	if( Parser::hasOption("-fl") ) length = Parser::getIntOption("-fl");
+	else length = sensorID.size();
 
 	bool bRun = true, bStep = false;
-	int it_imu = 0, it_rgb = 0;
-	for( int it = 0; it < length && bRun; it++ ){
+	int it_imu = 0, it_vel = 0, it_rgb = 0;
 
+	for( int it = 0; it < length && bRun; it++ ){
 		switch (sensorID[it]) {
+			case 0:
+				// Fetch speed
+				if( Parser::hasOption("-vel"))
+					vo->updateVelocity(timestamp_speed[it_vel], speed[it_vel]);
+				
+				it_vel++;
+				break;
+
 			case 1:
 				// Fetch imu
-				// imuGrabber.GrabImu(imuDataRaw[it_imu], timeImu[it_imu]);
+				if( Parser::hasOption("-imu"))
+					vo->updateGyro(timestamp_imu[it_imu], imuRot[it_imu]);
 				
 				it_imu++;
 				break;
+
 			case 2:
 				// Fetch images
 				dirRgb.clear();
 				dirRgb.append(inputFile).append(rgbNameRaw[it_rgb]);
 				chk::getImgTUMdataset(dirRgb, image);
-
-				if( Parser::hasOption("-vel") || Parser::hasOption("-imu") ){
-					vo->updateTimestamp(timestamp[it_rgb]);
-
-					if( Parser::hasOption("-vel"))
-						vo->updateVelocity(speed[it_rgb]);
-					if( Parser::hasOption("-imu"))
-						vo->updateGyro(imuRot[it_rgb]);
-				}
 				
 				vo->run(image);
 				
@@ -372,4 +388,51 @@ bool grabActiveKey(MVO * vo, char key){
 		return false;
 	}
 	return bRtn;
+}
+
+std::vector<std::vector<double> > fileReader(const std::string &filename)
+{
+    std::vector<std::vector<double> > Data;
+    std::ifstream openFile(filename.c_str());
+    if (!openFile.is_open())
+    {
+        std::cout << "text file open error" << std::endl;
+    }
+    else
+    {
+        std::string line;
+        std::string token;
+        char *sz;
+
+        while (getline(openFile, line))
+        {
+            std::vector<double> data;
+            std::stringstream ss(line);
+
+            while (getline(ss, token, '\t'))
+            {
+                double temp = std::strtod(token.c_str(), &sz);
+                data.push_back(temp);
+            }
+        Data.push_back(data);
+        }
+
+        openFile.close();
+    }
+    return Data;
+}
+
+void CANReader(const std::string& filePath, std::vector<double>& timestamp, std::vector<double>& speed)
+{
+    std::vector<std::vector<double> > CAN_data = fileReader(filePath);
+
+    double mSpeed;
+	for (unsigned int CAN_iter = 0; CAN_iter < CAN_data.size(); CAN_iter ++){
+		timestamp.push_back(CAN_data[CAN_iter][1]/1e9);
+
+		for(std::vector<double>::iterator it = CAN_data[CAN_iter].begin()+2; it != CAN_data[CAN_iter].end(); it++)
+			mSpeed += *it;
+		mSpeed /= 4 * 3.6; // km/h -> m/s
+		speed.push_back(mSpeed);
+	}
 }

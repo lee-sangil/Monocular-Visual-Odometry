@@ -288,6 +288,28 @@ void MVO::restart(){
     TRec_.push_back(Eigen::Matrix4d::Identity());
     TocRec_.push_back(Eigen::Matrix4d::Identity());
     PocRec_.push_back((Eigen::Vector4d() << 0,0,0,1).finished());
+
+    if( is_speed_provided_ ){
+        double last_timestamp = timestamp_speed_since_keyframe_.back();
+        double last_speed = speed_since_keyframe_.back();
+
+        timestamp_speed_since_keyframe_.clear();
+        speed_since_keyframe_.clear();
+
+        timestamp_speed_since_keyframe_.push_back(last_timestamp);
+        speed_since_keyframe_.push_back(last_speed);
+    }
+
+    if( is_rotate_provided_ ){
+        double last_timestamp = timestamp_imu_since_keyframe_.back();
+        Eigen::Vector3d last_gyro = gyro_since_keyframe_.back();
+
+        timestamp_imu_since_keyframe_.clear();
+        gyro_since_keyframe_.clear();
+
+        timestamp_imu_since_keyframe_.push_back(last_timestamp);
+        gyro_since_keyframe_.push_back(last_gyro);
+    }
 }
 
 void MVO::setImage(cv::Mat& image){
@@ -315,40 +337,31 @@ void MVO::run(cv::Mat& image){
 
     if( extractFeatures() && calculateEssential() && calculateMotion() == false )
         restart();
-
-    // std::array<bool,3> success;
-    // success[0] = extractFeatures();       // Extract and update features
-    // success[1] = calculateEssential();    // RANSAC for calculating essential/fundamental matrix
-    // success[2] = calculateMotion();       // Extract rotational and translational from fundamental matrix
-
-    // if( !std::all_of(success.begin(), success.end(), [](bool b){return b;}) )
-    //     restart();
 }
 
-void MVO::updateTimestamp(double timestamp){
-    timestamp_since_keyframe_.push_back(timestamp);
-}
-
-void MVO::updateGyro(Eigen::Vector3d& gyro){
+void MVO::updateGyro(double timestamp, Eigen::Vector3d& gyro){
     is_rotate_provided_ = true;
+    timestamp_imu_since_keyframe_.push_back(timestamp);
     gyro_since_keyframe_.push_back(gyro);
 
     Eigen::Vector3d radian = Eigen::Vector3d::Zero();
     for( uint32_t i = 0; i < gyro_since_keyframe_.size()-1; i++ )
-        radian += (gyro_since_keyframe_[i]+gyro_since_keyframe_[i+1])/2 * (timestamp_since_keyframe_[i+1]-timestamp_since_keyframe_[i]);
+        radian += (gyro_since_keyframe_[i]+gyro_since_keyframe_[i+1])/2 * (timestamp_imu_since_keyframe_[i+1]-timestamp_imu_since_keyframe_[i]);
 
     rotate_prior_ = params_.Tci.block(0,0,3,3) * skew(-radian).exp() * params_.Tic.block(0,0,3,3);
 }
 
-void MVO::updateVelocity(double speed){
+void MVO::updateVelocity(double timestamp, double speed){
     is_speed_provided_ = true;
+    timestamp_speed_since_keyframe_.push_back(timestamp);
     speed_since_keyframe_.push_back(speed);
 
     double scale = 0.0;
     for( uint32_t i = 0; i < speed_since_keyframe_.size()-1; i++ )
-        scale += (speed_since_keyframe_[i]+speed_since_keyframe_[i+1])/2 * (timestamp_since_keyframe_[i+1]-timestamp_since_keyframe_[i]);
+        scale += (speed_since_keyframe_[i]+speed_since_keyframe_[i+1])/2 * (timestamp_speed_since_keyframe_[i+1]-timestamp_speed_since_keyframe_[i]);
     
     updateScaleReference(scale);
+    std::cout << "scale: " << scale << std::endl;
 }
 
 std::vector<Feature> MVO::getFeatures() const {
