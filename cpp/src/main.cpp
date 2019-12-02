@@ -76,23 +76,24 @@ int main(int argc, char * argv[]){
 	// file name reading
 	std::vector<std::string> rgbNameRaw;
 	std::vector<std::array<double,6>> imuDataRaw;
-	std::vector<double> timeRgb, timeImu;
+	std::vector<double> timestamp_image;
 	
 	std::string input_path, image_path, imu_path;
 	input_path.append(inputFile);
 	image_path.append(inputFile).append("image.txt");
 	imu_path.append(inputFile).append("imu.txt");
 
-	chk::getImageFile(image_path.c_str(), timeRgb, rgbNameRaw, Parser::hasOption("-jetson"));
-	// chk::getIMUFile(imu_path.c_str(), timeImu, imuDataRaw);
+	chk::getImageFile(image_path.c_str(), timestamp_image, rgbNameRaw, Parser::hasOption("-jetson"));
 	std::cout << "- Read successfully." << std::endl;
 
 	rgbNameRaw.erase(rgbNameRaw.begin(), rgbNameRaw.begin()+initFrame);
-	timeRgb.erase(timeRgb.begin(), timeRgb.begin()+initFrame);
+	timestamp_image.erase(timestamp_image.begin(), timestamp_image.begin()+initFrame);
 
 	// Read OxTS data
-	std::vector<double> timestamp_speed, timestamp_imu, speed;
-	std::vector<Eigen::Vector3d> imuRot;
+	std::vector<double> timestamp_speed, timestamp_imu, data_speed;
+	std::vector<Eigen::Vector3d> data_gyro;
+
+	// chk::getIMUFile(imu_path.c_str(), timestamp_imu, imuDataRaw);
 
 	if( Parser::hasOption("-kitti") ){
 		if( Parser::hasOption("-vel") || Parser::hasOption("-imu") ){
@@ -102,13 +103,13 @@ int main(int argc, char * argv[]){
 			directoryReader(oxts_path.c_str(), oxtsData);
 
 			if( Parser::hasOption("-vel") ){
-				computeVehicleSpeed(oxtsData, speed);
-				speed.erase(speed.begin(), speed.begin()+initFrame);
+				computeVehicleSpeed(oxtsData, data_speed);
+				data_speed.erase(data_speed.begin(), data_speed.begin()+initFrame);
 			}
 			
 			if( Parser::hasOption("-imu") ){
-				computeImuRotation(oxtsData, imuRot);
-				imuRot.erase(imuRot.begin(), imuRot.begin()+initFrame);
+				computeImuRotation(oxtsData, data_gyro);
+				data_gyro.erase(data_gyro.begin(), data_gyro.begin()+initFrame);
 			}
 
 			std::string time_path;
@@ -117,19 +118,19 @@ int main(int argc, char * argv[]){
 			timestamp_speed.erase(timestamp_speed.begin(), timestamp_speed.begin()+initFrame);
 			timestamp_imu.assign(timestamp_speed.begin(), timestamp_speed.end());
 			
-			timeRgb.clear();
-			timeRgb.assign(timestamp_speed.begin(), timestamp_speed.end());
+			timestamp_image.clear();
+			timestamp_image.assign(timestamp_speed.begin(), timestamp_speed.end());
 		}
 	}else if( Parser::hasOption("-jetson") ){
 		if( Parser::hasOption("-vel") ){
 			std::string can_path;
 			can_path.append(inputFile).append("/can.txt");
-			CANReader(can_path, timestamp_speed, speed);
+			CANReader(can_path, timestamp_speed, data_speed);
 		}
 	}
 
 	std::vector<int> sensorID;
-	lsi::sortTimestamps(timestamp_speed, timestamp_imu, timeRgb, sensorID);
+	lsi::sortTimestamps(timestamp_speed, timestamp_imu, timestamp_image, sensorID);
 
 	/**************************************************************************
 	 *  Construct MVO object
@@ -167,7 +168,7 @@ int main(int argc, char * argv[]){
 			case 0:
 				// Fetch speed
 				if( Parser::hasOption("-vel"))
-					vo->updateVelocity(timestamp_speed[it_vel], speed[it_vel]);
+					vo->updateVelocity(timestamp_speed[it_vel], data_speed[it_vel]);
 				
 				it_vel++;
 				break;
@@ -175,12 +176,16 @@ int main(int argc, char * argv[]){
 			case 1:
 				// Fetch imu
 				if( Parser::hasOption("-imu"))
-					vo->updateGyro(timestamp_imu[it_imu], imuRot[it_imu]);
-				
+					vo->updateGyro(timestamp_imu[it_imu], data_gyro[it_imu]);
+
 				it_imu++;
 				break;
 
 			case 2:
+				// Fetch velocity synchronously (erase switch statement)
+				if( Parser::hasOption("-vel"))
+					vo->updateVelocity(timestamp_image[it_rgb], data_speed[it_rgb]);
+
 				// Fetch images
 				dirRgb.clear();
 				dirRgb.append(inputFile).append(rgbNameRaw[it_rgb]);
@@ -310,14 +315,14 @@ void computeVehicleSpeed( std::vector<std::vector<double> > oxtsData, std::vecto
     }
 }
 
-void computeImuRotation( std::vector<std::vector<double> > oxtsData, std::vector<Eigen::Vector3d>& imuRot){
+void computeImuRotation( std::vector<std::vector<double> > oxtsData, std::vector<Eigen::Vector3d>& data_gyro){
     for (uint32_t i = 0; i < oxtsData.size(); i++){
 		if(i == 0){
-			imuRot.push_back(Eigen::Vector3d::Zero());
+			data_gyro.push_back(Eigen::Vector3d::Zero());
 			continue;
 		}
 		
-		imuRot.push_back( (Eigen::Vector3d() << oxtsData[i][17], oxtsData[i][18], oxtsData[i][19]).finished() );
+		data_gyro.push_back( (Eigen::Vector3d() << oxtsData[i][17], oxtsData[i][18], oxtsData[i][19]).finished() );
 	}
 }
 

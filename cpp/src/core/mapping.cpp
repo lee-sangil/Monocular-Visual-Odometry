@@ -795,15 +795,16 @@ bool MVO::scalePropagation(const Eigen::Matrix3d &R, Eigen::Vector3d &t, std::ve
 }
 
 void MVO::updateScaleReference(const double scale){
-    if( MVO::s_scale_reference_ < 0 || is_start_ == false )
-        MVO::s_scale_reference_ = scale;
-    else{
-        // low-pass filter
-        // MVO::s_scale_reference_ = params_.weightScaleReg * MVO::s_scale_reference_ + (1-params_.weightScaleReg) * scale;
+    MVO::s_scale_reference_ = scale;
+    // if( MVO::s_scale_reference_ < 0 || is_start_ == false )
+    //     MVO::s_scale_reference_ = scale;
+    // else{
+    //     // low-pass filter
+    //     // MVO::s_scale_reference_ = params_.weightScaleReg * MVO::s_scale_reference_ + (1-params_.weightScaleReg) * scale;
 
-        // limit slope
-        MVO::s_scale_reference_ = MVO::s_scale_reference_ + ((scale > MVO::s_scale_reference_)?1:-1) * std::min(std::abs(scale - MVO::s_scale_reference_), params_.weight_scale_reg);
-    }
+    //     // limit slope
+    //     MVO::s_scale_reference_ = MVO::s_scale_reference_ + ((scale > MVO::s_scale_reference_)?1:-1) * std::min(std::abs(scale - MVO::s_scale_reference_), params_.weight_scale_reg);
+    // }
 }
 
 template <typename DATA, typename FUNC>
