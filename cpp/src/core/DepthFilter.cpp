@@ -36,6 +36,7 @@ double DepthFilter::getMean() const {return mean_;}
 double DepthFilter::getVariance() const {return sigma_ * sigma_;}
 double DepthFilter::getA() const {return a_;}
 double DepthFilter::getB() const {return b_;}
+void DepthFilter::reset() {initialize_ = false;}
 
 double DepthFilter::computeTau(const Eigen::Matrix4d& Toc, const Eigen::Vector3d& p){
 	Eigen::Vector3d t = Toc.block(0,3,3,1);

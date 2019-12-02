@@ -8,7 +8,7 @@
 #include <dirent.h>
 
 std::vector<std::vector<double> > fileReader(const std::string&);
-Eigen::MatrixXd read_binary(const char*, const int, const int);
+Eigen::MatrixXd readDepth(const char*, const int, const int);
 std::vector<double> oxtsReader(const char*, const std::string & txtName);
 void CANReader(const std::string&, std::vector<double>&, std::vector<double>&);
 void timeReader(const char *, std::vector<double>&);
@@ -196,7 +196,7 @@ int main(int argc, char * argv[]){
 				if( Parser::hasOption("-gt") ){
 					std::ostringstream dirDepth;
 					dirDepth << inputFile << "full_depth/" << std::setfill('0') << std::setw(10) << it_rgb+initFrame << ".bin";
-					Eigen::MatrixXd depth = read_binary(dirDepth.str().c_str(), vo->params_.im_size.height, vo->params_.im_size.width);
+					Eigen::MatrixXd depth = readDepth(dirDepth.str().c_str(), vo->params_.im_size.height, vo->params_.im_size.width);
 					vo->calcReconstructionErrorGT(depth);
 				}
 				
@@ -245,7 +245,7 @@ int main(int argc, char * argv[]){
 	return 0;
 }
 
-Eigen::MatrixXd read_binary(const char* filename, const int rows, const int cols){
+Eigen::MatrixXd readDepth(const char* filename, const int rows, const int cols){
     Eigen::MatrixXd matrix(rows, cols);
     std::ifstream in(filename, std::ios::in | std::ios::binary);
     if(!in.is_open())

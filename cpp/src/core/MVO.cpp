@@ -262,7 +262,7 @@ void MVO::refresh(){
 }
 
 void MVO::restart(){
-    step_ = -1;
+    step_ = 0;
     keystep_ = 0;
     keystep_array_.clear();
     keystep_array_.push_back(0);
@@ -270,11 +270,18 @@ void MVO::restart(){
     is_start_ = false;
     is_scale_initialized_ = false;
     
-    features_.clear();
+    deleteDeadFeatures();
+    for( uint32_t i = 0; i < features_.size(); i++ ){
+        features_[i].life = 1;
+        features_[i].frame_init = 1;
+        features_[i].point_var = 1e9;
+        features_[i].uv.erase(features_[i].uv.begin(), features_[i].uv.end()-1);
+        features_[i].depthfilter->reset();
+    }
     features_dead_.clear();
 
     // Variables
-    num_feature_ = 0;
+    num_feature_ = features_.size();
     num_feature_matched_ = 0;
     num_feature_2D_inliered_ = 0;
     num_feature_3D_reconstructed_ = 0;
@@ -364,8 +371,12 @@ void MVO::updateVelocity(double timestamp, double speed){
     std::cout << "scale: " << scale << std::endl;
 }
 
-std::vector<Feature> MVO::getFeatures() const {
+const std::vector<Feature>& MVO::getFeatures() const {
     return features_;
+}
+
+const Eigen::Matrix4d& MVO::getCurrentMotion() const {
+    return TRec_.back();
 }
 
 std::vector< std::tuple<cv::Point2f, cv::Point2f, Eigen::Vector3d> > MVO::getPoints() const
@@ -379,7 +390,7 @@ std::vector< std::tuple<cv::Point2f, cv::Point2f, Eigen::Vector3d> > MVO::getPoi
             uv_prev = features_[i].uv[features_[i].life - 2];
         else
             uv_prev = cv::Point2f(-1,-1);
-            
+        
         if( params_.output_filtered_depth )
             pts.push_back( std::make_tuple(uv_prev, uv_curr, Tco.block(0,0,3,4) * features_[i].point_init ) );
         else

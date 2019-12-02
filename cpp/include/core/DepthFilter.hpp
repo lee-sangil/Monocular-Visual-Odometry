@@ -29,6 +29,7 @@ class DepthFilter{ // inverse-depth estimator
 	double getVariance() const;
 	double getA() const;
 	double getB() const;
+	void reset();
 
 	// tau: standard variation of z, depth
 	static double computeTau(const Eigen::Matrix4d& Toc, const Eigen::Vector3d& p);

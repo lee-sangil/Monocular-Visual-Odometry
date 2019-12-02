@@ -17,7 +17,7 @@ void MVO::calculateScale(const std::vector<std::pair<cv::Point3f,cv::Point3f>> &
     // scale = sum / pts.size();
 }
 
-void MVO::calculateScaleError(const double& scale, const std::vector<std::pair<cv::Point3f,cv::Point3f>> &pts, std::vector<double>& dist){
+void MVO::calculateScaleError(const double scale, const std::vector<std::pair<cv::Point3f,cv::Point3f>> &pts, std::vector<double>& dist){
     dist.clear();
     for (uint32_t i = 0; i < pts.size(); i++)
         dist.push_back(cv::norm(pts[i].second - scale * pts[i].first));

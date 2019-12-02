@@ -78,7 +78,7 @@ bool MVO::calculateMotion()
             std::cerr << "# Find scale from Essential: " << lsi::toc() << std::endl;
 
             if (!success){
-                std::cerr << "There are few inliers matching scale." << std::endl;
+                std::cerr << "Warning: There are few inliers matching scale" << std::endl;
                 return false;
             }
             std::cerr << "Essential 3D error: " << calcReconstructionError(R_unique, t_unique) << std::endl;
@@ -120,7 +120,7 @@ bool MVO::calculateMotion()
     /**** ****/
     std::cerr << "num_feature_inlier_: " << num_feature_inlier_ << " " << std::endl;
     if (num_feature_inlier_ < params_.th_inlier){
-        std::cerr << "There are few inliers reconstructed and accorded in 3D." << std::endl;
+        std::cerr << "Warning: There are few inliers reconstructed and accorded in 3D" << std::endl;
         return false;
     }else{
         std::cerr << "Temporal velocity: " << T.block(0,3,3,1).norm() << std::endl;
@@ -182,60 +182,16 @@ bool MVO::verifySolutions(const std::vector<Eigen::Matrix3d>& R_vec, const std::
 	}
 
 	// Store 3D characteristics in features
-	if( max_num < num_feature_2D_inliered_*0.5 )
+	if( max_num < num_feature_2D_inliered_*0.5 ){
+        std::cerr << "Warning: There is no verified solution" << std::endl;
 		success = false;
-	else{
+	}else{
 		for( int i = 0; i < max_num; i++ ){
 			if( max_inlier[i] ){
 				features_[idx_2D_inlier[i]].point_curr = (Eigen::Vector4d() << opt_X_curr[i], 1).finished();
 				features_[idx_2D_inlier[i]].is_3D_reconstructed = true;
                 num_feature_3D_reconstructed_++;
             }
-		}
-		success = true;
-	}
-
-	return success;
-}
-
-bool MVO::verifySolutions(const Eigen::Matrix3d& R, const Eigen::Vector3d& t){
-    
-	bool success;
-
-	// Extract homogeneous 2D point which is inliered with essential constraint
-	std::vector<int> idx_2D_inlier;
-	for( int i = 0; i < num_feature_; i++ )
-		if( features_[i].is_2D_inliered )
-			idx_2D_inlier.push_back(i);
-
-    int key_idx;
-	std::vector<cv::Point2f> uv_prev, uv_curr;
-    for (uint32_t i = 0; i < idx_2D_inlier.size(); i++){
-        key_idx = features_[idx_2D_inlier[i]].life - 1 - (step_ - keystep_);
-        uv_prev.emplace_back(features_[idx_2D_inlier[i]].uv[key_idx]);
-		uv_curr.emplace_back(features_[idx_2D_inlier[i]].uv.back());
-    }
-
-	// Find reasonable rotation and translational vector
-    std::vector<Eigen::Vector3d> X_prev, X_curr;
-    std::vector<bool> inlier;
-    constructDepth(uv_prev, uv_curr, R, t, X_prev, X_curr, inlier);
-
-    int num_inlier = 0;
-    for( uint32_t i = 0; i < inlier.size(); i++ )
-        if( inlier[i] )
-            num_inlier++;
-    
-	// Store 3D characteristics in features
-	if( num_inlier < num_feature_2D_inliered_*0.5 )
-		success = false;
-	else{
-		for( uint32_t i = 0; i < inlier.size(); i++ ){
-			if( inlier[i] ){
-				features_[idx_2D_inlier[i]].point_curr = (Eigen::Vector4d() << X_curr[i], 1).finished();
-				features_[idx_2D_inlier[i]].is_3D_reconstructed = true;
-                num_feature_3D_reconstructed_++;
-			}
 		}
 		success = true;
 	}
@@ -375,8 +331,8 @@ bool MVO::findPoseFrom3DPoints(Eigen::Matrix3d &R, Eigen::Vector3d &t, std::vect
     return flag;
 }
 
-void MVO::constructDepth(const std::vector<cv::Point2f> uv_prev, const std::vector<cv::Point2f> uv_curr, 
-                        const Eigen::Matrix3d R, const Eigen::Vector3d t, 
+void MVO::constructDepth(const std::vector<cv::Point2f>& uv_prev, const std::vector<cv::Point2f>& uv_curr, 
+                        const Eigen::Matrix3d& R, const Eigen::Vector3d& t, 
                         std::vector<Eigen::Vector3d> &X_prev, std::vector<Eigen::Vector3d> &X_curr, 
                         std::vector<bool> &inlier){
 
@@ -692,7 +648,7 @@ bool MVO::scalePropagation(const Eigen::Matrix3d &R, Eigen::Vector3d &t, std::ve
             std::vector<bool> plane_inlier, plane_outlier;
             MVO::ransac<cv::Point3f, std::vector<double>>(road_candidate, params_.ransac_coef_plane, plane, plane_inlier, plane_outlier);
 
-            if( plane_inlier.size() > (uint32_t) params_.th_inlier ){
+            if( std::count(plane_inlier.begin(), plane_inlier.end(), true) > (uint32_t) params_.th_inlier ){
                 for( uint32_t i = 0; i < road_idx.size(); i++ ){
                     if( plane_inlier[i] )
                         features_[road_idx[i]].type = Type::Road;
@@ -700,6 +656,7 @@ bool MVO::scalePropagation(const Eigen::Matrix3d &R, Eigen::Vector3d &t, std::ve
                     //     features_[road_idx[i]].type = Type::Unknown;
                 }
                 scale_from_height = params_.vehicle_height / std::abs(plane[3]);
+                std::cerr << "Plane: " << plane[0] << ',' << plane[1] << ',' << plane[2] << std::endl;
 
                 updateScaleReference(scale_from_height);
             }
@@ -744,20 +701,22 @@ bool MVO::scalePropagation(const Eigen::Matrix3d &R, Eigen::Vector3d &t, std::ve
                                     cv::Point3f(init_point(0),init_point(1),init_point(2)));
                 
                 // RANSAC weight
-                // params_.ransac_coef_scale.weight.push_back( std::atan( -curr_point(2)/5 + 3 ) + M_PI / 2 );
+                params_.ransac_coef_scale.weight.push_back( std::atan( -curr_point(2)/5 + 3 ) + M_PI / 2 );
                 // params_.ransac_coef_scale.weight.push_back( std::atan( -features_[i].point_var * 1e4 ) + M_PI / 2 );
-                params_.ransac_coef_scale.weight.push_back( 1/features_[i].point_var );
+                // params_.ransac_coef_scale.weight.push_back( 1/features_[i].point_var );
             }
 
             MVO::ransac<std::pair<cv::Point3f,cv::Point3f>,double>(Points, params_.ransac_coef_scale, scale, inlier, outlier);
             num_feature_inlier_ = std::count(inlier.begin(), inlier.end(), true);
+
+            std::cerr << "num_inlier: " << num_pts << ", num_feature_inlier: " << num_feature_inlier_ << std::endl;
         }
 
         // Use the previous scale, if the scale cannot be found
         // But do not use the previous scale when the velocity reference is fetched directly (s_scale_reference_weight_ < 0)
-        if ( MVO::s_scale_reference_weight_ >= 0 && (num_pts <= params_.ransac_coef_scale.min_num_point || inlier.size() < (std::size_t)params_.th_inlier || scale == 0) )
+        if ( MVO::s_scale_reference_weight_ >= 0 && (num_pts <= params_.ransac_coef_scale.min_num_point || num_feature_inlier_ < (std::size_t)params_.th_inlier || scale == 0) )
         {
-            std::cerr << "There are a few SCALE FACTOR INLIERS" << std::endl;
+            std::cerr << "Warning: There are a few scale factor inliers" << std::endl;
 
             inlier.clear();
             outlier.clear();
@@ -788,9 +747,10 @@ bool MVO::scalePropagation(const Eigen::Matrix3d &R, Eigen::Vector3d &t, std::ve
 
     std::cerr << "# Propagate scale: " << lsi::toc() << std::endl;
 
-    if( t.hasNaN() )
+    if( t.hasNaN() ){
+        std::cerr << "Warning: A scale value is nan" << std::endl;
         return false;
-    else
+    }else
         return flag;
 }
 
@@ -808,7 +768,7 @@ void MVO::updateScaleReference(const double scale){
 }
 
 template <typename DATA, typename FUNC>
-void MVO::ransac(const std::vector<DATA> &samples, const MVO::RansacCoef<DATA, FUNC> param, FUNC& val, std::vector<bool> &inlier, std::vector<bool> &outlier){
+void MVO::ransac(const std::vector<DATA> &samples, const MVO::RansacCoef<DATA, FUNC>& param, FUNC& val, std::vector<bool> &inlier, std::vector<bool> &outlier){
     uint32_t num_pts = samples.size();
 
     std::vector<uint32_t> sample_idx;
@@ -817,8 +777,13 @@ void MVO::ransac(const std::vector<DATA> &samples, const MVO::RansacCoef<DATA, F
     dist.reserve(num_pts);
 
     int num_iteration = 1e5;
-    uint32_t max_inlier = 0;
+    uint32_t num_max_inlier = 0;
+    uint32_t num_inlier = 0;
     double inlier_ratio;
+    std::vector<bool> in1;
+    in1.reserve(num_pts);
+
+    FUNC max_val;
 
     for( int it = 0; it < std::min(param.max_iteration, num_iteration); it++ ){
         // 1. fit using random points
@@ -835,9 +800,9 @@ void MVO::ransac(const std::vector<DATA> &samples, const MVO::RansacCoef<DATA, F
         param.calculate_func(sample, val);
         param.calculate_dist(val, samples, dist);
 
-        std::vector<bool> in1;
-        uint32_t num_inlier = 0;
-        for (uint32_t i = 0; i < dist.size(); i++){
+        in1.clear();
+        num_inlier = 0;
+        for (uint32_t i = 0; i < num_pts; i++){
             if( dist[i] < param.th_dist ){
                 in1.push_back( true );
                 num_inlier++;
@@ -846,32 +811,44 @@ void MVO::ransac(const std::vector<DATA> &samples, const MVO::RansacCoef<DATA, F
             }
         }
 
-        if (num_inlier > max_inlier){
-            max_inlier = num_inlier;
+        if (num_inlier > num_max_inlier){
+            num_max_inlier = num_inlier;
             inlier = in1;
-            inlier_ratio = (double)max_inlier / (double)num_pts + 1e-16;
+            inlier_ratio = (double)num_max_inlier / (double)num_pts + 1e-16;
             num_iteration = static_cast<int>(std::floor(std::log(1 - param.th_inlier_ratio) / std::log(1 - std::pow(inlier_ratio, param.min_num_point))));
+            max_val = val;
         }
     }
     std::cerr << "Ransac iterations: " << std::min(param.max_iteration, num_iteration) << std::endl;
+    std::cerr << "Ransac num_max_inlier: " << num_max_inlier << std::endl;
 
-    if (max_inlier == 0){
+    if (num_max_inlier == 0){
         inlier.clear();
         outlier.clear();
     }else{
-        sample.clear();
-        for (uint32_t i = 0; i < inlier.size(); i++)
-            if (inlier[i])
-                sample.push_back(samples[i]);
+        // With refinement
+        // sample.clear();
+        // for (uint32_t i = 0; i < inlier.size(); i++)
+        //     if (inlier[i])
+        //         sample.push_back(samples[i]);
         
-        param.calculate_func(sample, val);
-        param.calculate_dist(val, samples, dist);
+        // param.calculate_func(sample, val);
+        // param.calculate_dist(val, samples, dist);
 
-        inlier.clear();
+        // inlier.clear();
+        // outlier.clear();
+        // for (uint32_t i = 0; i < num_pts; i++){
+        //     inlier.push_back(dist[i] < param.th_dist);
+        //     outlier.push_back(dist[i] > param.th_dist_outlier);
+        // }
+
+        // Without refinement
+        param.calculate_dist(max_val, samples, dist);
+
         outlier.clear();
-        for (uint32_t i = 0; i < dist.size(); i++){
-            inlier.push_back(dist[i] < param.th_dist);
+        for (uint32_t i = 0; i < num_pts; i++)
             outlier.push_back(dist[i] > param.th_dist_outlier);
-        }
+        
+        val = max_val;
     }
 }

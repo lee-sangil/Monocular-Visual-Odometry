@@ -111,9 +111,10 @@ class MVO{
 
 	// Get feature 
 	std::vector< std::tuple<cv::Point2f, cv::Point2f, Eigen::Vector3d> > getPoints() const;
-	std::vector<Feature> getFeatures() const;
-	cv::Point2f warpWithIMU(cv::Point2f uv);
-	cv::Point2f warpWithPreviousMotion(Eigen::Vector3d p);
+	const std::vector<Feature>& getFeatures() const;
+	const Eigen::Matrix4d& getCurrentMotion() const;
+	cv::Point2f warpWithIMU(const cv::Point2f& uv);
+	cv::Point2f warpWithPreviousMotion(const Eigen::Vector3d& p);
 	
 	// Script operations
 	void restart();
@@ -136,14 +137,13 @@ class MVO{
 	// Calculations
 	bool calculateEssential();
 	bool calculateMotion();
-	bool verifySolutions(const Eigen::Matrix3d& R, const Eigen::Vector3d& t);
 	bool verifySolutions(const std::vector<Eigen::Matrix3d>& R_vec, const std::vector<Eigen::Vector3d>& t_vec,
 						  Eigen::Matrix3d& R, Eigen::Vector3d& t);
 	bool scalePropagation(const Eigen::Matrix3d& R, Eigen::Vector3d& t,
 						   std::vector<bool>& inlier, std::vector<bool>& outlier);
 	bool findPoseFrom3DPoints(Eigen::Matrix3d &R, Eigen::Vector3d &t, std::vector<int>& inlier, std::vector<int>& outlier);
-	void constructDepth(const std::vector<cv::Point2f> uv_prev, const std::vector<cv::Point2f> uv_curr, 
-                        const Eigen::Matrix3d R, const Eigen::Vector3d t, 
+	void constructDepth(const std::vector<cv::Point2f>& uv_prev, const std::vector<cv::Point2f>& uv_curr, 
+                        const Eigen::Matrix3d& R, const Eigen::Vector3d& t, 
                         std::vector<Eigen::Vector3d> &X_prev, std::vector<Eigen::Vector3d> &X_curr, 
                         std::vector<bool> &inlier);
 	void update3DPoints(const Eigen::Matrix3d& R, const Eigen::Vector3d& t,
@@ -161,9 +161,9 @@ class MVO{
 
 	// RANSAC
 	template <typename DATA, typename FUNC>
-	static void ransac(const std::vector<DATA>& sample, const MVO::RansacCoef<DATA, FUNC> ransacCoef, FUNC& val, std::vector<bool>& inlier, std::vector<bool>& outlier);
+	static void ransac(const std::vector<DATA>& sample, const MVO::RansacCoef<DATA, FUNC>& ransacCoef, FUNC& val, std::vector<bool>& inlier, std::vector<bool>& outlier);
 	static void calculateScale(const std::vector<std::pair<cv::Point3f,cv::Point3f>>& pts, double& scale);
-	static void calculateScaleError(const double& scale, const std::vector<std::pair<cv::Point3f,cv::Point3f>>& pts, std::vector<double>& dist);
+	static void calculateScaleError(const double scale, const std::vector<std::pair<cv::Point3f,cv::Point3f>>& pts, std::vector<double>& dist);
 	static void calculatePlane(const std::vector<cv::Point3f>& pts, std::vector<double>& plane);
 	static void calculatePlaneError(const std::vector<double>& plane, const std::vector<cv::Point3f>& pts, std::vector<double>& dist);
 	static double s_scale_reference_;
@@ -171,8 +171,8 @@ class MVO{
 
 	// Add additional feature within bound-box
 	void addExtraFeatures();
-	void extractRoiFeatures(std::vector<cv::Rect> rois, std::vector<int> nFeature);
-	bool extractRoiFeature(cv::Rect& roi);
+	void extractRoiFeatures(const std::vector<cv::Rect>& rois, const std::vector<int>& nFeature);
+	bool extractRoiFeature(const cv::Rect& roi);
 	std::vector<Feature> features_extra_;
 
 	private:

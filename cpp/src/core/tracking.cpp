@@ -78,7 +78,7 @@ bool MVO::updateFeatures(){
         }
 
         if( num_feature_matched_ < params_.th_inlier ){
-            std::cerr << "There are a few FEATURE MATCHES" << std::endl;
+            std::cerr << "Warning: There are a few feature matches" << std::endl;
             return false;
         }else{
             return true;
@@ -87,7 +87,7 @@ bool MVO::updateFeatures(){
         return true;
 }
 
-cv::Point2f MVO::warpWithIMU(cv::Point2f uv){
+cv::Point2f MVO::warpWithIMU(const cv::Point2f& uv){
     Eigen::Vector3d pixel, warpedPixel;
     cv::Point2f warpedUV;
     pixel << uv.x, uv.y, 1;
@@ -97,7 +97,7 @@ cv::Point2f MVO::warpWithIMU(cv::Point2f uv){
     return warpedUV;
 }
 
-cv::Point2f MVO::warpWithPreviousMotion(Eigen::Vector3d p){
+cv::Point2f MVO::warpWithPreviousMotion(const Eigen::Vector3d& p){
     Eigen::Vector3d warpedPixel;
     cv::Point2f warpedUV;
     Eigen::Matrix3d Rinv = TRec_.back().block(0,0,3,3).transpose();
@@ -377,8 +377,10 @@ bool MVO::calculateEssential()
         std::cout << "key step: " << keystep_ << ' ' << std::endl;
     }
 
-    if( (int) points1.size() < params_.th_inlier )
+    if( (int) points1.size() < params_.th_inlier ){
+        std::cerr << "Warning: There are a few stable features" << std::endl;
         return false;
+    }
 
     cv::Mat inlier_mat;
     essential_ = cv::findEssentialMat(points1, points2, params_.Kcv, cv::RANSAC, 0.999, 1.5, inlier_mat);
@@ -460,7 +462,7 @@ bool MVO::calculateEssential()
     std::cerr << "# Extract R, t: " << lsi::toc() << std::endl;
 
     if (num_feature_2D_inliered_ < params_.th_inlier){
-        std::cerr << " There are a few inliers matching features in 2D." << std::endl;
+        std::cerr << "Warning: There are a few inliers matching features in 2D" << std::endl;
         return false;
     }else{
         is_start_ = true;
@@ -497,12 +499,12 @@ void MVO::addExtraFeatures(){
     }
 }
 
-void MVO::extractRoiFeatures(std::vector<cv::Rect> rois, std::vector<int> num_feature_){
+void MVO::extractRoiFeatures(const std::vector<cv::Rect>& rois, const std::vector<int>& num_feature_){
 
     cv::Rect roi;
+    const int& bucket_safety = bucket_.safety;
     for( uint32_t i = 0; i < rois.size(); i++ ){
         roi = rois[i];
-        int bucket_safety = bucket_.safety;
         roi.x = std::max(bucket_safety, roi.x);
         roi.y = std::max(bucket_safety, roi.y);
         roi.width = std::min(params_.im_size.width-bucket_safety, roi.x+roi.width)-roi.x;
@@ -516,7 +518,7 @@ void MVO::extractRoiFeatures(std::vector<cv::Rect> rois, std::vector<int> num_fe
     }
 }
 
-bool MVO::extractRoiFeature(cv::Rect& roi){
+bool MVO::extractRoiFeature(const cv::Rect& roi){
 
     int row, col;
     row = (roi.x-1) / bucket_.size.height;
@@ -545,7 +547,7 @@ bool MVO::extractRoiFeature(cv::Rect& roi){
         crop_image = curr_image_(roi);
         cv::goodFeaturesToTrack(crop_image, keypoints, 10, 0.1, 2.0, cv::noArray(), 3, true);
     }catch(std::exception& msg){
-        std::cerr << msg.what() << std::endl;
+        std::cerr << "Warning: " << msg.what() << std::endl;
         return false;
     }
     
@@ -555,6 +557,7 @@ bool MVO::extractRoiFeature(cv::Rect& roi){
             keypoints[l].y = keypoints[l].y + roi.y - 1;
         }
     }else{
+        std::cerr << "Warning: There is no keypoints within the bucket" << std::endl;
         return false;
     }
 
@@ -607,6 +610,7 @@ bool MVO::extractRoiFeature(cv::Rect& roi){
         features_extra_.push_back(newFeature);
         return true;
     }else{
+        std::cerr << "Warning: There is no best-match keypoint which is far from the adjacent feature" << std::endl;
         return false;
     }
     
