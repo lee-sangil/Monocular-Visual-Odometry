@@ -238,11 +238,14 @@ void MVO::addFeature(){
     uint32_t num_feature_inside_bucket = idx_belong_to_bucket.size();
     
     // Try to find a seperate feature
-    cv::Mat crop_image;
     std::vector<cv::Point2f> keypoints;
-
-    crop_image = curr_image_(roi);
-    cv::goodFeaturesToTrack(crop_image, keypoints, 50, 0.01, params_.min_px_dist, cv::noArray(), 3, true);
+    if( visit_bucket_[row + bucket_.grid.height * col] ){
+        keypoints = keypoints_of_bucket_[row + bucket_.grid.height * col];
+    }else{
+        cv::goodFeaturesToTrack(curr_image_(roi), keypoints, 50, 0.01, params_.min_px_dist, cv::noArray(), 3, true);
+        keypoints_of_bucket_[row + bucket_.grid.height * col] = keypoints;
+        visit_bucket_[row + bucket_.grid.height * col] = true;
+    }
     
     if( keypoints.size() == 0 ){
         bucket_.saturated(row,col) = 0.0;
@@ -506,6 +509,7 @@ void MVO::addExtraFeatures(){
 void MVO::extractRoiFeatures(const std::vector<cv::Rect>& rois, const std::vector<int>& num_feature_){
 
     cv::Rect roi;
+    std::vector<cv::Point2f> keypoints;
     const int& bucket_safety = bucket_.safety;
     for( uint32_t i = 0; i < rois.size(); i++ ){
         roi = rois[i];
@@ -514,15 +518,37 @@ void MVO::extractRoiFeatures(const std::vector<cv::Rect>& rois, const std::vecto
         roi.width = std::min(params_.im_size.width-bucket_safety, roi.x+roi.width)-roi.x;
         roi.height = std::min(params_.im_size.height-bucket_safety, roi.y+roi.height)-roi.y;
 
+        try{
+            cv::goodFeaturesToTrack(curr_image_(roi), keypoints, 50, 0.01, params_.min_px_dist, cv::noArray(), 3, true);
+        }catch(std::exception& msg){
+            if( MVO::s_print_log ) std::cerr << "Warning: " << msg.what() << std::endl;
+            continue;
+        }
+        
+        if( keypoints.size() > 0 ){
+            for( uint32_t l = 0; l < keypoints.size(); l++ ){
+                keypoints[l].x = keypoints[l].x + roi.x - 1;
+                keypoints[l].y = keypoints[l].y + roi.y - 1;
+            }
+        }else{
+            if( MVO::s_print_log ) std::cerr << "Warning: There is no keypoints within the bucket" << std::endl;
+            try{
+                cv::goodFeaturesToTrack(curr_image_(roi), keypoints, 50, 0.1, params_.min_px_dist, cv::noArray(), 3, true);
+            }catch(std::exception& msg){
+                if( MVO::s_print_log ) std::cerr << "Warning: " << msg.what() << std::endl;
+                continue;
+            }
+        }
+
         int num_success = 0;
         int num_try = 0;
         while( num_success < num_feature_[i] && num_try++ < 3 )
-            if( extractRoiFeature(roi) )
+            if( extractRoiFeature(roi, keypoints) )
                 num_success++;
     }
 }
 
-bool MVO::extractRoiFeature(const cv::Rect& roi){
+bool MVO::extractRoiFeature(const cv::Rect& roi, const std::vector<cv::Point2f>& keypoints){
 
     int row, col;
     row = (roi.x-1) / bucket_.size.height;
@@ -544,27 +570,6 @@ bool MVO::extractRoiFeature(const cv::Rect& roi){
     uint32_t num_feature_inside_bucket = idx_belong_to_bucket.size();
     
     // Try to find a seperate feature
-    cv::Mat crop_image;
-    std::vector<cv::Point2f> keypoints;
-
-    try{
-        crop_image = curr_image_(roi);
-        cv::goodFeaturesToTrack(crop_image, keypoints, 10, 0.1, 2.0, cv::noArray(), 3, true);
-    }catch(std::exception& msg){
-        if( MVO::s_print_log ) std::cerr << "Warning: " << msg.what() << std::endl;
-        return false;
-    }
-    
-    if( keypoints.size() > 0 ){
-        for( uint32_t l = 0; l < keypoints.size(); l++ ){
-            keypoints[l].x = keypoints[l].x + roi.x - 1;
-            keypoints[l].y = keypoints[l].y + roi.y - 1;
-        }
-    }else{
-        if( MVO::s_print_log ) std::cerr << "Warning: There is no keypoints within the bucket" << std::endl;
-        return false;
-    }
-
     bool success;
     double dist, min_dist, max_min_dist = 0;
     cv::Point2f best_keypoint;

@@ -150,6 +150,8 @@ MVO::MVO(std::string yaml):MVO(){
     bucket_.prob.fill(1.0);
     bucket_.saturated.setZero(bucket_.grid.height, bucket_.grid.width);
 
+    keypoints_of_bucket_.resize(bucket_grid_rows*bucket_grid_cols);
+    visit_bucket_ = std::vector<bool>(bucket_grid_rows*bucket_grid_cols, false);
     features_.reserve(bucket_.max_features);
     features_backup_.reserve(bucket_.max_features);
     prev_pyramid_template_.reserve(10);
@@ -260,6 +262,8 @@ void MVO::refresh(){
         features_[i].is_2D_inliered = false;
         features_[i].is_3D_reconstructed = false;
     }
+
+    keypoints_of_bucket_.clear();
 }
 
 void MVO::restart(){

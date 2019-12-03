@@ -175,7 +175,7 @@ class MVO{
 	// Add additional feature within bound-box
 	void addExtraFeatures();
 	void extractRoiFeatures(const std::vector<cv::Rect>& rois, const std::vector<int>& nFeature);
-	bool extractRoiFeature(const cv::Rect& roi);
+	bool extractRoiFeature(const cv::Rect& roi, const std::vector<cv::Point2f>& keypoints);
 	std::vector<Feature> features_extra_;
 
 	private:
@@ -198,6 +198,8 @@ class MVO{
 	// cv::Ptr<cv::DescriptorExtractor> descriptor;
 
 	Bucket bucket_;
+	std::vector<bool> visit_bucket_;
+	std::vector<std::vector<cv::Point2f>> keypoints_of_bucket_;
 	std::vector<Feature> features_;
 	std::vector<Feature> features_backup_;
 	std::vector<Feature> features_dead_; // for debugging with plot
