@@ -155,7 +155,7 @@ void MVO::kltTracker(std::vector<cv::Point2f>& fwd_pts, std::vector<bool>& valid
         // }
 
         validity.push_back(!border_invalid & error_valid);
-        // bool valid = ~border_invalid & status.at<uchar>(i);// & err.at<float>(i) < std::min( cv::norm(pts[i] - fwd_pts[i])/5.0, 2.0);
+        // bool valid = !border_invalid & status.at<uchar>(i);// & err.at<float>(i) < std::min( cv::norm(pts[i] - fwd_pts[i])/5.0, 2.0);
         // validity.push_back(valid);
     }
 }

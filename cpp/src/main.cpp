@@ -24,8 +24,8 @@ int main(int argc, char * argv[]){
 		std::cout << "Error, invalid arguments.\n\n"
 				"\tMandatory -i: Input directory.\n"
 				"\tOptional -kitti: Reading kitti format.\n"
-				"\tOptional -jetson: Reading jetson format.\n"
-				"\tOptional -hyundai: Reading hyundai format (default).\n"
+                "\tOptional -jetson: Reading jetson format.\n"
+                "\tOptional -hyundai: Reading hyundai format (default).\n"
 				"\tOptional -c: Camera setting .yaml file (default: /path/to/input_directory/camera.yaml).\n"
 				"\tOptional -o: Output directory (default path: ./CamTrajectory.txt).\n"
 				"\tOptional -fi: initial frame (default: 0).\n"
@@ -97,6 +97,11 @@ int main(int argc, char * argv[]){
 	// chk::getIMUFile(imu_path.c_str(), timestamp_imu, imuDataRaw);
 
 	if( Parser::hasOption("-kitti") ){
+		std::string time_path;
+		time_path.append(inputFile).append("image_00/timestamps.txt");
+		timeReader(time_path.c_str(), timestamp_image);
+		timestamp_image.erase(timestamp_image.begin(), timestamp_image.begin()+initFrame);
+
 		if( Parser::hasOption("-vel") || Parser::hasOption("-imu") ){
 			std::vector<std::vector<double> > oxtsData;
 			std::string oxts_path;
@@ -118,9 +123,6 @@ int main(int argc, char * argv[]){
 			timeReader(time_path.c_str(), timestamp_speed);
 			timestamp_speed.erase(timestamp_speed.begin(), timestamp_speed.begin()+initFrame);
 			timestamp_imu.assign(timestamp_speed.begin(), timestamp_speed.end());
-			
-			timestamp_image.clear();
-			timestamp_image.assign(timestamp_speed.begin(), timestamp_speed.end());
 		}
 	}else if( Parser::hasOption("-jetson") ){
 		if( Parser::hasOption("-vel") ){
@@ -186,8 +188,8 @@ int main(int argc, char * argv[]){
 
 			case 2:
 				// Fetch velocity synchronously (erase switch statement)
-				if( Parser::hasOption("-vel"))
-					vo->updateVelocity(timestamp_image[it_rgb], data_speed[it_rgb]);
+				// if( Parser::hasOption("-vel"))
+				// 	vo->updateVelocity(timestamp_image[it_rgb], data_speed[it_rgb]);
 
 				// Fetch images
 				dirRgb.clear();
@@ -203,30 +205,31 @@ int main(int argc, char * argv[]){
 					vo->calcReconstructionErrorGT(depth);
 				}
 				
-				std::cout << "Iteration: " << it_rgb << ", Execution time: " << lsi::toc()/1e3 << "ms       " << '\r';
+				std::cout << "Iteration: " << it_rgb << ", Execution time: " << lsi::toc()/1e3 << "ms       " << '\r' << std::flush;
 				
 				vo->plot();
 
 				it_rgb++;
-				break;
-		}
 
-		if( bStep ){
-			while(true){
-				key = cv::waitKey(0);
-				if( key == 's' ){
-					break;
-				}else if( key == 'q' ){
-					bRun = false;
-					break;
-				}else if( key == 'w' ){
-					bStep = false;
-					break;
-				}else if( grabActiveKey(vo, key) ){
-					vo->plot();
-					continue;
+				if( bStep ){
+					while(true){
+						key = cv::waitKey(0);
+						if( key == 's' ){
+							break;
+						}else if( key == 'q' ){
+							bRun = false;
+							break;
+						}else if( key == 'w' ){
+							bStep = false;
+							break;
+						}else if( grabActiveKey(vo, key) ){
+							vo->plot();
+							continue;
+						}
+					}
 				}
-			}
+
+				break;
 		}
 
 		//KeyBoard Process
@@ -264,6 +267,7 @@ Eigen::MatrixXd readDepth(const char* filename, const int rows, const int cols){
 
 void timeReader(const char * filePath, std::vector<double>& timestamp){
 	std::ifstream openFile(filePath);
+	timestamp.clear();
     if( !openFile.is_open() ){
         std::cout << "text file open error" << std::endl;
     }

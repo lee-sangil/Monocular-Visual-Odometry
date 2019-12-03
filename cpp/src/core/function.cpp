@@ -150,20 +150,20 @@ void MVO::calcReconstructionErrorGT(Eigen::MatrixXd& depth){
             idx.push_back(i);
 
     if( idx.size() > 0 ){
-        std::cerr << "* Reconstruction depth: ";
+        if( MVO::s_print_log ) std::cerr << "* Reconstruction depth: ";
 
         // median value
         // std::sort(error.begin(), error.end());
-        // std::cerr << error[std::floor(error.size()/2)];
+        // if( MVO::s_print_log ) std::cerr << error[std::floor(error.size()/2)];
 
         // all elements
         for( const auto & i : idx )
-            std::cerr << features_[i].point_curr(2) << ' ';
-        std::cerr << std::endl;
+            if( MVO::s_print_log ) std::cerr << features_[i].point_curr(2) << ' ';
+        if( MVO::s_print_log ) std::cerr << std::endl;
 
-        std::cerr << "* Groundtruth depth: ";
+        if( MVO::s_print_log ) std::cerr << "* Groundtruth depth: ";
         for( const auto & i : idx )
-            std::cerr << depth(features_[i].uv.back().y, features_[i].uv.back().x) << ' ';
-        std::cerr << std::endl;
+            if( MVO::s_print_log ) std::cerr << depth(features_[i].uv.back().y, features_[i].uv.back().x) << ' ';
+        if( MVO::s_print_log ) std::cerr << std::endl;
     }
 }

@@ -264,6 +264,7 @@ void MVO::refresh(){
     }
 
     keypoints_of_bucket_.clear();
+    visit_bucket_.assign(visit_bucket_.size(), false);
 }
 
 void MVO::restart(){
