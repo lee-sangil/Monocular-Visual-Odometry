@@ -8,6 +8,7 @@ double DepthFilter::s_px_error_angle_;
 double DepthFilter::s_meas_max_;
 double MVO::s_scale_reference_ = -1;
 double MVO::s_scale_reference_weight_;
+bool MVO::s_print_log = false;
 uint32_t Feature::new_feature_id = 0;
 
 MVO::MVO(){
@@ -68,7 +69,7 @@ MVO::MVO(std::string yaml):MVO(){
 	params_.p1 =			    fSettings["Camera.p1"];
 	params_.p2 =			    fSettings["Camera.p2"];
 	params_.k3 =			    fSettings["Camera.k3"];
-	params_.im_size.width =	fSettings["Camera.width"];
+	params_.im_size.width =	    fSettings["Camera.width"];
 	params_.im_size.height =	fSettings["Camera.height"];
 
     params_.K << params_.fx, 0, params_.cx,
@@ -137,8 +138,8 @@ MVO::MVO(std::string yaml):MVO(){
 
     // Bucket
     bucket_ = Bucket();
-    bucket_.max_features =     fSettings["Feature.number"];
-    bucket_.safety =           fSettings["Bucket.border_safety"];
+    bucket_.max_features =          fSettings["Feature.number"];
+    bucket_.safety =                fSettings["Bucket.border_safety"];
     int bucket_grid_rows =          fSettings["Bucket.rows"];
     int bucket_grid_cols =          fSettings["Bucket.cols"];
 
@@ -155,7 +156,7 @@ MVO::MVO(std::string yaml):MVO(){
     curr_pyramid_template_.reserve(10);
 
     // 3D reconstruction
-    params_.init_scale =           1;
+    params_.init_scale =                1;
     params_.vehicle_height =            fSettings["Scale.reference_height"]; // in meter
     params_.weight_scale_ref =          fSettings["Scale.reference_weight"];
 	params_.weight_scale_reg =          fSettings["Scale.regularization_weight"];
@@ -164,7 +165,7 @@ MVO::MVO(std::string yaml):MVO(){
     params_.output_filtered_depth =     fSettings["Debug.output_filtered_depths"];
     params_.mapping_option =            fSettings["Debug.mapping_options"];
 
-    eigen_solver_ = new Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd>();
+    eigen_solver_ = std::shared_ptr< Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> > (new Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd>());
 
     switch( fSettings["Triangulation.method"] ){
         case 0:
@@ -217,7 +218,7 @@ MVO::MVO(std::string yaml):MVO(){
             abort();
     }
 
-    params_.max_point_var =   fSettings["DepthFilter.maximum_variance"];
+    params_.max_point_var =         fSettings["DepthFilter.maximum_variance"];
     double depth_min =              fSettings["DepthFilter.minimum_depth"];
     double px_noise =               fSettings["DepthFilter.pixel_noise"];
     DepthFilter::s_meas_max_ = 1.0/depth_min;
@@ -336,14 +337,15 @@ void MVO::run(cv::Mat& image){
     
     lsi::tic();
     setImage(image);
-    std::cerr << "============ Iteration: " << step_ << " ============" << std::endl;
-    std::cerr << "# Grab image: " << lsi::toc() << std::endl;
+    if( MVO::s_print_log ) std::cerr << "============ Iteration: " << step_ << " ============" << std::endl;
+    if( MVO::s_print_log ) std::cerr << "# Grab image: " << lsi::toc() << std::endl;
     refresh();
 
     // extract_roi_features(rois, num_feature_);   // Extract extra features in rois
 
-    if( extractFeatures() && calculateEssential() && calculateMotion() == false )
-        restart();
+    if( !extractFeatures() ) { restart(); return; }
+    if( !calculateEssential() ) { restart(); return; }
+    if( !calculateMotion() ) { restart(); return; }
 }
 
 void MVO::updateGyro(double timestamp, Eigen::Vector3d& gyro){
@@ -368,16 +370,11 @@ void MVO::updateVelocity(double timestamp, double speed){
         scale += (speed_since_keyframe_[i]+speed_since_keyframe_[i+1])/2 * (timestamp_speed_since_keyframe_[i+1]-timestamp_speed_since_keyframe_[i]);
     
     updateScaleReference(scale);
-    std::cout << "scale: " << scale << std::endl;
+    if( MVO::s_print_log ) std::cerr << "scale: " << scale << std::endl;
 }
 
-const std::vector<Feature>& MVO::getFeatures() const {
-    return features_;
-}
-
-const Eigen::Matrix4d& MVO::getCurrentMotion() const {
-    return TRec_.back();
-}
+const std::vector<Feature>& MVO::getFeatures() const {return features_;}
+const Eigen::Matrix4d& MVO::getCurrentMotion() const {return TRec_.back();}
 
 std::vector< std::tuple<cv::Point2f, cv::Point2f, Eigen::Vector3d> > MVO::getPoints() const
 {

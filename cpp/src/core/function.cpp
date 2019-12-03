@@ -3,24 +3,24 @@
 
 void MVO::calculateScale(const std::vector<std::pair<cv::Point3f,cv::Point3f>> &pts, double& scale){
     double num = 0, den = 0;
-    for (uint32_t i = 0; i < pts.size(); i++){
-        num += (pts[i].first.x * pts[i].second.x + pts[i].first.y * pts[i].second.y + pts[i].first.z * pts[i].second.z);
-        den += (pts[i].first.x * pts[i].first.x + pts[i].first.y * pts[i].first.y + pts[i].first.z * pts[i].first.z);
+    for ( const auto & pt : pts ){
+        num += (pt.first.x * pt.second.x + pt.first.y * pt.second.y + pt.first.z * pt.second.z);
+        den += (pt.first.x * pt.first.x + pt.first.y * pt.first.y + pt.first.z * pt.first.z);
     }
     scale = (num / pts.size() + MVO::s_scale_reference_weight_ * MVO::s_scale_reference_) / (den / pts.size() + MVO::s_scale_reference_weight_ + 1e-10);
 
     // double sum = 0;
-    // for (uint32_t i = 0; i < pts.size(); i++){
-    //     sum += (pts[i].first.x * pts[i].second.x + pts[i].first.y * pts[i].second.y + pts[i].first.z * pts[i].second.z + MVO::s_scale_reference_weight_ * ::scale_reference) / 
-    //     (pts[i].first.x * pts[i].first.x + pts[i].first.y * pts[i].first.y + pts[i].first.z * pts[i].first.z + MVO::s_scale_reference_weight_ + 1e-10);
+    // for ( const auto & pt : pts ){
+    //     sum += (pt.first.x * pt.second.x + pt.first.y * pt.second.y + pt.first.z * pt.second.z + MVO::s_scale_reference_weight_ * ::scale_reference) / 
+    //     (pt.first.x * pt.first.x + pt.first.y * pt.first.y + pt.first.z * pt.first.z + MVO::s_scale_reference_weight_ + 1e-10);
     // }
     // scale = sum / pts.size();
 }
 
 void MVO::calculateScaleError(const double scale, const std::vector<std::pair<cv::Point3f,cv::Point3f>> &pts, std::vector<double>& dist){
     dist.clear();
-    for (uint32_t i = 0; i < pts.size(); i++)
-        dist.push_back(cv::norm(pts[i].second - scale * pts[i].first));
+    for( const auto & pt : pts )
+        dist.push_back(cv::norm(pt.second - scale * pt.first));
 }
 
 void MVO::calculatePlane(const std::vector<cv::Point3f>& pts, std::vector<double>& plane){
@@ -44,18 +44,18 @@ void MVO::calculatePlane(const std::vector<cv::Point3f>& pts, std::vector<double
 
     }else{
         cv::Point3f centroid(0,0,0);
-        for( uint32_t i = 0; i < pts.size(); i++ ){
-            centroid.x += pts[i].x;
-            centroid.y += pts[i].y;
-            centroid.z += pts[i].z;
+        for( const auto & pt : pts ){
+            centroid.x += pt.x;
+            centroid.y += pt.y;
+            centroid.z += pt.z;
         }
         centroid.x = centroid.x/pts.size();
         centroid.y = centroid.y/pts.size();
         centroid.z = centroid.z/pts.size();
 
         double xx = 0, xy = 0, xz = 0, yy = 0, yz = 0, zz = 0;
-        for( uint32_t i = 0; i < pts.size(); i++ ){
-            cv::Point3f r = pts[i] - centroid;
+        for( const auto & pt : pts ){
+            cv::Point3f r = pt - centroid;
             xx += r.x * r.x;
             xy += r.x * r.y;
             xz += r.x * r.z;
@@ -110,7 +110,7 @@ void MVO::calculatePlaneError(const std::vector<double>& plane, const std::vecto
     double norm = std::sqrt(std::pow(plane[0],2) + std::pow(plane[1],2) + std::pow(plane[2],2));
     if( std::abs(norm) < 1e-10 ){
         dist.clear();
-        for( uint32_t i = 0; i < pts.size(); i++ )
+        for( const auto & pt : pts )
             dist.push_back(1e10);
     }else{
         double a = plane[0]/norm;
@@ -119,17 +119,17 @@ void MVO::calculatePlaneError(const std::vector<double>& plane, const std::vecto
         double d = plane[3]/norm;
 
         dist.clear();
-        for( uint32_t i = 0; i < pts.size(); i++ )
-            dist.push_back(std::abs(a * pts[i].x + b * pts[i].y + c * pts[i].z + d));
+        for( const auto & pt : pts )
+            dist.push_back(std::abs(a * pt.x + b * pt.y + c * pt.z + d));
     }
 }
 
 double MVO::calcReconstructionError(Eigen::Matrix4d& Toc){
     std::vector<double> error;
-    error.reserve(this->features_.size());
-    for( uint32_t i = 0; i < this->features_.size(); i++ ){
-        error.push_back((Toc * this->features_[i].point_curr - this->features_[i].point_init).norm());
-    }
+    error.reserve(features_.size());
+    for( const auto & feature : features_ )
+        error.push_back((Toc * feature.point_curr - feature.point_init).norm());
+
     std::sort(error.begin(), error.end());
     return error[std::floor(error.size()/2)];
 }
@@ -140,15 +140,14 @@ double MVO::calcReconstructionError(Eigen::Matrix3d& R, Eigen::Vector3d& t){
     Toc.block(0,3,3,1) = t;
     Toc(3,3) = 1;
 
-    return this->calcReconstructionError(Toc);
+    return calcReconstructionError(Toc);
 }
 
 void MVO::calcReconstructionErrorGT(Eigen::MatrixXd& depth){
     std::vector<double> idx;
-    for( uint32_t i = 0; i < this->features_.size(); i++ ){
-        if( depth(this->features_[i].uv.back().y, this->features_[i].uv.back().x) > 0 && this->features_[i].is_3D_reconstructed == true )
+    for( uint32_t i = 0; i < features_.size(); i++ )
+        if( depth(features_[i].uv.back().y, features_[i].uv.back().x) > 0 && features_[i].is_3D_reconstructed == true )
             idx.push_back(i);
-    }
 
     if( idx.size() > 0 ){
         std::cerr << "* Reconstruction depth: ";
@@ -158,15 +157,13 @@ void MVO::calcReconstructionErrorGT(Eigen::MatrixXd& depth){
         // std::cerr << error[std::floor(error.size()/2)];
 
         // all elements
-        for( uint32_t i = 0; i < idx.size(); i++ ){
-            std::cerr << this->features_[idx[i]].point_curr(2) << ' ';
-        }
+        for( const auto & i : idx )
+            std::cerr << features_[i].point_curr(2) << ' ';
         std::cerr << std::endl;
 
         std::cerr << "* Groundtruth depth: ";
-        for( uint32_t i = 0; i < idx.size(); i++ ){
-            std::cerr << depth(this->features_[idx[i]].uv.back().y, this->features_[idx[i]].uv.back().x) << ' ';
-        }
+        for( const auto & i : idx )
+            std::cerr << depth(features_[i].uv.back().y, features_[i].uv.back().x) << ' ';
         std::cerr << std::endl;
     }
 }

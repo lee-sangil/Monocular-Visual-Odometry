@@ -83,7 +83,7 @@ typedef struct Feature{
 	bool is_3D_reconstructed;
 	bool is_3D_init;
 	Type type;
-	DepthFilter * depthfilter;
+	std::shared_ptr<DepthFilter> depthfilter;
 }Feature;
 
 #endif //__COMMON_HPP__

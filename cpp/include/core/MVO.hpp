@@ -86,6 +86,8 @@ class MVO{
 		MVO::SVD svd_method;
 		MVO::TRIANGULATION triangulation_method;
 		MVO::PNP pnp_method;
+
+		// Debug
 		int update_init_point;
 		int output_filtered_depth;
 		int mapping_option;
@@ -97,13 +99,14 @@ class MVO{
 	public:
 
 	Parameter params_;
+	static bool s_print_log;
 	
 	public:
 
 	MVO();
 	MVO(std::string yaml);
 	~MVO(){
-		delete eigen_solver_;
+		cv::destroyAllWindows();
 	}
 	
 	// Set image
@@ -222,7 +225,7 @@ class MVO{
 
 	std::vector<cv::Mat> prev_pyramid_template_, curr_pyramid_template_;
 	Eigen::MatrixXd map_matrix_template_;
-	Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> * eigen_solver_;
+	std::shared_ptr< Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> > eigen_solver_;
 };
 
 #endif //__MVO_HPP__

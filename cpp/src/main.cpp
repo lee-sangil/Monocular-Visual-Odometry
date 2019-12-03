@@ -25,12 +25,13 @@ int main(int argc, char * argv[]){
 				"\tMandatory -i: Input directory.\n"
 				"\tOptional -kitti: Reading kitti format.\n"
 				"\tOptional -jetson: Reading jetson format.\n"
-				"\tOptional -hyundai: Reading hyundai format.\n"
+				"\tOptional -hyundai: Reading hyundai format (default).\n"
 				"\tOptional -c: Camera setting .yaml file (default: /path/to/input_directory/camera.yaml).\n"
 				"\tOptional -o: Output directory (default path: ./CamTrajectory.txt).\n"
 				"\tOptional -fi: initial frame (default: 0).\n"
 				"\tOptional -fl: length frame (default: eof).\n"
 				"\tOptional -gt: compare with ground-truth if exists (default: false).\n"
+				"\tOptional -db: print log (default: false).\n"
 				"Example: [./divo_dataset -c /path/to/setting.yaml -i /path/to/input_folder/ -o /path/to/output_folder/]" << std::endl;
         return 1;
     }
@@ -140,6 +141,8 @@ int main(int argc, char * argv[]){
 	/**************************************************************************
 	 *  Run MVO object
 	 **************************************************************************/
+	MVO::s_print_log = Parser::hasOption("-db");
+
 	std::ofstream statusLogger;
 	statusLogger.open(outputDir + "CamTrajectory.txt");
 
@@ -201,6 +204,7 @@ int main(int argc, char * argv[]){
 				}
 				
 				std::cout << "Iteration: " << it_rgb << ", Execution time: " << lsi::toc()/1e3 << "ms       " << '\r';
+				
 				vo->plot();
 
 				it_rgb++;
@@ -242,6 +246,9 @@ int main(int argc, char * argv[]){
 
 	if( statusLogger.is_open() ) statusLogger.close();
 	std::cout << std::endl;
+
+	delete vo;
+
 	return 0;
 }
 

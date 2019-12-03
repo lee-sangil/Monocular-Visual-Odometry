@@ -8,11 +8,13 @@
 bool MVO::extractFeatures(){
     // Update features using KLT tracker
     if( updateFeatures() ){
-        std::cerr << "# Update features: " << lsi::toc() << std::endl;
+        if( MVO::s_print_log ) std::cerr << "# Update features: " << lsi::toc() << std::endl;
         
+        if( MVO::s_print_log ) std::cerr << "* Tracking rate: " << 100.0 * num_feature_matched_ / num_feature_ << std::endl;
+
         // Delete features which is failed to track by KLT tracker
         deleteDeadFeatures();
-        std::cerr << "# Delete features: " << lsi::toc() << std::endl;
+        if( MVO::s_print_log ) std::cerr << "# Delete features: " << lsi::toc() << std::endl;
         
         // Add features to the number of the lost features
         addFeatures();
@@ -20,7 +22,7 @@ bool MVO::extractFeatures(){
         // Add extra feature points
         addExtraFeatures();
 
-        std::cerr << "# Add features: " << lsi::toc() << std::endl;
+        if( MVO::s_print_log ) std::cerr << "# Add features: " << lsi::toc() << std::endl;
         
         return true;
     }
@@ -35,7 +37,7 @@ bool MVO::updateFeatures(){
         std::vector<cv::Point2f> points;
         std::vector<bool> validity;
         kltTracker(points, validity);
-        std::cerr << "## KLT tracker: " << lsi::toc() << std::endl;
+        if( MVO::s_print_log ) std::cerr << "## KLT tracker: " << lsi::toc() << std::endl;
 
         Eigen::Matrix<double,3,4> Tco = TocRec_.back().inverse().block(0,0,3,4);
         for( int i = 0; i < num_feature_; i++ ){
@@ -78,7 +80,7 @@ bool MVO::updateFeatures(){
         }
 
         if( num_feature_matched_ < params_.th_inlier ){
-            std::cerr << "Warning: There are a few feature matches" << std::endl;
+            if( MVO::s_print_log ) std::cerr << "Warning: There are a few feature matches" << std::endl;
             return false;
         }else{
             return true;
@@ -119,17 +121,17 @@ void MVO::kltTracker(std::vector<cv::Point2f>& fwd_pts, std::vector<bool>& valid
     // Forward-backward error evaluation
     std::vector<cv::Mat>& prevPyr = prev_pyramid_template_;
     std::vector<cv::Mat>& currPyr = curr_pyramid_template_;
-    std::cerr << "### Prepare variables: " << lsi::toc() << std::endl;
+    if( MVO::s_print_log ) std::cerr << "### Prepare variables: " << lsi::toc() << std::endl;
 
     cv::buildOpticalFlowPyramid(prev_image_, prevPyr, cv::Size(21,21), 3, true);
     cv::buildOpticalFlowPyramid(curr_image_, currPyr, cv::Size(21,21), 3, true);
-    std::cerr << "### Build pyramids: " << lsi::toc() << std::endl;
+    if( MVO::s_print_log ) std::cerr << "### Build pyramids: " << lsi::toc() << std::endl;
 
     cv::Mat status, err;
     cv::calcOpticalFlowPyrLK(prevPyr, currPyr, pts, fwd_pts, status, err);
     cv::calcOpticalFlowPyrLK(currPyr, prevPyr, fwd_pts, bwd_pts, status, err);
     // cv::calcOpticalFlowPyrLK(prevPyr, currPyr, bwd_pts, fwd_bwd_pts, status, err);
-    std::cerr << "### Calculate optical flows: " << lsi::toc() << std::endl;
+    if( MVO::s_print_log ) std::cerr << "### Calculate optical flows: " << lsi::toc() << std::endl;
     
     // Calculate bi-directional error( = validity ): validity = ~border_invalid & error_valid
     
@@ -174,7 +176,7 @@ void MVO::deleteDeadFeatures(){
 
 void MVO::addFeatures(){
     updateBucket();
-    std::cerr << "## Update bucket: " << lsi::toc() << std::endl;
+    if( MVO::s_print_log ) std::cerr << "## Update bucket: " << lsi::toc() << std::endl;
 
     while( num_feature_ < bucket_.max_features && bucket_.saturated.any() == true )
         addFeature();
@@ -195,9 +197,11 @@ void MVO::addFeatures(){
 void MVO::updateBucket(){
     bucket_.mass.fill(0.0);
     bucket_.saturated.fill(1.0);
+
+    uint32_t row_bucket, col_bucket;
     for( int i = 0; i < num_feature_; i++ ){
-        uint32_t row_bucket = std::floor(features_[i].uv.back().y / params_.im_size.height * bucket_.grid.height);
-        uint32_t col_bucket = std::floor(features_[i].uv.back().x / params_.im_size.width * bucket_.grid.width);
+        row_bucket = std::floor(features_[i].uv.back().y / params_.im_size.height * bucket_.grid.height);
+        col_bucket = std::floor(features_[i].uv.back().x / params_.im_size.width * bucket_.grid.width);
         features_[i].bucket = cv::Point(col_bucket, row_bucket);
         bucket_.mass(row_bucket, col_bucket)++;
     }
@@ -206,17 +210,17 @@ void MVO::updateBucket(){
 void MVO::addFeature(){
     // Load bucket parameters
     cv::Size bkSize = bucket_.size;
-    uint32_t bucket_safety = bucket_.safety;
+    int bucket_safety = bucket_.safety;
 
     // Choose ROI based on the probabilistic approaches with the mass of bucket
     int row, col;
     lsi::idx_randselect(bucket_.prob, bucket_.saturated, row, col);
     cv::Rect roi = cv::Rect(col*bkSize.width+1, row*bkSize.height+1, bkSize.width, bkSize.height);
 
-    roi.x = std::max(bucket_safety, (uint32_t)roi.x);
-    roi.y = std::max(bucket_safety, (uint32_t)roi.y);
-    roi.width = std::min(params_.im_size.width-bucket_safety, (uint32_t)roi.x+roi.width)-roi.x;
-    roi.height = std::min(params_.im_size.height-bucket_safety, (uint32_t)roi.y+roi.height)-roi.y;
+    roi.x = std::max(bucket_safety, roi.x);
+    roi.y = std::max(bucket_safety, roi.y);
+    roi.width = std::min(params_.im_size.width-bucket_safety, roi.x+roi.width)-roi.x;
+    roi.height = std::min(params_.im_size.height-bucket_safety, roi.y+roi.height)-roi.y;
 
     // Seek index of which feature is extracted specific bucket
     std::vector<uint32_t> idx_belong_to_bucket;
@@ -238,7 +242,7 @@ void MVO::addFeature(){
     std::vector<cv::Point2f> keypoints;
 
     crop_image = curr_image_(roi);
-    cv::goodFeaturesToTrack(crop_image, keypoints, 50, 0.1, 2.0, cv::noArray(), 3, true);
+    cv::goodFeaturesToTrack(crop_image, keypoints, 50, 0.01, params_.min_px_dist, cv::noArray(), 3, true);
     
     if( keypoints.size() == 0 ){
         bucket_.saturated(row,col) = 0.0;
@@ -275,13 +279,13 @@ void MVO::addFeature(){
         }
     }
     
-    if( max_min_dist > 0.0 ){
+    if( success ){
         // Add new feature to VO object
         Feature newFeature;
 
         newFeature.id = Feature::new_feature_id; // unique id of the feature
         newFeature.frame_init = 0; // frame step when the 3d point is initialized
-        newFeature.uv.emplace_back(best_keypoint.x, best_keypoint.y); // uv point in pixel coordinates
+        newFeature.uv.push_back(best_keypoint); // uv point in pixel coordinates
         newFeature.uv_pred = cv::Point2f(-1,-1);
         newFeature.life = 1; // the number of frames in where the feature is observed
         newFeature.bucket = cv::Point(col, row); // the location of bucket where the feature belong to
@@ -295,7 +299,7 @@ void MVO::addFeature(){
         newFeature.point_init << 0,0,0,1; // scale-compensated 3-dim homogeneous point in the global coordinates
         newFeature.point_var = 1e9;
         newFeature.type = Type::Unknown;
-        newFeature.depthfilter = new DepthFilter();
+        newFeature.depthfilter = std::shared_ptr<DepthFilter>(new DepthFilter());
 
         features_.push_back(newFeature);
         num_feature_++;
@@ -374,17 +378,17 @@ bool MVO::calculateEssential()
             timestamp_imu_since_keyframe_.push_back(last_timestamp);
             gyro_since_keyframe_.push_back(last_gyro);
         }
-        std::cout << "key step: " << keystep_ << ' ' << std::endl;
+        if( MVO::s_print_log ) std::cerr << "key step: " << keystep_ << ' ' << std::endl;
     }
 
     if( (int) points1.size() < params_.th_inlier ){
-        std::cerr << "Warning: There are a few stable features" << std::endl;
+        if( MVO::s_print_log ) std::cerr << "Warning: There are a few stable features" << std::endl;
         return false;
     }
 
     cv::Mat inlier_mat;
     essential_ = cv::findEssentialMat(points1, points2, params_.Kcv, cv::RANSAC, 0.999, 1.5, inlier_mat);
-    std::cerr << "# Calculate essential: " << lsi::toc() << std::endl;
+    if( MVO::s_print_log ) std::cerr << "# Calculate essential: " << lsi::toc() << std::endl;
     
     Eigen::Matrix3d E_;
     cv::cv2eigen(essential_, E_);
@@ -409,7 +413,7 @@ bool MVO::calculateEssential()
         }
     }
     num_feature_2D_inliered_ = inlier_cnt;
-    std::cerr << "num_feature_2D_inliered_: " << (double) num_feature_2D_inliered_ / num_feature_ * 100 << '%' << std::endl;
+    if( MVO::s_print_log ) std::cerr << "num_feature_2D_inliered_: " << (double) num_feature_2D_inliered_ / num_feature_ * 100 << '%' << std::endl;
 
     Eigen::Matrix3d U,V;
     switch( params_.svd_method){
@@ -459,10 +463,10 @@ bool MVO::calculateEssential()
     t_vec_.push_back(U.block(0, 2, 3, 1));
     t_vec_.push_back(-U.block(0, 2, 3, 1));
 
-    std::cerr << "# Extract R, t: " << lsi::toc() << std::endl;
+    if( MVO::s_print_log ) std::cerr << "# Extract R, t: " << lsi::toc() << std::endl;
 
     if (num_feature_2D_inliered_ < params_.th_inlier){
-        std::cerr << "Warning: There are a few inliers matching features in 2D" << std::endl;
+        if( MVO::s_print_log ) std::cerr << "Warning: There are a few inliers matching features in 2D" << std::endl;
         return false;
     }else{
         is_start_ = true;
@@ -547,7 +551,7 @@ bool MVO::extractRoiFeature(const cv::Rect& roi){
         crop_image = curr_image_(roi);
         cv::goodFeaturesToTrack(crop_image, keypoints, 10, 0.1, 2.0, cv::noArray(), 3, true);
     }catch(std::exception& msg){
-        std::cerr << "Warning: " << msg.what() << std::endl;
+        if( MVO::s_print_log ) std::cerr << "Warning: " << msg.what() << std::endl;
         return false;
     }
     
@@ -557,7 +561,7 @@ bool MVO::extractRoiFeature(const cv::Rect& roi){
             keypoints[l].y = keypoints[l].y + roi.y - 1;
         }
     }else{
-        std::cerr << "Warning: There is no keypoints within the bucket" << std::endl;
+        if( MVO::s_print_log ) std::cerr << "Warning: There is no keypoints within the bucket" << std::endl;
         return false;
     }
 
@@ -605,12 +609,12 @@ bool MVO::extractRoiFeature(const cv::Rect& roi){
         newFeature.point_init << 0,0,0,1; // scale-compensated 3-dim homogeneous point in the global coordinates
         newFeature.point_var = 1e9;
         newFeature.type = Type::Unknown;
-        newFeature.depthfilter = new DepthFilter();
+        newFeature.depthfilter = std::shared_ptr<DepthFilter>(new DepthFilter());
 
         features_extra_.push_back(newFeature);
         return true;
     }else{
-        std::cerr << "Warning: There is no best-match keypoint which is far from the adjacent feature" << std::endl;
+        if( MVO::s_print_log ) std::cerr << "Warning: There is no best-match keypoint which is far from the adjacent feature" << std::endl;
         return false;
     }
     
