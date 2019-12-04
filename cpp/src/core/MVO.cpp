@@ -280,11 +280,10 @@ void MVO::restart(){
     for( uint32_t i = 0; i < features_.size(); i++ ){
         features_[i].life = 1;
         features_[i].frame_init = 1;
-        features_[i].point_var = 1e9;
+        // features_[i].point_var = 1e9;
         features_[i].uv.erase(features_[i].uv.begin(), features_[i].uv.end()-1);
-        features_[i].depthfilter->reset();
+        // features_[i].depthfilter->reset();
     }
-    features_dead_.clear();
 
     // Variables
     num_feature_ = features_.size();
@@ -294,13 +293,9 @@ void MVO::restart(){
     num_feature_inlier_ = 0;
 
     // Initial position
-    TRec_.clear();
-    TocRec_.clear();
-    PocRec_.clear();
-
-    TRec_.push_back(Eigen::Matrix4d::Identity());
-    TocRec_.push_back(Eigen::Matrix4d::Identity());
-    PocRec_.push_back((Eigen::Vector4d() << 0,0,0,1).finished());
+    TRec_.erase(TRec_.begin(), TRec_.end()-1);
+    TocRec_.erase(TocRec_.begin(), TocRec_.end()-1);
+    PocRec_.erase(PocRec_.begin(), PocRec_.end()-1);
 
     if( is_speed_provided_ ){
         double last_timestamp = timestamp_speed_since_keyframe_.back();

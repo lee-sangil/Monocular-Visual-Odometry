@@ -36,13 +36,20 @@ bool MVO::updateFeatures(){
         // Track the points
         std::vector<cv::Point2f> points;
         std::vector<bool> validity;
-        kltTracker(points, validity);
+        if( !kltTracker(points, validity) ){
+            if( keystep_array_.size() > 0 ){
+                keystep_array_.pop_back();
+                keystep_ = keystep_array_.back();
+                kltTracker(points, validity);
+            }
+        }
         if( MVO::s_print_log ) std::cerr << "## KLT tracker: " << lsi::toc() << std::endl;
 
+        cv::Point2f uv_prev;
         Eigen::Matrix<double,3,4> Tco = TocRec_.back().inverse().block(0,0,3,4);
         for( int i = 0; i < num_feature_; i++ ){
             if( validity[i] && features_[i].is_alive ){
-                cv::Point2f uv_prev = features_[i].uv.back();
+                uv_prev = features_[i].uv.back();
                 features_[i].life++;
 
                 if( is_rotate_provided_ ) features_[i].uv_pred = warpWithIMU(uv_prev);
@@ -79,6 +86,13 @@ bool MVO::updateFeatures(){
                 features_[i].is_alive = false;
         }
 
+        if( MVO::s_print_log ){
+            std::cerr << "* parallax: ";
+            for( const auto & feature : features_ )
+                std::cerr << feature.parallax << ' ';
+            std::cerr << std::endl;
+        }
+
         if( num_feature_matched_ < params_.th_inlier ){
             if( MVO::s_print_log ) std::cerr << "Warning: There are a few feature matches" << std::endl;
             return false;
@@ -111,12 +125,12 @@ cv::Point2f MVO::warpWithPreviousMotion(const Eigen::Vector3d& p){
     return warpedUV;
 }
 
-void MVO::kltTracker(std::vector<cv::Point2f>& fwd_pts, std::vector<bool>& validity){
+bool MVO::kltTracker(std::vector<cv::Point2f>& fwd_pts, std::vector<bool>& validity){
     std::vector<cv::Point2f> pts, bwd_pts, fwd_bwd_pts;
     pts.reserve(num_feature_);
     bwd_pts.reserve(num_feature_);
-    for( int i = 0; i < num_feature_; i++ )
-        pts.push_back(features_[i].uv.back());
+    for( const auto & feature : features_ )
+        pts.push_back(feature.uv.back());
     
     // Forward-backward error evaluation
     std::vector<cv::Mat>& prevPyr = prev_pyramid_template_;
@@ -158,6 +172,35 @@ void MVO::kltTracker(std::vector<cv::Point2f>& fwd_pts, std::vector<bool>& valid
         // bool valid = !border_invalid & status.at<uchar>(i);// & err.at<float>(i) < std::min( cv::norm(pts[i] - fwd_pts[i])/5.0, 2.0);
         // validity.push_back(valid);
     }
+
+    // Validate parallax
+    int key_idx;
+    cv::Point2f uv_keystep;
+    for( uint32_t i = 0; i < num_feature_; i++ ){
+        if( validity[i] && features_[i].is_alive ){
+            key_idx = features_[i].life - 1 - (step_ - keystep_);
+            if( key_idx >= 0 ){
+                uv_keystep = features_[i].uv[key_idx];
+                features_[i].parallax = std::acos((fwd_pts[i].dot(uv_keystep)+1)/std::sqrt(fwd_pts[i].x*fwd_pts[i].x + fwd_pts[i].y*fwd_pts[i].y + 1)/std::sqrt(uv_keystep.x*uv_keystep.x + uv_keystep.y*uv_keystep.y + 1));
+            }else
+                features_[i].parallax = 0;
+        }else
+            features_[i].parallax = 0;
+    }
+
+    double mean = 0.0;
+    int n = 0;
+    for( const auto & feature : features_ ){
+        if( feature.parallax != 0 && !std::isnan(feature.parallax) ){
+            mean += feature.parallax;
+            n++;
+        }
+    }
+    mean /= n;
+    std::cout << "parallax mean: " << mean << std::endl;
+
+    if( mean < 0.01 ) return false;
+    return true;
 }
 
 void MVO::deleteDeadFeatures(){
@@ -288,6 +331,7 @@ void MVO::addFeature(){
 
         newFeature.id = Feature::new_feature_id; // unique id of the feature
         newFeature.frame_init = 0; // frame step when the 3d point is initialized
+        newFeature.parallax = 0; // parallax between associated features
         newFeature.uv.push_back(best_keypoint); // uv point in pixel coordinates
         newFeature.uv_pred = cv::Point2f(-1,-1);
         newFeature.life = 1; // the number of frames in where the feature is observed
@@ -600,6 +644,7 @@ bool MVO::extractRoiFeature(const cv::Rect& roi, const std::vector<cv::Point2f>&
         Feature newFeature;
 
         newFeature.frame_init = 0; // frame step when the 3d point is initialized
+        newFeature.parallax = 0; // parallax between associated features
         newFeature.uv.emplace_back(best_keypoint.x, best_keypoint.y); // uv point in pixel coordinates
         newFeature.uv_pred = cv::Point2f(-1,-1);
         newFeature.life = 1; // the number of frames in where the feature is observed

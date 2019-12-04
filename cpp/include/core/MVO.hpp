@@ -129,7 +129,7 @@ class MVO{
 	void updateView();
 
 	// Feature operations
-	void kltTracker(std::vector<cv::Point2f>& points, std::vector<bool>& validity);
+	bool kltTracker(std::vector<cv::Point2f>& points, std::vector<bool>& validity);
 	void updateBucket();
 	bool extractFeatures();
 	bool updateFeatures();

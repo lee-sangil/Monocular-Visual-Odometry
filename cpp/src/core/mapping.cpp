@@ -34,13 +34,17 @@ bool MVO::calculateMotion()
 
         /**** mapping without scaling ****/
         update3DPoints(R_unique, t_unique, inlier, outlier, T, Toc, Poc);
+        if( MVO::s_print_log ) std::cerr << "# Update 3D Points with Essential: " << lsi::toc() << std::endl;
+
         break;
 
     case 1:
         /**** mapping and scaling with essential 3d reconstruction only ****/
         if( !scalePropagation(R_unique ,t_unique, inlier, outlier) ) return false;
-        if( MVO::s_print_log ) std::cerr << "Essential 3D error: " << calcReconstructionError(R_unique, t_unique) << std::endl;
+
         update3DPoints(R_unique, t_unique, inlier, outlier, T, Toc, Poc); // overloading function
+        if( MVO::s_print_log ) std::cerr << "# Update 3D Points with Essential: " << lsi::toc() << std::endl;
+
         break;
 
     case 2:
@@ -61,30 +65,22 @@ bool MVO::calculateMotion()
         /**** use both PnP and essential 3d reconstruction - original ****/
         if (findPoseFrom3DPoints(R, t, idx_inlier, idx_outlier)){
             if( MVO::s_print_log ) std::cerr << "# Find pose from PnP: " << lsi::toc() << std::endl;
-            if( MVO::s_print_log ) std::cerr << "PnP 3D error: " << calcReconstructionError(R, t) << std::endl;
 
             // Update 3D points
             bool success = scalePropagation(R_unique, t_unique, inlier, outlier);
-            if( MVO::s_print_log ) std::cerr << "# Find scale from Essential: " << lsi::toc() << std::endl;
             
             // Update 3D points
             update3DPoints(R, t, inlier, outlier, R_unique, t_unique, success, T, Toc, Poc); // overloading function
-            if( MVO::s_print_log ) std::cerr << "Update 3D Points with PnP, ";
+            if( MVO::s_print_log ) std::cerr << "# Update 3D Points with PnP: " << lsi::toc() << std::endl;
+
         }else{
             if( MVO::s_print_log ) std::cerr << "# Find pose from PnP: " << lsi::toc() << std::endl;
 
             // Update 3D points
-            bool success = scalePropagation(R_unique ,t_unique, inlier, outlier);
-            if( MVO::s_print_log ) std::cerr << "# Find scale from Essential: " << lsi::toc() << std::endl;
-
-            if (!success){
-                if( MVO::s_print_log ) std::cerr << "Warning: There are few inliers matching scale" << std::endl;
-                return false;
-            }
-            if( MVO::s_print_log ) std::cerr << "Essential 3D error: " << calcReconstructionError(R_unique, t_unique) << std::endl;
+            if( !scalePropagation(R_unique ,t_unique, inlier, outlier) ) return false;
 
             update3DPoints(R_unique, t_unique, inlier, outlier, T, Toc, Poc); // overloading function
-            if( MVO::s_print_log ) std::cerr << "Update 3D Points with Essential Constraint, ";
+            if( MVO::s_print_log ) std::cerr << "# Update 3D Points with Essential: " << lsi::toc() << std::endl;
         }
         break;
 
@@ -101,7 +97,6 @@ bool MVO::calculateMotion()
 
             // Update 3D points
             update3DPoints(R, t, inlier, outlier, R_unique, t_unique, true, T, Toc, Poc);
-            if( MVO::s_print_log ) std::cerr << "Update 3D Points with PnP, ";
         }else{
             if( MVO::s_print_log ) std::cerr << "# Find scale from Essential: " << lsi::toc() << std::endl;
 
@@ -110,15 +105,14 @@ bool MVO::calculateMotion()
 
             // Update 3D points
             update3DPoints(R, t, inlier, outlier, R_unique, t_unique, false, T, Toc, Poc);
-            if( MVO::s_print_log ) std::cerr << "Update 3D Points with Essential Constraint, ";
         }
         break;
     }
-    if( MVO::s_print_log ) std::cerr << "num_feature_3D_reconstructed_: " << (double) num_feature_3D_reconstructed_ / num_feature_ * 100 << '%' << std::endl;
-    if( MVO::s_print_log ) std::cerr << "num_feature_3DInliered: " << (double) num_feature_inlier_ / num_feature_ * 100 << '%' << std::endl;
+    if( MVO::s_print_log ) std::cerr << "percentage_feature_3D_reconstructed_: " << (double) num_feature_3D_reconstructed_ / num_feature_ * 100 << '%' << std::endl;
+    if( MVO::s_print_log ) std::cerr << "percentage_feature_3D_inliered: " << (double) num_feature_inlier_ / num_feature_ * 100 << '%' << std::endl;
+    if( MVO::s_print_log ) std::cerr << "num_feature_inlier_: " << num_feature_inlier_ << " " << std::endl;
 
     /**** ****/
-    if( MVO::s_print_log ) std::cerr << "num_feature_inlier_: " << num_feature_inlier_ << " " << std::endl;
     if (num_feature_inlier_ < params_.th_inlier){
         if( MVO::s_print_log ) std::cerr << "Warning: There are few inliers reconstructed and accorded in 3D" << std::endl;
         return false;
@@ -218,7 +212,7 @@ bool MVO::findPoseFrom3DPoints(Eigen::Matrix3d &R, Eigen::Vector3d &t, std::vect
         for (uint32_t i = 0; i < num_pts; i++)
         {
             object_pts.emplace_back(features_[idx[i]].point_init(0), features_[idx[i]].point_init(1), features_[idx[i]].point_init(2));
-            image_pts.emplace_back(features_[idx[i]].uv.back().x, features_[idx[i]].uv.back().y); // return last element of uv
+            image_pts.push_back(features_[idx[i]].uv.back()); // return last element of uv
         }
 
         // r_vec = cv::Mat::zeros(3,1,CV_32F);
@@ -242,56 +236,51 @@ bool MVO::findPoseFrom3DPoints(Eigen::Matrix3d &R, Eigen::Vector3d &t, std::vect
         switch( params_.pnp_method ){
             case MVO::PNP::LM : 
             case MVO::PNP::ITERATIVE : {
-                bool success = cv::solvePnP(object_pts, image_pts, params_.Kcv, cv::noArray(), r_vec, t_vec, true, cv::SOLVEPNP_ITERATIVE);
-                flag = success;
+                flag = cv::solvePnP(object_pts, image_pts, params_.Kcv, cv::noArray(), r_vec, t_vec, true, cv::SOLVEPNP_ITERATIVE);
                 break;
             }
             case MVO::PNP::AP3P : {
-                bool success = cv::solvePnPRansac(object_pts, image_pts, params_.Kcv, cv::noArray(),
+                flag = cv::solvePnPRansac(object_pts, image_pts, params_.Kcv, cv::noArray(),
                                                 r_vec, t_vec, true, 1e3,
                                                 params_.reproj_error, 0.99, idx_inlier, cv::SOLVEPNP_AP3P);
-                if (!success){
-                    success = cv::solvePnPRansac(object_pts, image_pts, params_.Kcv, cv::noArray(),
+                if (!flag){
+                    flag = cv::solvePnPRansac(object_pts, image_pts, params_.Kcv, cv::noArray(),
                                                 r_vec, t_vec, true, 1e3,
                                                 2 * params_.reproj_error, 0.99, idx_inlier, cv::SOLVEPNP_AP3P);
                 }
-                flag = success;
                 break;
             }
             case MVO::PNP::EPNP : {
-                bool success = cv::solvePnPRansac(object_pts, image_pts, params_.Kcv, cv::noArray(),
+                flag = cv::solvePnPRansac(object_pts, image_pts, params_.Kcv, cv::noArray(),
                                                 r_vec, t_vec, true, 1e3,
                                                 params_.reproj_error, 0.99, idx_inlier, cv::SOLVEPNP_EPNP);
-                if (!success){
-                    success = cv::solvePnPRansac(object_pts, image_pts, params_.Kcv, cv::noArray(),
+                if (!flag){
+                    flag = cv::solvePnPRansac(object_pts, image_pts, params_.Kcv, cv::noArray(),
                                                 r_vec, t_vec, true, 1e3,
                                                 2 * params_.reproj_error, 0.99, idx_inlier, cv::SOLVEPNP_EPNP);
                 }
-                flag = success;
                 break;
             }
             case MVO::PNP::DLS : {
-                bool success = cv::solvePnPRansac(object_pts, image_pts, params_.Kcv, cv::noArray(),
+                flag = cv::solvePnPRansac(object_pts, image_pts, params_.Kcv, cv::noArray(),
                                                 r_vec, t_vec, true, 1e3,
                                                 params_.reproj_error, 0.99, idx_inlier, cv::SOLVEPNP_DLS);
-                if (!success){
-                    success = cv::solvePnPRansac(object_pts, image_pts, params_.Kcv, cv::noArray(),
+                if (!flag){
+                    flag = cv::solvePnPRansac(object_pts, image_pts, params_.Kcv, cv::noArray(),
                                                 r_vec, t_vec, true, 1e3,
                                                 2 * params_.reproj_error, 0.99, idx_inlier, cv::SOLVEPNP_DLS);
                 }
-                flag = success;
                 break;
             }
             case MVO::PNP::UPNP : {
-                bool success = cv::solvePnPRansac(object_pts, image_pts, params_.Kcv, cv::noArray(),
+                flag = cv::solvePnPRansac(object_pts, image_pts, params_.Kcv, cv::noArray(),
                                                 r_vec, t_vec, true, 1e3,
                                                 params_.reproj_error, 0.99, idx_inlier, cv::SOLVEPNP_UPNP);
-                if (!success){
-                    success = cv::solvePnPRansac(object_pts, image_pts, params_.Kcv, cv::noArray(),
+                if (!flag){
+                    flag = cv::solvePnPRansac(object_pts, image_pts, params_.Kcv, cv::noArray(),
                                                 r_vec, t_vec, true, 1e3,
                                                 2 * params_.reproj_error, 0.99, idx_inlier, cv::SOLVEPNP_UPNP);
                 }
-                flag = success;
                 break;
             }
         }
@@ -529,13 +518,12 @@ void MVO::update3DPoints(const Eigen::Matrix3d &R, const Eigen::Vector3d &t,
     T = TocRec_.back().inverse() * Toc;
     
     for( uint32_t i = 0; i < features_.size(); i++ ){
+        // TODO: features_[i].is_3D_reconstructed && inlier[i]: inlier is classified by hard-manner, recommend soft-manner using point-variance
         if( features_[i].is_3D_reconstructed ){
             features_[i].point_curr.block(0,0,3,1) *= scale;
             update3DPoint(features_[i], Toc, T);
         }
     }
-
-    if( MVO::s_print_log ) std::cerr << "# Update 3D points with Essential: " << lsi::toc() << std::endl;
 }
 	
 // with pnp
@@ -590,17 +578,18 @@ void MVO::update3DPoints(const Eigen::Matrix3d &R, const Eigen::Vector3d &t,
         }
         
         std::vector<Eigen::Vector3d> X_prev, X_curr;
-        std::vector<bool> inliers;
-        constructDepth(uv_prev, uv_curr, Rinv, tinv, X_prev, X_curr, inliers);
+        std::vector<bool> pnp_inlier;
+        constructDepth(uv_prev, uv_curr, Rinv, tinv, X_prev, X_curr, pnp_inlier);
 
         for (uint32_t i = 0; i < num_pts; i++){
-            // 2d inliers
-            if(inliers[i]){
+            // 2d_inlier
+            if(pnp_inlier[i]){
                 features_[idx_2D[i]].point_curr = (Eigen::Vector4d() << X_curr[i], 1).finished();
 				features_[idx_2D[i]].is_3D_reconstructed = true;
                 update3DPoint(features_[idx_2D[i]], Toc, T);
             } // if(lambda_prev > 0 && lambda_curr > 0)
         } // for
+        num_feature_inlier_ = std::count(pnp_inlier.begin(), pnp_inlier.end(), true);
     }
 
     int num_reconstructed = 0;
@@ -609,7 +598,6 @@ void MVO::update3DPoints(const Eigen::Matrix3d &R, const Eigen::Vector3d &t,
             num_reconstructed++;
     }
     num_feature_3D_reconstructed_ = num_reconstructed;
-    if( MVO::s_print_log ) std::cerr << "# Update 3D points with PnP: " << lsi::toc() << std::endl;
 }
 
 bool MVO::scalePropagation(const Eigen::Matrix3d &R, Eigen::Vector3d &t, std::vector<bool> &inlier, std::vector<bool> &outlier){
@@ -669,11 +657,12 @@ bool MVO::scalePropagation(const Eigen::Matrix3d &R, Eigen::Vector3d &t, std::ve
         // and 3D initialized previously
         std::vector<int> idx;
         for (uint32_t i = 0; i < features_.size(); i++){
-            if( features_[i].is_3D_reconstructed && features_[i].is_3D_init)
+            if( features_[i].is_3D_reconstructed && features_[i].is_3D_init )
                 idx.push_back(i);
         }
         uint32_t num_pts = idx.size();
 
+        std::vector<bool> scale_inlier, scale_outlier;
         if( s_scale_reference_weight_ < 0 ){ // Use reference scale directly
             scale = MVO::s_scale_reference_;
             num_feature_inlier_ = num_feature_3D_reconstructed_;
@@ -706,10 +695,10 @@ bool MVO::scalePropagation(const Eigen::Matrix3d &R, Eigen::Vector3d &t, std::ve
                 // params_.ransac_coef_scale.weight.push_back( 1/features_[i].point_var );
             }
 
-            MVO::ransac<std::pair<cv::Point3f,cv::Point3f>,double>(Points, params_.ransac_coef_scale, scale, inlier, outlier);
-            num_feature_inlier_ = std::count(inlier.begin(), inlier.end(), true);
+            MVO::ransac<std::pair<cv::Point3f,cv::Point3f>,double>(Points, params_.ransac_coef_scale, scale, scale_inlier, scale_outlier);
+            num_feature_inlier_ = std::count(scale_inlier.begin(), scale_inlier.end(), true);
 
-            if( MVO::s_print_log ) std::cerr << "num_inlier: " << num_pts << ", num_feature_inlier: " << num_feature_inlier_ << std::endl;
+            if( MVO::s_print_log ) std::cerr << "num_feature_inlier_: " << num_feature_inlier_ << std::endl;
         }
 
         // Use the previous scale, if the scale cannot be found
@@ -717,9 +706,6 @@ bool MVO::scalePropagation(const Eigen::Matrix3d &R, Eigen::Vector3d &t, std::ve
         if ( MVO::s_scale_reference_weight_ >= 0 && (num_pts <= params_.ransac_coef_scale.min_num_point || num_feature_inlier_ < (std::size_t)params_.th_inlier || scale == 0) )
         {
             if( MVO::s_print_log ) std::cerr << "Warning: There are a few scale factor inliers" << std::endl;
-
-            inlier.clear();
-            outlier.clear();
 
             scale = (TRec_.back().block(0,3,3,1)).norm();
 
@@ -729,6 +715,17 @@ bool MVO::scalePropagation(const Eigen::Matrix3d &R, Eigen::Vector3d &t, std::ve
 
         }else{
             if( MVO::s_print_log ) std::cerr << "@ scale_from_height: " << MVO::s_scale_reference_ << ", " << "scale: " << scale << std::endl;
+
+            for( uint32_t i = 0, j = 0; i < features_.size(), j < idx.size(); i++ ){
+                if( i == idx[j] ){
+                    if( scale_inlier[j] == true )
+                        inlier.push_back(true);
+                    else
+                        inlier.push_back(false);
+                    j++;
+                }else
+                    inlier.push_back(false);
+            }
 
             // Update scale
             t = scale * t;
@@ -741,6 +738,12 @@ bool MVO::scalePropagation(const Eigen::Matrix3d &R, Eigen::Vector3d &t, std::ve
         else
             t = scale_from_height * t;
 
+        for( uint32_t i = 0; i < features_.size(); i++ ){
+            if( features_[i].is_3D_reconstructed )
+                inlier.push_back(true);
+            else
+                inlier.push_back(false);
+        }
         num_feature_inlier_ = num_feature_3D_reconstructed_;
         flag = true;
     }

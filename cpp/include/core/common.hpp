@@ -70,6 +70,7 @@ typedef struct Feature{
 	uint32_t life;
 	uint32_t frame_init;
 	// cv::Mat desc;
+	double parallax;
 	std::vector< cv::Point2f > uv;
 	cv::Point2f uv_pred;
 	cv::Point bucket;
