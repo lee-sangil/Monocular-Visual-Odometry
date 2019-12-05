@@ -30,6 +30,7 @@ octave-workspace
 *.txt
 *.xlsx
 *.txt
+*.json
 
 matlab/logs/*
 cpp/build/*
