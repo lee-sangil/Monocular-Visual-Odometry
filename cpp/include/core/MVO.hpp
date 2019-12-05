@@ -191,6 +191,8 @@ class MVO{
 	std::vector<double> speed_since_keyframe_;
 	std::vector<Eigen::Vector3d> gyro_since_keyframe_;
 	
+	cv::Mat prev_key_image_;
+	cv::Mat curr_key_image_;
 	cv::Mat prev_image_;
 	cv::Mat curr_image_;
 	cv::Mat undistorted_image_;

@@ -35,3 +35,4 @@ octave-workspace
 matlab/logs/*
 cpp/build/*
 cpp/release/*
+.vscode/*

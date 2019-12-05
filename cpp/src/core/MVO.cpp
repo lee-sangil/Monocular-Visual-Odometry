@@ -231,6 +231,9 @@ MVO::MVO(std::string yaml):MVO(){
     cv::namedWindow("MVO");
     cv::moveWindow("MVO", 20, 20);
 
+    cv::namedWindow("Keyframe");
+    cv::moveWindow("Keyframe", 20, 200);
+
     cv::namedWindow("Trajectory");
     cv::moveWindow("Trajectory", 1320, 20);
 

@@ -52,6 +52,12 @@ void MVO::plot(){
 	}else
 		cv::imshow("MVO", img);
 
+	cv::Mat img_keyframe(curr_key_image_.size(), CV_8UC3);
+	cvtColor(curr_key_image_, img_keyframe, CV_GRAY2BGR);
+	cv::Mat img_keyframe_resize;
+	cv::resize(img_keyframe, img_keyframe_resize, cv::Size(img.cols/4,img.rows/4));
+	cv::imshow("Keyframe", img_keyframe_resize);
+
 	/*******************************************
 	 * 				Trajectory
 	 * *****************************************/

@@ -16,8 +16,6 @@ bool MVO::extractFeatures(){
         deleteDeadFeatures();
         if( MVO::s_print_log ) std::cerr << "# Delete features: " << lsi::toc() << std::endl;
         
-        std::cout << "num_features_: " << num_feature_ << std::endl;
-        
         // Add features to the number of the lost features
         addFeatures();
 
@@ -39,10 +37,14 @@ bool MVO::updateFeatures(){
         std::vector<cv::Point2f> points;
         std::vector<bool> validity;
         if( !kltTracker(points, validity) ){
+            std::cout << "klt tracker fails" << std::endl;
             if( keystep_array_.size() > 0 ){
                 keystep_array_.pop_back();
                 keystep_ = keystep_array_.back();
-                kltTracker(points, validity);
+                if( !prev_key_image_.empty() ){
+                    curr_key_image_ = prev_key_image_.clone();
+                    kltTracker(points, validity);
+                }
             }
         }
         if( MVO::s_print_log ) std::cerr << "## KLT tracker: " << lsi::toc() << std::endl;
@@ -131,15 +133,20 @@ bool MVO::kltTracker(std::vector<cv::Point2f>& fwd_pts, std::vector<bool>& valid
     std::vector<cv::Point2f> pts, bwd_pts, fwd_bwd_pts;
     pts.reserve(num_feature_);
     bwd_pts.reserve(num_feature_);
-    for( const auto & feature : features_ )
-        pts.push_back(feature.uv.back());
+
+    int key_idx;
+    for( const auto & feature : features_ ){
+        key_idx = feature.life - (step_ - keystep_);
+        pts.push_back(feature.uv[key_idx]);
+        // pts.push_back(feature.uv.back());
+    }
     
     // Forward-backward error evaluation
     std::vector<cv::Mat>& prevPyr = prev_pyramid_template_;
     std::vector<cv::Mat>& currPyr = curr_pyramid_template_;
     if( MVO::s_print_log ) std::cerr << "### Prepare variables: " << lsi::toc() << std::endl;
 
-    cv::buildOpticalFlowPyramid(prev_image_, prevPyr, cv::Size(21,21), 3, true);
+    cv::buildOpticalFlowPyramid(curr_key_image_, prevPyr, cv::Size(21,21), 3, true);
     cv::buildOpticalFlowPyramid(curr_image_, currPyr, cv::Size(21,21), 3, true);
     if( MVO::s_print_log ) std::cerr << "### Build pyramids: " << lsi::toc() << std::endl;
 
@@ -160,6 +167,7 @@ bool MVO::kltTracker(std::vector<cv::Point2f>& fwd_pts, std::vector<bool>& valid
     // bool desc_valid;
 
     bool border_invalid, error_valid;
+    validity.clear();
     validity.reserve(pts.size());
     for( uint32_t i = 0; i < pts.size(); i++ ){
         border_invalid = (fwd_pts[i].x <= 0) | (fwd_pts[i].x >= params_.im_size.width) | (fwd_pts[i].y <= 0) | (fwd_pts[i].y >= params_.im_size.height);
@@ -176,11 +184,11 @@ bool MVO::kltTracker(std::vector<cv::Point2f>& fwd_pts, std::vector<bool>& valid
     }
 
     // Validate parallax
-    int key_idx;
+    // int key_idx;
     cv::Point2f uv_keystep;
     for( uint32_t i = 0; i < num_feature_; i++ ){
         if( validity[i] && features_[i].is_alive ){
-            key_idx = features_[i].life - 1 - (step_ - keystep_);
+            key_idx = features_[i].life - (step_ - keystep_);
             if( key_idx >= 0 ){
                 uv_keystep = features_[i].uv[key_idx];
                 features_[i].parallax = std::acos((fwd_pts[i].dot(uv_keystep)+1)/std::sqrt(fwd_pts[i].x*fwd_pts[i].x + fwd_pts[i].y*fwd_pts[i].y + 1)/std::sqrt(uv_keystep.x*uv_keystep.x + uv_keystep.y*uv_keystep.y + 1));
@@ -200,6 +208,7 @@ bool MVO::kltTracker(std::vector<cv::Point2f>& fwd_pts, std::vector<bool>& valid
     if( parallax.size() > 0 ){
         std::sort(parallax.begin(), parallax.end());
         double parallax_percentile = (parallax[std::floor(parallax.size()*params_.percentile_parallax)]+parallax[std::ceil(parallax.size()*params_.percentile_parallax)])/2;
+        std::cout << "parallax_percentile:" << parallax_percentile << std::endl;
         if( parallax_percentile < params_.th_parallax ) return false;
         return true;
     }else
@@ -378,8 +387,11 @@ void MVO::addFeature(){
 // haram
 bool MVO::calculateEssential()
 {
-    if (step_ == 0)
+    if (step_ == 0){
+        prev_key_image_ = curr_key_image_.clone();
+        curr_key_image_ = curr_image_.clone();
         return true;
+    }
 
     std::vector<cv::Point2f> points1;
     std::vector<cv::Point2f> points2;
@@ -406,6 +418,8 @@ bool MVO::calculateEssential()
 
     if( points1.size() <= num_feature_ * params_.th_ratio_keyframe ){
         keystep_array_.push_back(step_);
+        prev_key_image_ = curr_key_image_.clone();
+        curr_key_image_ = curr_image_.clone();
 
         if( is_speed_provided_ ){
             double last_timestamp = timestamp_speed_since_keyframe_.back();
