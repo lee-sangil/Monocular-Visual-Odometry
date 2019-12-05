@@ -113,11 +113,13 @@ MVO::MVO(std::string yaml):MVO(){
 
     // descriptor = cv::BRISK::create();
 
-    params_.th_inlier =          fSettings["Feature.minimum_num_inlier"];
-    params_.th_ratio_keyframe =  fSettings["Feature.minimum_matching_ratio"];
-    params_.min_px_dist =        fSettings["Feature.minimum_distance_between"];
-    params_.th_px_wide =         fSettings["Feature.minimum_triangulation_baseline"];
-    params_.max_dist =           fSettings["Feature.maximum_prediction_distance"];
+    params_.th_inlier =             fSettings["Feature.minimum_num_inlier"];
+    params_.th_ratio_keyframe =     fSettings["Feature.minimum_matching_ratio"];
+    params_.min_px_dist =           fSettings["Feature.minimum_distance_between"];
+    params_.th_px_wide =            fSettings["Feature.minimum_triangulation_baseline"];
+    params_.max_dist =              fSettings["Feature.maximum_prediction_distance"];
+    params_.th_parallax =           fSettings["Feature.threshold_parallax"];
+	params_.percentile_parallax =   fSettings["Feature.percentile_parallax"];
 
     // RANSAC parameter
     params_.ransac_coef_scale.max_iteration =      fSettings["RANSAC.maximum_iteration"];

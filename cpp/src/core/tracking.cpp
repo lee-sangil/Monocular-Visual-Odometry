@@ -16,6 +16,8 @@ bool MVO::extractFeatures(){
         deleteDeadFeatures();
         if( MVO::s_print_log ) std::cerr << "# Delete features: " << lsi::toc() << std::endl;
         
+        std::cout << "num_features_: " << num_feature_ << std::endl;
+        
         // Add features to the number of the lost features
         addFeatures();
 
@@ -183,24 +185,25 @@ bool MVO::kltTracker(std::vector<cv::Point2f>& fwd_pts, std::vector<bool>& valid
                 uv_keystep = features_[i].uv[key_idx];
                 features_[i].parallax = std::acos((fwd_pts[i].dot(uv_keystep)+1)/std::sqrt(fwd_pts[i].x*fwd_pts[i].x + fwd_pts[i].y*fwd_pts[i].y + 1)/std::sqrt(uv_keystep.x*uv_keystep.x + uv_keystep.y*uv_keystep.y + 1));
             }else
-                features_[i].parallax = 0;
+                features_[i].parallax = -1;
         }else
-            features_[i].parallax = 0;
+            features_[i].parallax = -1;
     }
 
-    double mean = 0.0;
-    int n = 0;
+    std::vector<double> parallax;
+    parallax.reserve(num_feature_);
     for( const auto & feature : features_ ){
-        if( feature.parallax != 0 && !std::isnan(feature.parallax) ){
-            mean += feature.parallax;
-            n++;
+        if( feature.parallax >= 0 && !std::isnan(feature.parallax) ){
+            parallax.push_back(feature.parallax);
         }
     }
-    mean /= n;
-    std::cout << "parallax mean: " << mean << std::endl;
-
-    if( mean < 0.01 ) return false;
-    return true;
+    if( parallax.size() > 0 ){
+        std::sort(parallax.begin(), parallax.end());
+        double parallax_percentile = (parallax[std::floor(parallax.size()*params_.percentile_parallax)]+parallax[std::ceil(parallax.size()*params_.percentile_parallax)])/2;
+        if( parallax_percentile < params_.th_parallax ) return false;
+        return true;
+    }else
+        return false;
 }
 
 void MVO::deleteDeadFeatures(){

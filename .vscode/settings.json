@@ -53,7 +53,10 @@
 		"utility": "cpp",
 		"typeindex": "cpp",
 		"typeinfo": "cpp",
-		"stdvector": "cpp"
+		"stdvector": "cpp",
+		"*.ipp": "cpp",
+		"string": "cpp",
+		"iterator": "cpp"
 	},
 	"C_Cpp.default.includePath": [
 		"cpp/include"

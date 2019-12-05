@@ -76,6 +76,8 @@ class MVO{
 		double th_px_wide = 12.0;
 		double max_dist = 20.0;
 		double max_point_var = 0.1;
+		double th_parallax = 0.01;
+		double percentile_parallax = 0.75;
 
 		// 3D reconstruction
 		double vehicle_height;
