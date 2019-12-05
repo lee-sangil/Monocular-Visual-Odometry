@@ -15,7 +15,7 @@ void timeReader(const char *, std::vector<double>&);
 void computeVehicleSpeed( std::vector<std::vector<double> >, std::vector<double>&);
 void computeImuRotation( std::vector<std::vector<double> >, std::vector<Eigen::Vector3d>&);
 void directoryReader(const char *, std::vector<std::vector<double> >&);
-bool grabActiveKey(MVO *, char);
+bool grabActiveKey(std::unique_ptr<MVO>&, char);
 
 int main(int argc, char * argv[]){
 
@@ -138,7 +138,7 @@ int main(int argc, char * argv[]){
 	/**************************************************************************
 	 *  Construct MVO object
 	 **************************************************************************/
-	MVO * vo = new MVO(fsname);
+	std::unique_ptr<MVO> vo(new MVO(fsname));
 
 	/**************************************************************************
 	 *  Run MVO object
@@ -249,8 +249,6 @@ int main(int argc, char * argv[]){
 
 	if( statusLogger.is_open() ) statusLogger.close();
 	std::cout << std::endl;
-
-	delete vo;
 
 	return 0;
 }
@@ -366,7 +364,7 @@ void directoryReader(const char * filePath, std::vector<std::vector<double> >& o
     }
 }
 
-bool grabActiveKey(MVO * vo, char key){
+bool grabActiveKey(std::unique_ptr<MVO>& vo, char key){
 	bool bRtn = true;
 	switch (key){
 	case 'a':
