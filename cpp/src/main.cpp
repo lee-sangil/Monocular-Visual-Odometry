@@ -27,7 +27,6 @@ int main(int argc, char * argv[]){
                 "\tOptional -jetson: Reading jetson format.\n"
                 "\tOptional -hyundai: Reading hyundai format (default).\n"
 				"\tOptional -c: Camera setting .yaml file (default: /path/to/input_directory/camera.yaml).\n"
-				"\tOptional -o: Output directory (default path: ./CamTrajectory.txt).\n"
 				"\tOptional -fi: initial frame (default: 0).\n"
 				"\tOptional -fl: length frame (default: eof).\n"
 				"\tOptional -gt: compare with ground-truth if exists (default: false).\n"
@@ -144,10 +143,7 @@ int main(int argc, char * argv[]){
 	 *  Run MVO object
 	 **************************************************************************/
 	MVO::s_print_log = Parser::hasOption("-db");
-
-	std::ofstream statusLogger;
-	statusLogger.open(outputDir + "CamTrajectory.txt");
-
+	
 	char key;
 	std::cout << "# Key descriptions: " << std::endl;
 	std::cout << "- s: pause and process a one frame" << std::endl << 
@@ -246,8 +242,6 @@ int main(int argc, char * argv[]){
 				break;
 		}
 	}
-
-	if( statusLogger.is_open() ) statusLogger.close();
 	std::cout << std::endl;
 
 	return 0;

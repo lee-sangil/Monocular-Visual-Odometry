@@ -131,7 +131,8 @@ class MVO{
 	void updateView();
 
 	// Feature operations
-	bool kltTracker(std::vector<cv::Point2f>& points, std::vector<bool>& validity);
+	void kltTracker(std::vector<cv::Point2f>& points, std::vector<bool>& validity);
+	void selectKeyframe(std::vector<cv::Point2f>& points, std::vector<bool>& validity);
 	void updateBucket();
 	bool extractFeatures();
 	bool updateFeatures();
@@ -185,6 +186,8 @@ class MVO{
 	uint32_t step_;
 	uint32_t keystep_;
 	std::vector<uint32_t> keystep_array_;
+	bool trigger_keystep_decrease_ = false;
+	bool trigger_keystep_increase_ = false;
 
 	std::vector<double> timestamp_speed_since_keyframe_;
 	std::vector<double> timestamp_imu_since_keyframe_;
@@ -193,6 +196,7 @@ class MVO{
 	
 	cv::Mat prev_key_image_;
 	cv::Mat curr_key_image_;
+	cv::Mat next_key_image_;
 	cv::Mat prev_image_;
 	cv::Mat curr_image_;
 	cv::Mat undistorted_image_;

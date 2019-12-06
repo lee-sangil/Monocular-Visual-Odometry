@@ -336,13 +336,18 @@ void MVO::setImage(cv::Mat& image){
 
     step_++;
     keystep_ = keystep_array_.back();
+    curr_key_image_ = next_key_image_.clone();
+
+    trigger_keystep_decrease_ = false;
+    trigger_keystep_increase_ = false;
+
+    if( MVO::s_print_log ) std::cerr << "============ Iteration: " << step_ << " (keystep: " << keystep_ << ')' << " ============" << std::endl;
 }
 
 void MVO::run(cv::Mat& image){
     
     lsi::tic();
     setImage(image);
-    if( MVO::s_print_log ) std::cerr << "============ Iteration: " << step_ << " ============" << std::endl;
     if( MVO::s_print_log ) std::cerr << "# Grab image: " << lsi::toc() << std::endl;
     refresh();
 

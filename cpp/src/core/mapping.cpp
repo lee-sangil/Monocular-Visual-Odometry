@@ -496,8 +496,8 @@ void MVO::update3DPoint(Feature& feature, const Eigen::Matrix4d& Toc, const Eige
     if( feature.point_var > params_.max_point_var )
         feature.is_alive = false;
 
-    if( feature.id < 100)
-        if( MVO::s_print_log ) std::cerr << "& " << feature.id << " " << z << " " << feature.depthfilter->getMean() << " " << tau << " " << tau_inverse << " " << feature.point_var << " " << feature.depthfilter->getA() << " " << feature.depthfilter->getB() << std::endl;
+    // if( feature.id < 100)
+    //     if( MVO::s_print_log ) std::cerr << "& " << feature.id << " " << z << " " << feature.depthfilter->getMean() << " " << tau << " " << tau_inverse << " " << feature.point_var << " " << feature.depthfilter->getA() << " " << feature.depthfilter->getB() << std::endl;
 }
 
 // without PnP
