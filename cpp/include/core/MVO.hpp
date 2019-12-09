@@ -98,6 +98,19 @@ class MVO{
 		MVO::ViewCam view;
 	};
 
+	struct Frame{
+		cv::Mat image;
+		int id = -1;
+
+		void copy(const MVO::Frame& im){
+			this->image = im.image.clone();
+			this->id = im.id;
+		}
+		cv::Size size() const{
+			return this->image.size();
+		}
+	};
+
 	public:
 
 	Parameter params_;
@@ -108,14 +121,15 @@ class MVO{
 	MVO();
 	MVO(std::string yaml);
 	~MVO(){
-		cv::destroyAllWindows();
+		// cv::destroyAllWindows();
 	}
 	
 	// Set image
 	void setImage(cv::Mat& image);
 
 	// Get feature 
-	std::vector< std::tuple<cv::Point2f, cv::Point2f, Eigen::Vector3d> > getPoints() const;
+	std::vector< std::tuple<uint32_t, cv::Point2f, Eigen::Vector3d> > getPoints() const;
+	std::vector< std::tuple<uint32_t, cv::Point2f, cv::Point2f> > getMotions() const;
 	const std::vector<Feature>& getFeatures() const;
 	const Eigen::Matrix4d& getCurrentMotion() const;
 	cv::Point2f warpWithIMU(const cv::Point2f& uv);
@@ -131,8 +145,10 @@ class MVO{
 	void updateView();
 
 	// Feature operations
-	void kltTracker(std::vector<cv::Point2f>& points, std::vector<bool>& validity);
-	void selectKeyframe(std::vector<cv::Point2f>& points, std::vector<bool>& validity);
+	void kltTrackerRough(std::vector<cv::Point2f>& points, std::vector<bool>& validity);
+	void kltTrackerPrecise(std::vector<cv::Point2f>& points, std::vector<bool>& validity);
+	void selectKeyframeNow(std::vector<cv::Point2f>& points, std::vector<bool>& validity);
+	void selectKeyframeAfter(std::vector<cv::Point2f>& points, std::vector<bool>& validity);
 	void updateBucket();
 	bool extractFeatures();
 	bool updateFeatures();
@@ -194,11 +210,11 @@ class MVO{
 	std::vector<double> speed_since_keyframe_;
 	std::vector<Eigen::Vector3d> gyro_since_keyframe_;
 	
-	cv::Mat prev_key_image_;
-	cv::Mat curr_key_image_;
-	cv::Mat next_key_image_;
-	cv::Mat prev_image_;
-	cv::Mat curr_image_;
+	MVO::Frame prev_keyframe_;
+	MVO::Frame curr_keyframe_;
+	MVO::Frame next_keyframe_;
+	MVO::Frame prev_frame_;
+	MVO::Frame curr_frame_;
 	cv::Mat undistorted_image_;
 
 	cv::Ptr<cv::CLAHE> cvClahe_;
@@ -209,7 +225,6 @@ class MVO{
 	std::vector<bool> visit_bucket_;
 	std::vector<std::vector<cv::Point2f>> keypoints_of_bucket_;
 	std::vector<Feature> features_;
-	std::vector<Feature> features_backup_;
 	std::vector<Feature> features_dead_; // for debugging with plot
 
 	bool is_start_;

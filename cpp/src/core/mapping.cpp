@@ -458,7 +458,7 @@ void MVO::update3DPoint(Feature& feature, const Eigen::Matrix4d& Toc, const Eige
     //     feature.point_init = Toc * feature.point;
     //     feature.point_var = cur_var;
     //     feature.is_3D_init = true;
-    //     feature.frame_init = step;
+    //     feature.frame_3d_init = keystep_;
     // }
 
     // Use Depthfilter - combination of Gaussian and uniform model
@@ -466,7 +466,7 @@ void MVO::update3DPoint(Feature& feature, const Eigen::Matrix4d& Toc, const Eige
     double z, tau, tau_inverse;
 
     if( feature.is_3D_init ){
-        Eigen::Matrix4d Tkc = TocRec_[feature.frame_init-1].inverse() * Toc;
+        Eigen::Matrix4d Tkc = TocRec_[feature.frame_3d_init].inverse() * Toc;
         point_initframe = Tkc.block(0,0,3,4) * feature.point_curr;
         z = point_initframe(2);
 
@@ -475,7 +475,7 @@ void MVO::update3DPoint(Feature& feature, const Eigen::Matrix4d& Toc, const Eige
 
         if( params_.update_init_point ){
             feature.depthfilter->update(1/z, tau_inverse);
-            feature.point_init = TocRec_[feature.frame_init-1] * (Eigen::Vector4d() << point_initframe / z / feature.depthfilter->getMean(), 1).finished();
+            feature.point_init = TocRec_[feature.frame_3d_init] * (Eigen::Vector4d() << point_initframe / z / feature.depthfilter->getMean(), 1).finished();
             feature.point_var = feature.depthfilter->getVariance();
         }
 
@@ -490,7 +490,7 @@ void MVO::update3DPoint(Feature& feature, const Eigen::Matrix4d& Toc, const Eige
         feature.point_init = Toc * T.inverse() * (Eigen::Vector4d() << point_initframe / z / feature.depthfilter->getMean(), 1).finished();
         feature.point_var = feature.depthfilter->getVariance();
         feature.is_3D_init = true;
-        feature.frame_init = step_;
+        feature.frame_3d_init = keystep_;
     }
 
     if( feature.point_var > params_.max_point_var )
@@ -521,7 +521,7 @@ void MVO::update3DPoints(const Eigen::Matrix3d &R, const Eigen::Vector3d &t,
         // TODO: features_[i].is_3D_reconstructed && inlier[i]: inlier is classified by hard-manner, recommend soft-manner using point-variance
         if( features_[i].is_3D_reconstructed ){
             features_[i].point_curr.block(0,0,3,1) *= scale;
-            update3DPoint(features_[i], Toc, T);
+            update3DPoint(features_[i], Toc, tform);
         }
     }
 }
@@ -550,7 +550,7 @@ void MVO::update3DPoints(const Eigen::Matrix3d &R, const Eigen::Vector3d &t,
         for( uint32_t i = 0; i < features_.size(); i++ ){
             if( features_[i].is_3D_reconstructed ){
                 features_[i].point_curr.block(0,0,3,1) *= scale;
-                update3DPoint(features_[i], Toc, T);
+                update3DPoint(features_[i], Toc, TocRec_[keystep_].inverse() * Toc);
             }
         }
     }else{

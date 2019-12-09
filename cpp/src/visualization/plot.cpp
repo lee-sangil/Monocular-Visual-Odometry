@@ -17,8 +17,8 @@ void MVO::plot(){
 	/*******************************************
 	 * 			Image seen by camera
 	 * *****************************************/
-	cv::Mat img(curr_image_.size(), CV_8UC3);
-	cvtColor(curr_image_, img, CV_GRAY2BGR);
+	cv::Mat img(curr_frame_.size(), CV_8UC3);
+	cvtColor(curr_frame_.image, img, CV_GRAY2BGR);
 
 	// buckets
 	for( int c = 0; c < bucket_.grid.width; c++ ){
@@ -52,8 +52,8 @@ void MVO::plot(){
 	}else
 		cv::imshow("MVO", img);
 
-	cv::Mat img_keyframe(curr_key_image_.size(), CV_8UC3);
-	cvtColor(curr_key_image_, img_keyframe, CV_GRAY2BGR);
+	cv::Mat img_keyframe(curr_keyframe_.size(), CV_8UC3);
+	cvtColor(curr_keyframe_.image, img_keyframe, CV_GRAY2BGR);
 	cv::Mat img_keyframe_resize;
 	cv::resize(img_keyframe, img_keyframe_resize, cv::Size(img.cols/4,img.rows/4));
 	cv::imshow("Keyframe", img_keyframe_resize);
@@ -105,10 +105,10 @@ void MVO::plot(){
 					break;
 				}
 				if( params_.output_filtered_depth ){
-					if( features_[i].is_3D_init && features_[i].frame_init < step_ && features_[i].type != Type::Dynamic )
+					if( features_[i].is_3D_init && features_[i].frame_3d_init < step_ && features_[i].type != Type::Dynamic )
 						cv::circle(traj, cv::Point(uv(0)/uv(2), uv(1)/uv(2)), 1, cv::Scalar(0,255,0), CV_FILLED);
 				}else{
-					if( features_[i].is_3D_reconstructed && features_[i].frame_init < step_ && features_[i].type != Type::Dynamic )
+					if( features_[i].is_3D_reconstructed && features_[i].frame_3d_init < step_ && features_[i].type != Type::Dynamic )
 						cv::circle(traj, cv::Point(uv(0)/uv(2), uv(1)/uv(2)), 1, cv::Scalar(0,255,0), CV_FILLED);
 				}
 			}
@@ -246,7 +246,7 @@ void MVO::plot(){
 	/*******************************************
 	 * 			Reconstructed Depth
 	 * *****************************************/
-	cv::Mat distance = cv::Mat::zeros(curr_image_.size(), CV_8UC3);
+	cv::Mat distance = cv::Mat::zeros(curr_frame_.size(), CV_8UC3);
 	int r,g,b, depth;
 	for( uint32_t i = 0; i < features_.size(); i++ ){
 		if( params_.output_filtered_depth ){

@@ -155,7 +155,6 @@ MVO::MVO(std::string yaml):MVO(){
     keypoints_of_bucket_.resize(bucket_grid_rows*bucket_grid_cols);
     visit_bucket_ = std::vector<bool>(bucket_grid_rows*bucket_grid_cols, false);
     features_.reserve(bucket_.max_features);
-    features_backup_.reserve(bucket_.max_features);
     prev_pyramid_template_.reserve(10);
     curr_pyramid_template_.reserve(10);
 
@@ -278,13 +277,21 @@ void MVO::restart(){
     keystep_array_.clear();
     keystep_array_.push_back(0);
 
+    prev_frame_.id = -1;
+    curr_frame_.id = 0;
+    prev_keyframe_.id = -1;
+    curr_keyframe_.id = 0;
+    next_keyframe_.id = 0;
+
     is_start_ = false;
     is_scale_initialized_ = false;
     
     deleteDeadFeatures();
     for( uint32_t i = 0; i < features_.size(); i++ ){
         features_[i].life = 1;
-        features_[i].frame_init = 1;
+        features_[i].frame_2d_init = 0;
+        if( features_[i].is_3D_init )
+            features_[i].frame_3d_init = 0;
         // features_[i].point_var = 1e9;
         features_[i].uv.erase(features_[i].uv.begin(), features_[i].uv.end()-1);
         // features_[i].depthfilter->reset();
@@ -326,22 +333,30 @@ void MVO::restart(){
 }
 
 void MVO::setImage(cv::Mat& image){
-    prev_image_ = curr_image_.clone();
+    step_++;
+
+    prev_frame_.copy(curr_frame_);
     cv::remap(image, undistorted_image_, distort_map1_, distort_map2_, cv::INTER_AREA);
     
     if( params_.apply_clahe )
-        cvClahe_->apply(undistorted_image_, curr_image_);
+        cvClahe_->apply(undistorted_image_, curr_frame_.image);
     else
-        curr_image_ = undistorted_image_.clone();
+        curr_frame_.image = undistorted_image_.clone();
+    curr_frame_.id = step_;
 
-    step_++;
     keystep_ = keystep_array_.back();
-    curr_key_image_ = next_key_image_.clone();
+    curr_keyframe_.copy(next_keyframe_);
 
     trigger_keystep_decrease_ = false;
     trigger_keystep_increase_ = false;
 
     if( MVO::s_print_log ) std::cerr << "============ Iteration: " << step_ << " (keystep: " << keystep_ << ')' << " ============" << std::endl;
+    if( MVO::s_print_log ) std::cerr << "! prev_image: " << prev_frame_.id << std::endl;
+    if( MVO::s_print_log ) std::cerr << "! curr_image: " << curr_frame_.id << std::endl;
+    if( MVO::s_print_log ) std::cerr << "! prev_key_image: " << prev_keyframe_.id << std::endl;
+    if( MVO::s_print_log ) std::cerr << "! curr_key_image: " << curr_keyframe_.id << std::endl;
+    if( MVO::s_print_log ) std::cerr << "! next_key_image: " << next_keyframe_.id << std::endl;
+    
 }
 
 void MVO::run(cv::Mat& image){
@@ -386,10 +401,25 @@ void MVO::updateVelocity(double timestamp, double speed){
 const std::vector<Feature>& MVO::getFeatures() const {return features_;}
 const Eigen::Matrix4d& MVO::getCurrentMotion() const {return TRec_.back();}
 
-std::vector< std::tuple<cv::Point2f, cv::Point2f, Eigen::Vector3d> > MVO::getPoints() const
+std::vector< std::tuple<uint32_t, cv::Point2f, Eigen::Vector3d> > MVO::getPoints() const
 {
     Eigen::Matrix4d Tco = TocRec_.back().inverse();
-    std::vector< std::tuple<cv::Point2f, cv::Point2f, Eigen::Vector3d> > pts;
+    std::vector< std::tuple<uint32_t, cv::Point2f, Eigen::Vector3d> > pts;
+    cv::Point2f uv_curr;
+    for( uint32_t i = 0; i < features_.size(); i++ ){
+        uv_curr = features_[i].uv.back();
+        
+        if( params_.output_filtered_depth )
+            pts.push_back( std::make_tuple(features_[i].id, uv_curr, Tco.block(0,0,3,4) * features_[i].point_init ) );
+        else
+            pts.push_back( std::make_tuple(features_[i].id, uv_curr, features_[i].point_curr.block(0, 0, 3, 1) ) );
+    }
+    return pts;
+}
+
+std::vector< std::tuple<uint32_t, cv::Point2f, cv::Point2f> > MVO::getMotions() const
+{
+    std::vector< std::tuple<uint32_t, cv::Point2f, cv::Point2f> > pts;
     cv::Point2f uv_curr, uv_prev;
     for( uint32_t i = 0; i < features_.size(); i++ ){
         uv_curr = features_[i].uv.back();
@@ -399,10 +429,9 @@ std::vector< std::tuple<cv::Point2f, cv::Point2f, Eigen::Vector3d> > MVO::getPoi
             uv_prev = cv::Point2f(-1,-1);
         
         if( params_.output_filtered_depth )
-            pts.push_back( std::make_tuple(uv_prev, uv_curr, Tco.block(0,0,3,4) * features_[i].point_init ) );
+            pts.push_back( std::make_tuple(features_[i].id, uv_prev, uv_curr ) );
         else
-            pts.push_back( std::make_tuple(uv_prev, uv_curr, features_[i].point_curr.block(0, 0, 3, 1) ) );
-        
+            pts.push_back( std::make_tuple(features_[i].id, uv_prev, uv_curr ) );
     }
     return pts;
 }

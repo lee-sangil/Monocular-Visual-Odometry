@@ -42,8 +42,6 @@
 #include <opencv2/calib3d.hpp>
 #include <boost/filesystem.hpp>
 
-#include "core/DepthFilter.hpp"
-
 #define D_METER 1.2
 #define D_RADIAN M_PI/24
 #define YAML_VERSION 2.5
@@ -68,7 +66,8 @@ typedef struct Feature{
 	static uint32_t new_feature_id;
 	uint32_t id;
 	uint32_t life;
-	uint32_t frame_init;
+	int frame_2d_init;
+	int frame_3d_init;
 	// cv::Mat desc;
 	double parallax;
 	std::vector< cv::Point2f > uv;
