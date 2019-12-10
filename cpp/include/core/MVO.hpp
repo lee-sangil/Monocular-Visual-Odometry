@@ -39,6 +39,18 @@ class MVO{
 		std::function<void(const FUNC, const std::vector<DATA>&, std::vector<double>&)> calculate_dist;
 	};
 
+	struct Bucket{
+		int safety = 20;
+		int max_features = 400;
+		cv::Size grid;
+		cv::Size size;
+		cv::Mat cv_mass;
+		cv::Mat cv_prob;
+		Eigen::MatrixXd mass;
+		Eigen::MatrixXd prob;
+		Eigen::MatrixXd saturated;
+	};
+
 	struct ViewCam{
 		double height;
 		double roll;
@@ -125,7 +137,7 @@ class MVO{
 	}
 	
 	// Set image
-	void setImage(cv::Mat& image);
+	void setImage(const cv::Mat& image);
 
 	// Get feature 
 	std::vector< std::tuple<uint32_t, cv::Point2f, Eigen::Vector3d> > getPoints() const;
@@ -138,17 +150,18 @@ class MVO{
 	// Script operations
 	void restart();
 	void refresh();
-	void run(cv::Mat& image);
-	void updateGyro(double timestamp, Eigen::Vector3d& gyro);
-	void updateVelocity(double timestamp, double speed);
+	void run(const cv::Mat& image);
+	void updateGyro(const double timestamp, const Eigen::Vector3d& gyro);
+	void updateVelocity(const double timestamp, const double speed);
 	void plot();
+	void printFeatures() const;
 	void updateView();
 
 	// Feature operations
 	void kltTrackerRough(std::vector<cv::Point2f>& points, std::vector<bool>& validity);
 	void kltTrackerPrecise(std::vector<cv::Point2f>& points, std::vector<bool>& validity);
-	void selectKeyframeNow(std::vector<cv::Point2f>& points, std::vector<bool>& validity);
-	void selectKeyframeAfter(std::vector<cv::Point2f>& points, std::vector<bool>& validity);
+	void selectKeyframeNow(const std::vector<cv::Point2f>& points, const std::vector<bool>& validity);
+	void selectKeyframeAfter(const std::vector<cv::Point2f>& points, const std::vector<bool>& validity);
 	void updateBucket();
 	bool extractFeatures();
 	bool updateFeatures();
@@ -204,6 +217,7 @@ class MVO{
 	std::vector<uint32_t> keystep_array_;
 	bool trigger_keystep_decrease_ = false;
 	bool trigger_keystep_increase_ = false;
+	bool trigger_keystep_decrease_previous_ = false;
 
 	std::vector<double> timestamp_speed_since_keyframe_;
 	std::vector<double> timestamp_imu_since_keyframe_;
@@ -221,7 +235,7 @@ class MVO{
 	cv::Mat distort_map1_, distort_map2_;
 	// cv::Ptr<cv::DescriptorExtractor> descriptor;
 
-	Bucket bucket_;
+	MVO::Bucket bucket_;
 	std::vector<bool> visit_bucket_;
 	std::vector<std::vector<cv::Point2f>> keypoints_of_bucket_;
 	std::vector<Feature> features_;

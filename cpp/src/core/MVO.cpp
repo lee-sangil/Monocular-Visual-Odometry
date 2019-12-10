@@ -41,6 +41,18 @@ MVO::MVO(){
 
     // random seed
     lsi::seed();
+
+    cv::namedWindow("MVO");
+    cv::moveWindow("MVO", 20, 20);
+
+    cv::namedWindow("Keyframe");
+    cv::moveWindow("Keyframe", 20, 200);
+
+    cv::namedWindow("Trajectory");
+    cv::moveWindow("Trajectory", 1320, 20);
+
+    cv::namedWindow("Depth");
+    cv::moveWindow("Depth", 20, 440);
 }
 
 MVO::MVO(std::string yaml):MVO(){
@@ -139,7 +151,7 @@ MVO::MVO(std::string yaml):MVO(){
     params_.ransac_coef_plane.calculate_dist = MVO::calculatePlaneError;
 
     // Bucket
-    bucket_ = Bucket();
+    bucket_ = MVO::Bucket();
     bucket_.max_features =          fSettings["Feature.number"];
     bucket_.safety =                fSettings["Bucket.border_safety"];
     int bucket_grid_rows =          fSettings["Bucket.rows"];
@@ -226,18 +238,6 @@ MVO::MVO(std::string yaml):MVO(){
     double px_noise =               fSettings["DepthFilter.pixel_noise"];
     DepthFilter::s_meas_max_ = 1.0/depth_min;
     DepthFilter::s_px_error_angle_ = std::atan(px_noise/(params_.fx+params_.fy))*2.0; // law of chord (sehnensatz)
-
-    cv::namedWindow("MVO");
-    cv::moveWindow("MVO", 20, 20);
-
-    cv::namedWindow("Keyframe");
-    cv::moveWindow("Keyframe", 20, 200);
-
-    cv::namedWindow("Trajectory");
-    cv::moveWindow("Trajectory", 1320, 20);
-
-    cv::namedWindow("Depth");
-    cv::moveWindow("Depth", 20, 440);
 
     params_.view.height_default =   fSettings["viewCam.height"]; // in world coordinate
     params_.view.roll_default =     (double) fSettings["viewCam.roll"] * M_PI/180; // radian
@@ -332,7 +332,7 @@ void MVO::restart(){
     }
 }
 
-void MVO::setImage(cv::Mat& image){
+void MVO::setImage(const cv::Mat& image){
     step_++;
 
     prev_frame_.copy(curr_frame_);
@@ -347,19 +347,15 @@ void MVO::setImage(cv::Mat& image){
     keystep_ = keystep_array_.back();
     curr_keyframe_.copy(next_keyframe_);
 
+    trigger_keystep_decrease_previous_ = trigger_keystep_decrease_;
     trigger_keystep_decrease_ = false;
     trigger_keystep_increase_ = false;
 
     if( MVO::s_print_log ) std::cerr << "============ Iteration: " << step_ << " (keystep: " << keystep_ << ')' << " ============" << std::endl;
-    if( MVO::s_print_log ) std::cerr << "! prev_image: " << prev_frame_.id << std::endl;
-    if( MVO::s_print_log ) std::cerr << "! curr_image: " << curr_frame_.id << std::endl;
-    if( MVO::s_print_log ) std::cerr << "! prev_key_image: " << prev_keyframe_.id << std::endl;
-    if( MVO::s_print_log ) std::cerr << "! curr_key_image: " << curr_keyframe_.id << std::endl;
-    if( MVO::s_print_log ) std::cerr << "! next_key_image: " << next_keyframe_.id << std::endl;
     
 }
 
-void MVO::run(cv::Mat& image){
+void MVO::run(const cv::Mat& image){
     
     lsi::tic();
     setImage(image);
@@ -373,7 +369,7 @@ void MVO::run(cv::Mat& image){
     if( !calculateMotion() ) { restart(); return; }
 }
 
-void MVO::updateGyro(double timestamp, Eigen::Vector3d& gyro){
+void MVO::updateGyro(const double timestamp, const Eigen::Vector3d& gyro){
     is_rotate_provided_ = true;
     timestamp_imu_since_keyframe_.push_back(timestamp);
     gyro_since_keyframe_.push_back(gyro);
@@ -385,7 +381,7 @@ void MVO::updateGyro(double timestamp, Eigen::Vector3d& gyro){
     rotate_prior_ = params_.Tci.block(0,0,3,3) * skew(-radian).exp() * params_.Tic.block(0,0,3,3);
 }
 
-void MVO::updateVelocity(double timestamp, double speed){
+void MVO::updateVelocity(const double timestamp, const double speed){
     is_speed_provided_ = true;
     timestamp_speed_since_keyframe_.push_back(timestamp);
     speed_since_keyframe_.push_back(speed);
@@ -434,4 +430,20 @@ std::vector< std::tuple<uint32_t, cv::Point2f, cv::Point2f> > MVO::getMotions() 
             pts.push_back( std::make_tuple(features_[i].id, uv_prev, uv_curr ) );
     }
     return pts;
+}
+
+void MVO::printFeatures() const {
+    if( MVO::s_print_log ){
+        std::stringstream filename;
+        filename << "FeatureLogFiles/" << keystep_ << "_to_" << step_ << ".txt";
+        std::ofstream fid(filename.str());
+        for( const auto & feature : features_ ){
+            fid << "ID: " << std::setw(4) << feature.id << "\tINIT: " << std::setw(3) << feature.frame_2d_init << "\tLIFE: " << std::setw(3) << feature.life;
+            fid << "\tUV: [" << feature.uv[0].x << ", " << feature.uv[0].y << ']';
+            for( uint i = 1; i < feature.uv.size(); i++ ){
+                fid << " -> [" << feature.uv[i].x << ", " << feature.uv[i].y << ']';
+            }
+            fid << std::endl;
+        }
+    }
 }

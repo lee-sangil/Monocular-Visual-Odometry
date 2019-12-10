@@ -10,6 +10,7 @@ bool MVO::extractFeatures(){
     if( updateFeatures() ){
         if( MVO::s_print_log ) std::cerr << "# Update features: " << lsi::toc() << std::endl;
         
+        printFeatures();
         if( MVO::s_print_log ) std::cerr << "* Tracking rate: " << 100.0 * num_feature_matched_ / num_feature_ << std::endl;
 
         // Delete features which is failed to track by KLT tracker
@@ -39,44 +40,22 @@ bool MVO::updateFeatures(){
         kltTrackerRough(points, validity);
         if( MVO::s_print_log ) std::cerr << "## KLT tracker: " << lsi::toc() << std::endl;
 
-        if( MVO::s_print_log ) std::cerr << "! prev_image: " << prev_frame_.id << std::endl;
-        if( MVO::s_print_log ) std::cerr << "! curr_image: " << curr_frame_.id << std::endl;
-        if( MVO::s_print_log ) std::cerr << "! prev_key_image: " << prev_keyframe_.id << std::endl;
-        if( MVO::s_print_log ) std::cerr << "! curr_key_image: " << curr_keyframe_.id << std::endl;
-        if( MVO::s_print_log ) std::cerr << "! next_key_image: " << next_keyframe_.id << std::endl;
-
         selectKeyframeNow(points, validity); // low parallax
         if( MVO::s_print_log ) std::cerr << "## Select keyframe: " << lsi::toc() << std::endl;
-        
-        if( MVO::s_print_log ) std::cerr << "! prev_image: " << prev_frame_.id << std::endl;
-        if( MVO::s_print_log ) std::cerr << "! curr_image: " << curr_frame_.id << std::endl;
-        if( MVO::s_print_log ) std::cerr << "! prev_key_image: " << prev_keyframe_.id << std::endl;
-        if( MVO::s_print_log ) std::cerr << "! curr_key_image: " << curr_keyframe_.id << std::endl;
-        if( MVO::s_print_log ) std::cerr << "! next_key_image: " << next_keyframe_.id << std::endl;
 
         kltTrackerPrecise(points, validity);
         if( MVO::s_print_log ) std::cerr << "## KLT tracker: " << lsi::toc() << std::endl;
 
-        if( MVO::s_print_log ) std::cerr << "! prev_image: " << prev_frame_.id << std::endl;
-        if( MVO::s_print_log ) std::cerr << "! curr_image: " << curr_frame_.id << std::endl;
-        if( MVO::s_print_log ) std::cerr << "! prev_key_image: " << prev_keyframe_.id << std::endl;
-        if( MVO::s_print_log ) std::cerr << "! curr_key_image: " << curr_keyframe_.id << std::endl;
-        if( MVO::s_print_log ) std::cerr << "! next_key_image: " << next_keyframe_.id << std::endl;
-
         selectKeyframeAfter(points, validity); // low tracking ratio
         if( MVO::s_print_log ) std::cerr << "## Select keyframe: " << lsi::toc() << std::endl;
 
-        if( MVO::s_print_log ) std::cerr << "! prev_image: " << prev_frame_.id << std::endl;
-        if( MVO::s_print_log ) std::cerr << "! curr_image: " << curr_frame_.id << std::endl;
-        if( MVO::s_print_log ) std::cerr << "! prev_key_image: " << prev_keyframe_.id << std::endl;
-        if( MVO::s_print_log ) std::cerr << "! curr_key_image: " << curr_keyframe_.id << std::endl;
-        if( MVO::s_print_log ) std::cerr << "! next_key_image: " << next_keyframe_.id << std::endl;
+        if( MVO::s_print_log ) std::cerr << "! Update features between: " << curr_keyframe_.id << " <--> " << curr_frame_.id << std::endl;
 
         cv::Point2f uv_prev;
         Eigen::Matrix<double,3,4> Tco = TocRec_.back().inverse().block(0,0,3,4);
         for( int i = 0; i < num_feature_; i++ ){
             if( validity[i] && features_[i].is_alive ){
-                uv_prev = features_[i].uv.back();
+                uv_prev = features_[i].uv.back(); // TODO: change to uv_key
 
                 if( is_rotate_provided_ ) features_[i].uv_pred = warpWithIMU(uv_prev);
                 else if( features_[i].is_3D_init ) features_[i].uv_pred = warpWithPreviousMotion(Tco * features_[i].point_init);
@@ -91,12 +70,6 @@ bool MVO::updateFeatures(){
                 if( features_[i].frame_2d_init + features_[i].life - 1 - step_ == -1 ){
                     features_[i].life++;
                     features_[i].uv.push_back(points[i]);
-                }
-
-
-                if( MVO::s_print_log ){
-                    if( i%100 == 0)
-                        std::cerr << "frame_id: " << features_[i].id << " frame_2d_init: " << features_[i].frame_2d_init << " life: " << features_[i].life << " keystep: " << keystep_ << " step: " << step_ << " key_idx: " << (int) (features_[i].life - 1 - (step_-keystep_)) << std::endl;
                 }
 
                 if( is_rotate_provided_ ){
@@ -136,17 +109,11 @@ bool MVO::updateFeatures(){
         curr_keyframe_.copy(curr_frame_);
         next_keyframe_.copy(curr_frame_);
 
-        if( MVO::s_print_log ) std::cerr << "! prev_image: " << prev_frame_.id << std::endl;
-        if( MVO::s_print_log ) std::cerr << "! curr_image: " << curr_frame_.id << std::endl;
-        if( MVO::s_print_log ) std::cerr << "! prev_key_image: " << prev_keyframe_.id << std::endl;
-        if( MVO::s_print_log ) std::cerr << "! curr_key_image: " << curr_keyframe_.id << std::endl;
-        if( MVO::s_print_log ) std::cerr << "! next_key_image: " << next_keyframe_.id << std::endl;
-
         return true;
     }
 }
 
-void MVO::selectKeyframeNow(std::vector<cv::Point2f>& uv_curr, std::vector<bool>& validity){
+void MVO::selectKeyframeNow(const std::vector<cv::Point2f>& uv_curr, const std::vector<bool>& validity){
 
     // Low parallax
     std::vector<double> parallax;
@@ -188,39 +155,9 @@ void MVO::selectKeyframeNow(std::vector<cv::Point2f>& uv_curr, std::vector<bool>
     // }
 }
 
-void MVO::selectKeyframeAfter(std::vector<cv::Point2f>& uv_curr, std::vector<bool>& validity){
-
-    // Low parallax
-    // std::vector<double> parallax;
-    // parallax.reserve(num_feature_);
-    // for( const auto & feature : features_ )
-    //     if( feature.parallax >= 0 && !std::isnan(feature.parallax) )
-    //         parallax.push_back(feature.parallax);
-    
-    // if( parallax.size() > 0 ){
-    //     std::sort(parallax.begin(), parallax.end());
-    //     double parallax_percentile = (parallax[std::floor(parallax.size()*params_.percentile_parallax)]+parallax[std::ceil(parallax.size()*params_.percentile_parallax)])/2;
-    //     // std::cout << "parallax_percentile:" << parallax_percentile << std::endl;
-    //     if( parallax_percentile < params_.th_parallax ){
-    //         if( keystep_array_.size() > 0 && !prev_keyframe_.image.empty() ){
-    //             keystep_array_.pop_back();
-    //             next_keyframe_.copy(prev_keyframe_);
-    //             trigger_keystep_decrease_ = true;
-                
-    //             if( MVO::s_print_log ) std::cerr << "! <keystep> low parallax: " << keystep_ << std::endl;
-    //         }
-    //     }
-    // }
-
-    // if( MVO::s_print_log ){
-    //     std::cerr << "* parallax: ";
-    //     for( const auto & feature : features_ )
-    //         std::cerr << feature.parallax << ' ';
-    //     std::cerr << std::endl;
-    // }
-
+void MVO::selectKeyframeAfter(const std::vector<cv::Point2f>& uv_curr, const std::vector<bool>& validity){
     // Low tracking ratio
-    if( !trigger_keystep_decrease_ ){
+    if( !trigger_keystep_decrease_ && !trigger_keystep_decrease_previous_ ){
         if( num_feature_matched_ <= num_feature_ * params_.th_ratio_keyframe ){
             keystep_array_.push_back(step_);
             prev_keyframe_.copy(curr_keyframe_);
@@ -248,7 +185,7 @@ void MVO::selectKeyframeAfter(std::vector<cv::Point2f>& uv_curr, std::vector<boo
                 timestamp_imu_since_keyframe_.push_back(last_timestamp);
                 gyro_since_keyframe_.push_back(last_gyro);
             }
-            if( MVO::s_print_log ) std::cerr << "! <keystep> tracking loss: " << num_feature_matched_ / num_feature_ << std::endl;
+            if( MVO::s_print_log ) std::cerr << "! <keystep> tracking loss: " << (double) num_feature_matched_ / num_feature_ << std::endl;
         }
     }
 }
@@ -275,17 +212,27 @@ cv::Point2f MVO::warpWithPreviousMotion(const Eigen::Vector3d& p){
     return warpedUV;
 }
 
-void MVO::kltTrackerRough(std::vector<cv::Point2f>& fwd_pts, std::vector<bool>& validity){
+void MVO::kltTrackerRough(std::vector<cv::Point2f>& points, std::vector<bool>& validity){
+    points.clear();
+    points.reserve(num_feature_);
+
     validity.clear();
     validity.reserve(num_feature_);
 
-    std::vector<cv::Point2f> pts;
+    std::vector<cv::Point2f> pts, fwd_pts;
+    std::vector<uint32_t> idx_track;
+
     pts.reserve(num_feature_);
+    fwd_pts.reserve(num_feature_);
+    idx_track.reserve(num_feature_);
 
     int key_idx;
-    for( const auto & feature : features_ ){
-        key_idx = feature.life - (step_ - keystep_); // before feature.life increasement
-        pts.push_back(feature.uv[key_idx]);
+    for( uint32_t i = 0; i < num_feature_; i++ ){
+        key_idx = features_[i].life - (step_ - keystep_); // before feature.life increasement
+        if( key_idx >= 0 ){
+            idx_track.push_back(i);
+            pts.push_back(features_[i].uv[key_idx]);
+        }
     }
     
     cv::Mat status, err;
@@ -293,40 +240,74 @@ void MVO::kltTrackerRough(std::vector<cv::Point2f>& fwd_pts, std::vector<bool>& 
     if( MVO::s_print_log ) std::cerr << "### Calculate optical flows roughly: " << lsi::toc() << std::endl;
 
     // Validate parallax and matched number
+    std::vector<bool> border_valid;
+    border_valid.reserve(pts.size());
+    for( uint32_t i = 0; i < pts.size(); i++ )
+        border_valid.emplace_back((fwd_pts[i].x > 0) && (fwd_pts[i].x < params_.im_size.width) && (fwd_pts[i].y > 0) && (fwd_pts[i].y < params_.im_size.height));
+
     cv::Point2f uv_keystep;
-    std::vector<double> parallax;
-    parallax.reserve(num_feature_);
+    uint32_t j = 0;
     for( uint32_t i = 0; i < num_feature_; i++ ){
-        if( status.at<uchar>(i) && features_[i].is_alive ){
-            validity.push_back(true);
-            key_idx = features_[i].life - (step_ - keystep_); // before feature.life increasement
-            if( key_idx >= 0 ){
+        if( i == idx_track[j] && j < pts.size() ){
+            if( status.at<uchar>(j) && border_valid[j] && features_[i].is_alive ){
+                points.push_back(fwd_pts[j]);
+                validity.push_back(true);
+                
+                key_idx = features_[i].life - (step_ - keystep_); // before feature.life increasement
                 uv_keystep = features_[i].uv[key_idx];
-                features_[i].parallax = std::acos((fwd_pts[i].dot(uv_keystep)+1)/std::sqrt(fwd_pts[i].x*fwd_pts[i].x + fwd_pts[i].y*fwd_pts[i].y + 1)/std::sqrt(uv_keystep.x*uv_keystep.x + uv_keystep.y*uv_keystep.y + 1));
-            }else
+                features_[i].parallax = std::acos((fwd_pts[j].dot(uv_keystep)+1)/std::sqrt(fwd_pts[j].x*fwd_pts[j].x + fwd_pts[j].y*fwd_pts[j].y + 1)/std::sqrt(uv_keystep.x*uv_keystep.x + uv_keystep.y*uv_keystep.y + 1));
+            }else{
+                points.push_back(cv::Point2f(-1,-1));
+                validity.push_back(false);
                 features_[i].parallax = -1;
+            }
+
+            j++;
         }else{
+            points.push_back(cv::Point2f(-1,-1));
             validity.push_back(false);
             features_[i].parallax = -1;
         }
     }
 }
 
-void MVO::kltTrackerPrecise(std::vector<cv::Point2f>& fwd_pts, std::vector<bool>& validity){
+void MVO::kltTrackerPrecise(std::vector<cv::Point2f>& points, std::vector<bool>& validity){
+    points.clear();
+    points.reserve(num_feature_);
+
     validity.clear();
     validity.reserve(num_feature_);
 
-    std::vector<cv::Point2f> pts, bwd_pts, fwd_bwd_pts;
+    std::vector<cv::Point2f> pts, fwd_pts, bwd_pts, fwd_bwd_pts;
+    std::vector<uint32_t> idx_track;
+
     pts.reserve(num_feature_);
+    fwd_pts.reserve(num_feature_);
     bwd_pts.reserve(num_feature_);
+    idx_track.reserve(num_feature_);
 
     int key_idx;
-    for( const auto & feature : features_ ){
-        key_idx = feature.life - (step_ - keystep_); // before feature.life increasement
-        pts.push_back(feature.uv[key_idx]);
-        // pts.push_back(feature.uv.back());
+    for( uint32_t i = 0; i < num_feature_; i++ ){
+        key_idx = features_[i].life - (step_ - keystep_); // before feature.life increasement
+        if( key_idx >= 0 ){
+            idx_track.push_back(i);
+            pts.push_back(features_[i].uv[key_idx]);
+        }
     }
     
+    // if( MVO::s_print_log ){
+    //     std::stringstream filename;
+    //     filename << "FeatureLogFiles/update_" << keystep_ << "_to_" << step_ << ".txt";
+    //     std::ofstream fid(filename.str());
+    //     for( const auto & feature : features_ ){
+    //         key_idx = feature.life - (step_ - keystep_); // before feature.life increasement
+    //         if( key_idx >= 0 ){
+    //             fid << "ID: " << std::setw(4) << feature.id << "\tINIT: " << std::setw(3) << feature.frame_2d_init << "\tLIFE: " << std::setw(3) << feature.life;
+    //             fid << "\tKEY UV: [" << feature.uv[key_idx].x << ", " << feature.uv[key_idx].y << ']' << std::endl;
+    //         }
+    //     }
+    // }
+
     // Forward-backward error evaluation
     std::vector<cv::Mat>& prevPyr = prev_pyramid_template_;
     std::vector<cv::Mat>& currPyr = curr_pyramid_template_;
@@ -341,45 +322,40 @@ void MVO::kltTrackerPrecise(std::vector<cv::Point2f>& fwd_pts, std::vector<bool>
     cv::calcOpticalFlowPyrLK(currPyr, prevPyr, fwd_pts, bwd_pts, status, err);
     // cv::calcOpticalFlowPyrLK(prevPyr, currPyr, bwd_pts, fwd_bwd_pts, status, err);
     if( MVO::s_print_log ) std::cerr << "### Calculate optical flows: " << lsi::toc() << std::endl;
-    
-    // Calculate bi-directional error( = validity ): validity = ~border_invalid & error_valid
-    
-    // WARNING: heavy computational load
-    // cv::Mat desc;
-    // std::vector<cv::KeyPoint> keypoints;
-    // for( uint32_t i = 0; i < pts.size(); i++ )
-    //     keypoints.emplace_back(fwd_pts[i],1.0);
-    // descriptor->compute(curr_frame_.image, keypoints, desc);
-    // bool desc_valid;
 
-    bool border_invalid, error_valid;
+    std::vector<bool> border_valid, error_valid;
+    border_valid.reserve(pts.size());
+    error_valid.reserve(pts.size());
     for( uint32_t i = 0; i < pts.size(); i++ ){
-        border_invalid = (fwd_pts[i].x <= 0) | (fwd_pts[i].x >= params_.im_size.width) | (fwd_pts[i].y <= 0) | (fwd_pts[i].y >= params_.im_size.height);
-        error_valid = cv::norm(pts[i] - bwd_pts[i]) < std::min( (double) cv::norm(pts[i] - fwd_pts[i])/5.0, 1.0);
-        // desc_valid = cv::norm(features_[i].desc - desc.row(i));
-        // if( !error_valid ){
-        //     error_valid = cv::norm(fwd_pts[i] - fwd_bwd_pts[i]) < std::min( (double) cv::norm(fwd_pts[i] - bwd_pts[i])/5.0, 1.0);
-        //     features_[i].uv.back() = bwd_pts[i];
-        // }
-
-        validity.push_back(!border_invalid & error_valid);
-        // bool valid = !border_invalid & status.at<uchar>(i);// & err.at<float>(i) < std::min( cv::norm(pts[i] - fwd_pts[i])/5.0, 2.0);
-        // validity.push_back(valid);
+        border_valid.emplace_back((fwd_pts[i].x > 0) && (fwd_pts[i].x < params_.im_size.width) && (fwd_pts[i].y > 0) && (fwd_pts[i].y < params_.im_size.height));
+        error_valid.emplace_back(cv::norm(pts[i] - bwd_pts[i]) < std::min( (double) cv::norm(pts[i] - fwd_pts[i])/5.0, 1.0));
     }
 
     // Validate parallax and matched number
     cv::Point2f uv_keystep;
+    uint32_t j = 0;
     for( uint32_t i = 0; i < num_feature_; i++ ){
-        if( validity[i] && features_[i].is_alive ){
-            num_feature_matched_++;
-            key_idx = features_[i].life - (step_ - keystep_); // before feature.life increasement
-            if( key_idx >= 0 ){
+        if( i == idx_track[j] && j < pts.size() ){
+            if( border_valid[j] && error_valid[j] && features_[i].is_alive){
+                points.push_back(fwd_pts[j]);
+                validity.push_back(true);
+                num_feature_matched_++;                           // increase the number of feature matched
+                
+                key_idx = features_[i].life - (step_ - keystep_); // before feature.life increasement
                 uv_keystep = features_[i].uv[key_idx];
-                features_[i].parallax = std::acos((fwd_pts[i].dot(uv_keystep)+1)/std::sqrt(fwd_pts[i].x*fwd_pts[i].x + fwd_pts[i].y*fwd_pts[i].y + 1)/std::sqrt(uv_keystep.x*uv_keystep.x + uv_keystep.y*uv_keystep.y + 1));
-            }else
+                features_[i].parallax = std::acos((fwd_pts[j].dot(uv_keystep)+1)/std::sqrt(fwd_pts[j].x*fwd_pts[j].x + fwd_pts[j].y*fwd_pts[j].y + 1)/std::sqrt(uv_keystep.x*uv_keystep.x + uv_keystep.y*uv_keystep.y + 1));
+            }else{
+                points.push_back(cv::Point2f(-1,-1));
+                validity.push_back(false);
                 features_[i].parallax = -1;
-        }else
+            }
+
+            j++;
+        }else{
+            points.push_back(cv::Point2f(-1,-1));
+            validity.push_back(false);
             features_[i].parallax = -1;
+        }
     }
 }
 
@@ -404,17 +380,7 @@ void MVO::addFeatures(){
     while( num_feature_ < bucket_.max_features && bucket_.saturated.any() == true )
         addFeature();
 
-    // WARNING: descriptor may remove keypoint whose description cannot be extracted
-    // cv::Mat desc;
-    // std::vector<cv::KeyPoint> keypoints;
-    // for( int i = 0; i < num_feature_; i++ )
-    //     if( features_[i].life == 1 )
-    //         keypoints.emplace_back(cv::Point2f(features_[i].uv.back().x,features_[i].uv.back().y),1.0);
-    // descriptor->compute(curr_frame_.image, keypoints, desc);
-    // int j = 0;
-    // for( int i = 0; i < num_feature_; i++ )
-    //     if( features_[i].life == 1 )
-    //         features_[i].desc = desc.row(j++).clone();
+    if( MVO::s_print_log ) std::cerr << "! Add features in: " << next_keyframe_.id << std::endl;
 }
 
 void MVO::updateBucket(){
@@ -426,6 +392,12 @@ void MVO::updateBucket(){
         row_bucket = std::floor(features_[i].uv.back().y / params_.im_size.height * bucket_.grid.height);
         col_bucket = std::floor(features_[i].uv.back().x / params_.im_size.width * bucket_.grid.width);
         features_[i].bucket = cv::Point(col_bucket, row_bucket);
+
+        if( col_bucket < 0 || col_bucket > bucket_.grid.width || row_bucket < 0 || row_bucket > bucket_.grid.height ){
+            printFeatures();
+            std::cout << "Wrong bucket index" << std::endl;
+        }
+
         bucket_.mass(row_bucket, col_bucket)++;
     }
 }
@@ -452,7 +424,7 @@ void MVO::addFeature(){
     for( int l = 0; l < num_feature_; l++ ){
         for( int ii = std::max(col-1,0); ii <= std::min(col+1,bucket_.grid.width-1); ii++){
             for( int jj = std::max(row-1,0); jj <= std::min(row+1,bucket_.grid.height-1); jj++){
-                if( (features_[l].bucket.x == ii) & (features_[l].bucket.y == jj)){
+                if( (features_[l].bucket.x == ii) && (features_[l].bucket.y == jj)){
                     idx_belong_to_bucket.push_back(l);
                 }
             }
@@ -677,6 +649,7 @@ bool MVO::calculateEssential()
     t_vec_.push_back(-U.block(0, 2, 3, 1));
 
     if( MVO::s_print_log ) std::cerr << "# Extract R, t: " << lsi::toc() << std::endl;
+    if( MVO::s_print_log ) std::cerr << "! Extract essential between: " << curr_keyframe_.id << " <--> " << curr_frame_.id << std::endl;
 
     if (num_feature_2D_inliered_ < params_.th_inlier){
         if( MVO::s_print_log ) std::cerr << "Warning: There are a few inliers matching features in 2D" << std::endl;
@@ -771,7 +744,7 @@ bool MVO::extractRoiFeature(const cv::Rect& roi, const std::vector<cv::Point2f>&
     for( int l = 0; l < num_feature_; l++ ){
         for( int ii = std::max(col-1,0); ii <= std::min(col+1,bucket_.grid.width-1); ii++){
             for( int jj = std::max(row-1,0); jj <= std::min(row+1,bucket_.grid.height-1); jj++){
-                if( (features_[l].bucket.x == ii) & (features_[l].bucket.y == jj)){
+                if( (features_[l].bucket.x == ii) && (features_[l].bucket.y == jj)){
                     idx_belong_to_bucket.push_back(l);
                 }
             }

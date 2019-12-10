@@ -50,18 +50,6 @@ enum Type{Unknown,Dynamic,Road,};
 
 class DepthFilter;
 
-typedef struct Bucket{
-	int safety = 20;
-	int max_features = 400;
-	cv::Size grid;
-	cv::Size size;
-	cv::Mat cv_mass;
-	cv::Mat cv_prob;
-	Eigen::MatrixXd mass;
-	Eigen::MatrixXd prob;
-	Eigen::MatrixXd saturated;
-}Bucket;
-
 typedef struct Feature{
 	static uint32_t new_feature_id;
 	uint32_t id;
