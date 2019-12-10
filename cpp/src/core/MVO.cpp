@@ -435,13 +435,27 @@ std::vector< std::tuple<uint32_t, cv::Point2f, cv::Point2f> > MVO::getMotions() 
 void MVO::printFeatures() const {
     if( MVO::s_print_log ){
         std::stringstream filename;
-        filename << "FeatureLogFiles/" << keystep_ << "_to_" << step_ << ".txt";
+        filename << "FeatureLogFiles/" << keystep_ << "_to_" << step_ << ".md";
         std::ofstream fid(filename.str());
+        int key_idx;
         for( const auto & feature : features_ ){
             fid << "ID: " << std::setw(4) << feature.id << "\tINIT: " << std::setw(3) << feature.frame_2d_init << "\tLIFE: " << std::setw(3) << feature.life;
-            fid << "\tUV: [" << feature.uv[0].x << ", " << feature.uv[0].y << ']';
-            for( uint i = 1; i < feature.uv.size(); i++ ){
-                fid << " -> [" << feature.uv[i].x << ", " << feature.uv[i].y << ']';
+            
+            key_idx = feature.life - 1 - (step_ - keystep_);
+            if( key_idx == 0 )
+                fid << "\tUV: **[" << std::setw(4) << (int) feature.uv[0].x << ", " << std::setw(4) << (int) feature.uv[0].y << "]**";
+            else
+                fid << "\tUV: [" << std::setw(4) << (int) feature.uv[0].x << ", " << std::setw(4) << (int) feature.uv[0].y << ']';
+
+            for( uint i = 1; i < feature.uv.size()-1; i++ ){
+                if( key_idx == i )
+                    fid << " => **[" << std::setw(4) << (int) feature.uv[i].x << ", " << std::setw(4) << (int) feature.uv[i].y << "]**";
+                else
+                    fid << " => [" << std::setw(4) << (int) feature.uv[i].x << ", " << std::setw(4) << (int) feature.uv[i].y << ']';
+            }
+            if( feature.uv.size() > 1 ){
+                if( key_idx >= 0 ) fid << " => **[" << std::setw(4) << (int) feature.uv.back().x << ", " << std::setw(4) << (int) feature.uv.back().y << "]**";
+                else fid << " => [" << std::setw(4) << (int) feature.uv.back().x << ", " << std::setw(4) << (int) feature.uv.back().y << ']';
             }
             fid << std::endl;
         }

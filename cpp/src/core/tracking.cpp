@@ -10,7 +10,6 @@ bool MVO::extractFeatures(){
     if( updateFeatures() ){
         if( MVO::s_print_log ) std::cerr << "# Update features: " << lsi::toc() << std::endl;
         
-        printFeatures();
         if( MVO::s_print_log ) std::cerr << "* Tracking rate: " << 100.0 * num_feature_matched_ / num_feature_ << std::endl;
 
         // Delete features which is failed to track by KLT tracker
@@ -25,6 +24,8 @@ bool MVO::extractFeatures(){
 
         if( MVO::s_print_log ) std::cerr << "# Add features: " << lsi::toc() << std::endl;
         
+        printFeatures();
+
         return true;
     }
     else
@@ -232,6 +233,9 @@ void MVO::kltTrackerRough(std::vector<cv::Point2f>& points, std::vector<bool>& v
         if( key_idx >= 0 ){
             idx_track.push_back(i);
             pts.push_back(features_[i].uv[key_idx]);
+        }else if( features_[i].frame_2d_init == -1 ){
+            idx_track.push_back(i);
+            pts.push_back(features_[i].uv.back());
         }
     }
     
@@ -278,6 +282,9 @@ void MVO::kltTrackerPrecise(std::vector<cv::Point2f>& points, std::vector<bool>&
     validity.clear();
     validity.reserve(num_feature_);
 
+    // if( step_ - keystep_ > 1 )
+    //     int a = 1;
+
     std::vector<cv::Point2f> pts, fwd_pts, bwd_pts, fwd_bwd_pts;
     std::vector<uint32_t> idx_track;
 
@@ -292,6 +299,9 @@ void MVO::kltTrackerPrecise(std::vector<cv::Point2f>& points, std::vector<bool>&
         if( key_idx >= 0 ){
             idx_track.push_back(i);
             pts.push_back(features_[i].uv[key_idx]);
+        }else if( features_[i].frame_2d_init == -1 ){
+            idx_track.push_back(i);
+            pts.push_back(features_[i].uv.back());
         }
     }
     
@@ -462,14 +472,23 @@ void MVO::addFeature(){
         success = true;
         min_dist = 1e9; // enough-large number
         for( uint32_t f = 0; f < num_feature_inside_bucket; f++ ){
+            dist = 1e9;
             if( trigger_keystep_decrease_ ){
                 key_idx = features_[idx_belong_to_bucket[f]].life - 1 - (step_ - prev_keystep); // after feature.life increasement
-                dist = cv::norm(keypoints[l] - features_[idx_belong_to_bucket[f]].uv[key_idx]);
+                if( key_idx >= 0 )
+                    dist = cv::norm(keypoints[l] - features_[idx_belong_to_bucket[f]].uv[key_idx]);
+                else if( features_[idx_belong_to_bucket[f]].frame_2d_init < 0 )
+                    dist = cv::norm(keypoints[l] - features_[idx_belong_to_bucket[f]].uv.back());
+            
             }else if( trigger_keystep_increase_ ){
                 dist = cv::norm(keypoints[l] - features_[idx_belong_to_bucket[f]].uv.back());
+            
             }else{
                 key_idx = features_[idx_belong_to_bucket[f]].life - 1 - (step_ - keystep_); // after feature.life increasement
-                dist = cv::norm(keypoints[l] - features_[idx_belong_to_bucket[f]].uv[key_idx]);
+                if( key_idx >= 0 )
+                    dist = cv::norm(keypoints[l] - features_[idx_belong_to_bucket[f]].uv[key_idx]);
+                else if( features_[idx_belong_to_bucket[f]].frame_2d_init < 0 )
+                    dist = cv::norm(keypoints[l] - features_[idx_belong_to_bucket[f]].uv.back());
             }
             
             if( dist < min_dist )

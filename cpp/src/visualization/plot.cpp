@@ -30,28 +30,34 @@ void MVO::plot(){
 	}
 
 	// feature points
+	double ratio = 1;
+	if( img.rows > 500 ){
+		ratio = 0.5;
+		cv::resize(img, img, cv::Size(img.cols*ratio,img.rows*ratio));
+	}
+
 	for( int i = 0; i < num_feature_; i++ ){
 		if( features_[i].type == Type::Dynamic || features_[i].is_2D_inliered == false ){
-			cv::circle(img, cv::Point(features_[i].uv.back().x, features_[i].uv.back().y), 3, cv::Scalar(255,0,0), 1);
+			cv::circle(img, cv::Point(features_[i].uv.back().x*ratio, features_[i].uv.back().y*ratio), 3, cv::Scalar(255,0,0), 1);
 			if( features_[i].uv_pred.x > 0 && features_[i].uv_pred.y > 0 )
-				cv::drawMarker(img, cv::Point(features_[i].uv_pred.x, features_[i].uv_pred.y), cv::Scalar(255,0,0), cv::MARKER_CROSS, 5);
+				cv::drawMarker(img, cv::Point(features_[i].uv_pred.x*ratio, features_[i].uv_pred.y*ratio), cv::Scalar(255,0,0), cv::MARKER_CROSS, 5);
 		}else if( features_[i].type == Type::Road ){
-			cv::circle(img, cv::Point(features_[i].uv.back().x, features_[i].uv.back().y), 3, cv::Scalar(50,50,255), 1);
+			cv::circle(img, cv::Point(features_[i].uv.back().x*ratio, features_[i].uv.back().y*ratio), 3, cv::Scalar(50,50,255), 1);
 			if( features_[i].uv_pred.x > 0 && features_[i].uv_pred.y > 0 )
-				cv::drawMarker(img, cv::Point(features_[i].uv_pred.x, features_[i].uv_pred.y), cv::Scalar(50,50,255), cv::MARKER_CROSS, 5);
+				cv::drawMarker(img, cv::Point(features_[i].uv_pred.x*ratio, features_[i].uv_pred.y*ratio), cv::Scalar(50,50,255), cv::MARKER_CROSS, 5);
 		}else{
-			cv::circle(img, cv::Point(features_[i].uv.back().x, features_[i].uv.back().y), 3, cv::Scalar(0,200,0), 1);
+			cv::circle(img, cv::Point(features_[i].uv.back().x*ratio, features_[i].uv.back().y*ratio), 3, cv::Scalar(0,200,0), 1);
 			if( features_[i].uv_pred.x > 0 && features_[i].uv_pred.y > 0 )
-				cv::drawMarker(img, cv::Point(features_[i].uv_pred.x, features_[i].uv_pred.y), cv::Scalar(0,200,0), cv::MARKER_CROSS, 5);
+				cv::drawMarker(img, cv::Point(features_[i].uv_pred.x*ratio, features_[i].uv_pred.y*ratio), cv::Scalar(0,200,0), cv::MARKER_CROSS, 5);
 		}
+		cv::putText(img, std::to_string(features_[i].id), features_[i].uv.back()*ratio, cv::FONT_HERSHEY_SIMPLEX, 0.4, cv::Scalar(0,255,0), 1);
 	}
-	if( img.rows > 500 ){
-		cv::Mat img_resize;
-		cv::resize(img, img_resize, cv::Size(img.cols/2,img.rows/2));
-		cv::imshow("MVO", img_resize);
-	}else
-		cv::imshow("MVO", img);
 
+	cv::imshow("MVO", img);
+
+	/*******************************************
+	 * 				Keyframe
+	 * *****************************************/
 	cv::Mat img_keyframe(curr_keyframe_.size(), CV_8UC3);
 	cvtColor(curr_keyframe_.image, img_keyframe, CV_GRAY2BGR);
 	cv::Mat img_keyframe_resize;

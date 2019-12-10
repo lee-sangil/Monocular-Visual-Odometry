@@ -137,7 +137,7 @@ bool MVO::verifySolutions(const std::vector<Eigen::Matrix3d>& R_vec, const std::
 	// Extract homogeneous 2D point which is inliered with essential constraint
 	std::vector<int> idx_2D_inlier;
 	for( int i = 0; i < num_feature_; i++ )
-		if( features_[i].is_2D_inliered )
+		if( features_[i].is_2D_inliered && features_[i].life - 1 - (step_ - keystep_) >= 0)
 			idx_2D_inlier.push_back(i);
 
     int key_idx;
