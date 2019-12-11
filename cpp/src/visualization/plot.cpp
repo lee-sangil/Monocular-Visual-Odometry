@@ -33,7 +33,7 @@ void MVO::plot(){
 	double ratio = 1;
 	if( img.rows > 500 ){
 		ratio = 0.5;
-		cv::resize(img, img, cv::Size(img.cols*ratio,img.rows*ratio));
+		cv::resize(img, img, cv::Size(img.cols*ratio, img.rows*ratio));
 	}
 
 	for( int i = 0; i < num_feature_; i++ ){
@@ -50,7 +50,12 @@ void MVO::plot(){
 			if( features_[i].uv_pred.x > 0 && features_[i].uv_pred.y > 0 )
 				cv::drawMarker(img, cv::Point(features_[i].uv_pred.x*ratio, features_[i].uv_pred.y*ratio), cv::Scalar(0,200,0), cv::MARKER_CROSS, 5);
 		}
-		cv::putText(img, std::to_string(features_[i].id), features_[i].uv.back()*ratio, cv::FONT_HERSHEY_SIMPLEX, 0.4, cv::Scalar(0,255,0), 1);
+		if( MVO::s_file_logger.is_open() ){
+			int key_idx = features_[i].life - 1 - (step_ - keystep_);
+			if( key_idx >= 0 )
+				cv::line(img, features_[i].uv.back()*ratio, features_[i].uv[key_idx]*ratio, cv::Scalar::all(0), 1, CV_AA);
+			cv::putText(img, std::to_string(features_[i].id), features_[i].uv.back()*ratio, cv::FONT_HERSHEY_SIMPLEX, 0.4, cv::Scalar(0,255,0), 1, CV_AA);
+		}
 	}
 
 	cv::imshow("MVO", img);
@@ -61,7 +66,7 @@ void MVO::plot(){
 	cv::Mat img_keyframe(curr_keyframe_.size(), CV_8UC3);
 	cvtColor(curr_keyframe_.image, img_keyframe, CV_GRAY2BGR);
 	cv::Mat img_keyframe_resize;
-	cv::resize(img_keyframe, img_keyframe_resize, cv::Size(img.cols/4,img.rows/4));
+	cv::resize(img_keyframe, img_keyframe_resize, cv::Size(img.cols/2,img.rows/2));
 	cv::imshow("Keyframe", img_keyframe_resize);
 
 	/*******************************************

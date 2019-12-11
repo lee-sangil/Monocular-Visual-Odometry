@@ -8,7 +8,7 @@ double DepthFilter::s_px_error_angle_;
 double DepthFilter::s_meas_max_;
 double MVO::s_scale_reference_ = -1;
 double MVO::s_scale_reference_weight_;
-bool MVO::s_print_log = false;
+std::ofstream MVO::s_file_logger;
 uint32_t Feature::new_feature_id = 0;
 
 MVO::MVO(){
@@ -351,7 +351,7 @@ void MVO::setImage(const cv::Mat& image){
     trigger_keystep_decrease_ = false;
     trigger_keystep_increase_ = false;
 
-    if( MVO::s_print_log ) std::cerr << "============ Iteration: " << step_ << " (keystep: " << keystep_ << ')' << " ============" << std::endl;
+    if( MVO::s_file_logger.is_open() ) MVO::s_file_logger << "============ Iteration: " << step_ << " (keystep: " << keystep_ << ')' << " ============" << std::endl;
     
 }
 
@@ -359,7 +359,7 @@ void MVO::run(const cv::Mat& image){
     
     lsi::tic();
     setImage(image);
-    if( MVO::s_print_log ) std::cerr << "# Grab image: " << lsi::toc() << std::endl;
+    if( MVO::s_file_logger.is_open() ) MVO::s_file_logger << "# Grab image: " << lsi::toc() << std::endl;
     refresh();
 
     // extract_roi_features(rois, num_feature_);   // Extract extra features in rois
@@ -379,6 +379,7 @@ void MVO::updateGyro(const double timestamp, const Eigen::Vector3d& gyro){
         radian += (gyro_since_keyframe_[i]+gyro_since_keyframe_[i+1])/2 * (timestamp_imu_since_keyframe_[i+1]-timestamp_imu_since_keyframe_[i]);
 
     rotate_prior_ = params_.Tci.block(0,0,3,3) * skew(-radian).exp() * params_.Tic.block(0,0,3,3);
+    if( MVO::s_file_logger.is_open() ) MVO::s_file_logger << "rotate_prior: " << radian << std::endl;
 }
 
 void MVO::updateVelocity(const double timestamp, const double speed){
@@ -391,7 +392,7 @@ void MVO::updateVelocity(const double timestamp, const double speed){
         scale += (speed_since_keyframe_[i]+speed_since_keyframe_[i+1])/2 * (timestamp_speed_since_keyframe_[i+1]-timestamp_speed_since_keyframe_[i]);
     
     updateScaleReference(scale);
-    if( MVO::s_print_log ) std::cerr << "scale: " << scale << std::endl;
+    if( MVO::s_file_logger.is_open() ) MVO::s_file_logger << "scale: " << scale << std::endl;
 }
 
 const std::vector<Feature>& MVO::getFeatures() const {return features_;}
@@ -433,7 +434,7 @@ std::vector< std::tuple<uint32_t, cv::Point2f, cv::Point2f> > MVO::getMotions() 
 }
 
 void MVO::printFeatures() const {
-    if( MVO::s_print_log ){
+    if( MVO::s_file_logger.is_open() ){
         std::stringstream filename;
         filename << "FeatureLogFiles/" << keystep_ << "_to_" << step_ << ".md";
         std::ofstream fid(filename.str());

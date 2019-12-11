@@ -126,7 +126,7 @@ class MVO{
 	public:
 
 	Parameter params_;
-	static bool s_print_log;
+	static std::ofstream s_file_logger;
 	
 	public:
 

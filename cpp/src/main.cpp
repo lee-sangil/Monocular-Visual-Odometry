@@ -142,7 +142,8 @@ int main(int argc, char * argv[]){
 	/**************************************************************************
 	 *  Run MVO object
 	 **************************************************************************/
-	MVO::s_print_log = Parser::hasOption("-db");
+	if( Parser::hasOption("-db") )
+		MVO::s_file_logger.open("log.txt");
 	
 	char key;
 	std::cout << "# Key descriptions: " << std::endl;
@@ -243,7 +244,8 @@ int main(int argc, char * argv[]){
 		}
 	}
 	std::cout << std::endl;
-
+	MVO::s_file_logger.close();
+	
 	return 0;
 }
 

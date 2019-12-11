@@ -150,20 +150,20 @@ void MVO::calcReconstructionErrorGT(Eigen::MatrixXd& depth){
             idx.push_back(i);
 
     if( idx.size() > 0 ){
-        if( MVO::s_print_log ) std::cerr << "* Reconstruction depth: ";
+        if( MVO::s_file_logger.is_open() ) MVO::s_file_logger << "* Reconstruction depth: ";
 
         // median value
         // std::sort(error.begin(), error.end());
-        // if( MVO::s_print_log ) std::cerr << error[std::floor(error.size()/2)];
+        // if( MVO::s_file_logger.is_open() ) MVO::s_file_logger << error[std::floor(error.size()/2)];
 
         // all elements
         for( const auto & i : idx )
-            if( MVO::s_print_log ) std::cerr << features_[i].point_curr(2) << ' ';
-        if( MVO::s_print_log ) std::cerr << std::endl;
+            if( MVO::s_file_logger.is_open() ) MVO::s_file_logger << features_[i].point_curr(2) << ' ';
+        if( MVO::s_file_logger.is_open() ) MVO::s_file_logger << std::endl;
 
-        if( MVO::s_print_log ) std::cerr << "* Groundtruth depth: ";
+        if( MVO::s_file_logger.is_open() ) MVO::s_file_logger << "* Groundtruth depth: ";
         for( const auto & i : idx )
-            if( MVO::s_print_log ) std::cerr << depth(features_[i].uv.back().y, features_[i].uv.back().x) << ' ';
-        if( MVO::s_print_log ) std::cerr << std::endl;
+            if( MVO::s_file_logger.is_open() ) MVO::s_file_logger << depth(features_[i].uv.back().y, features_[i].uv.back().x) << ' ';
+        if( MVO::s_file_logger.is_open() ) MVO::s_file_logger << std::endl;
     }
 }

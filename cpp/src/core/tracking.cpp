@@ -8,13 +8,13 @@
 bool MVO::extractFeatures(){
     // Update features using KLT tracker
     if( updateFeatures() ){
-        if( MVO::s_print_log ) std::cerr << "# Update features: " << lsi::toc() << std::endl;
+        if( MVO::s_file_logger.is_open() ) MVO::s_file_logger << "# Update features: " << lsi::toc() << std::endl;
         
-        if( MVO::s_print_log ) std::cerr << "* Tracking rate: " << 100.0 * num_feature_matched_ / num_feature_ << std::endl;
+        if( MVO::s_file_logger.is_open() ) MVO::s_file_logger << "* Tracking rate: " << 100.0 * num_feature_matched_ / num_feature_ << std::endl;
 
         // Delete features which is failed to track by KLT tracker
         deleteDeadFeatures();
-        if( MVO::s_print_log ) std::cerr << "# Delete features: " << lsi::toc() << std::endl;
+        if( MVO::s_file_logger.is_open() ) MVO::s_file_logger << "# Delete features: " << lsi::toc() << std::endl;
         
         // Add features to the number of the lost features
         addFeatures();
@@ -22,7 +22,7 @@ bool MVO::extractFeatures(){
         // Add extra feature points
         addExtraFeatures();
 
-        if( MVO::s_print_log ) std::cerr << "# Add features: " << lsi::toc() << std::endl;
+        if( MVO::s_file_logger.is_open() ) MVO::s_file_logger << "# Add features: " << lsi::toc() << std::endl;
         
         printFeatures();
 
@@ -39,27 +39,32 @@ bool MVO::updateFeatures(){
         std::vector<cv::Point2f> points;
         std::vector<bool> validity;
         kltTrackerRough(points, validity);
-        if( MVO::s_print_log ) std::cerr << "## KLT tracker: " << lsi::toc() << std::endl;
+        if( MVO::s_file_logger.is_open() ) MVO::s_file_logger << "## KLT tracker: " << lsi::toc() << std::endl;
 
         selectKeyframeNow(points, validity); // low parallax
-        if( MVO::s_print_log ) std::cerr << "## Select keyframe: " << lsi::toc() << std::endl;
+        if( MVO::s_file_logger.is_open() ) MVO::s_file_logger << "## Select keyframe: " << lsi::toc() << std::endl;
 
         kltTrackerPrecise(points, validity);
-        if( MVO::s_print_log ) std::cerr << "## KLT tracker: " << lsi::toc() << std::endl;
+        if( MVO::s_file_logger.is_open() ) MVO::s_file_logger << "## KLT tracker: " << lsi::toc() << std::endl;
 
         selectKeyframeAfter(points, validity); // low tracking ratio
-        if( MVO::s_print_log ) std::cerr << "## Select keyframe: " << lsi::toc() << std::endl;
+        if( MVO::s_file_logger.is_open() ) MVO::s_file_logger << "## Select keyframe: " << lsi::toc() << std::endl;
 
-        if( MVO::s_print_log ) std::cerr << "! Update features between: " << curr_keyframe_.id << " <--> " << curr_frame_.id << std::endl;
+        if( MVO::s_file_logger.is_open() ) MVO::s_file_logger << "! Update features between: " << curr_keyframe_.id << " <--> " << curr_frame_.id << std::endl;
 
+        int key_idx;
         cv::Point2f uv_prev;
-        Eigen::Matrix<double,3,4> Tco = TocRec_.back().inverse().block(0,0,3,4);
+        Eigen::Matrix<double,3,4> Tko = TocRec_[keystep_].inverse().block(0,0,3,4);
         for( int i = 0; i < num_feature_; i++ ){
             if( validity[i] && features_[i].is_alive ){
-                uv_prev = features_[i].uv.back(); // TODO: change to uv_key
+                key_idx = features_[i].life - (step_ - keystep_); // before feature.life increasement
+                if( key_idx >= 0 )
+                    uv_prev = features_[i].uv[key_idx];
+                else
+                    uv_prev = features_[i].uv.back();
 
                 if( is_rotate_provided_ ) features_[i].uv_pred = warpWithIMU(uv_prev);
-                else if( features_[i].is_3D_init ) features_[i].uv_pred = warpWithPreviousMotion(Tco * features_[i].point_init);
+                else if( features_[i].is_3D_init ) features_[i].uv_pred = warpWithPreviousMotion(Tko * features_[i].point_init);
                 
                 if( features_[i].frame_2d_init < 0 ) features_[i].frame_2d_init = keystep_;
                 features_[i].is_matched = true;
@@ -101,7 +106,7 @@ bool MVO::updateFeatures(){
         }
 
         if( num_feature_matched_ < params_.th_inlier ){
-            if( MVO::s_print_log ) std::cerr << "Warning: There are a few feature matches" << std::endl;
+            if( MVO::s_file_logger.is_open() ) MVO::s_file_logger << "Warning: There are a few feature matches" << std::endl;
             return false;
         }else{
             return true;
@@ -135,16 +140,16 @@ void MVO::selectKeyframeNow(const std::vector<cv::Point2f>& uv_curr, const std::
                 curr_keyframe_.copy(prev_keyframe_);
                 trigger_keystep_decrease_ = true;
                 
-                if( MVO::s_print_log ) std::cerr << "! <keystep> low parallax: " << parallax_percentile << std::endl;
+                if( MVO::s_file_logger.is_open() ) MVO::s_file_logger << "! <keystep> low parallax: " << parallax_percentile << std::endl;
             }
         }
     }
 
-    // if( MVO::s_print_log ){
-    //     std::cerr << "* parallax: ";
+    // if( MVO::s_file_logger.is_open() ){
+    //     MVO::s_file_logger << "* parallax: ";
     //     for( const auto & feature : features_ )
-    //         std::cerr << feature.parallax << ' ';
-    //     std::cerr << std::endl;
+    //         MVO::s_file_logger << feature.parallax << ' ';
+    //     MVO::s_file_logger << std::endl;
     // }
 
     // // Delete features which is created at keyframe
@@ -186,7 +191,7 @@ void MVO::selectKeyframeAfter(const std::vector<cv::Point2f>& uv_curr, const std
                 timestamp_imu_since_keyframe_.push_back(last_timestamp);
                 gyro_since_keyframe_.push_back(last_gyro);
             }
-            if( MVO::s_print_log ) std::cerr << "! <keystep> tracking loss: " << (double) num_feature_matched_ / num_feature_ << std::endl;
+            if( MVO::s_file_logger.is_open() ) MVO::s_file_logger << "! <keystep> tracking loss: " << (double) num_feature_matched_ / num_feature_ << std::endl;
         }
     }
 }
@@ -241,7 +246,7 @@ void MVO::kltTrackerRough(std::vector<cv::Point2f>& points, std::vector<bool>& v
     
     cv::Mat status, err;
     cv::calcOpticalFlowPyrLK(curr_keyframe_.image, curr_frame_.image, pts, fwd_pts, status, err, cv::Size(9,9), 3);
-    if( MVO::s_print_log ) std::cerr << "### Calculate optical flows roughly: " << lsi::toc() << std::endl;
+    if( MVO::s_file_logger.is_open() ) MVO::s_file_logger << "### Calculate optical flows roughly: " << lsi::toc() << std::endl;
 
     // Validate parallax and matched number
     std::vector<bool> border_valid;
@@ -305,7 +310,7 @@ void MVO::kltTrackerPrecise(std::vector<cv::Point2f>& points, std::vector<bool>&
         }
     }
     
-    // if( MVO::s_print_log ){
+    // if( MVO::s_file_logger.is_open() ){
     //     std::stringstream filename;
     //     filename << "FeatureLogFiles/update_" << keystep_ << "_to_" << step_ << ".txt";
     //     std::ofstream fid(filename.str());
@@ -321,17 +326,17 @@ void MVO::kltTrackerPrecise(std::vector<cv::Point2f>& points, std::vector<bool>&
     // Forward-backward error evaluation
     std::vector<cv::Mat>& prevPyr = prev_pyramid_template_;
     std::vector<cv::Mat>& currPyr = curr_pyramid_template_;
-    if( MVO::s_print_log ) std::cerr << "### Prepare variables: " << lsi::toc() << std::endl;
+    if( MVO::s_file_logger.is_open() ) MVO::s_file_logger << "### Prepare variables: " << lsi::toc() << std::endl;
 
     cv::buildOpticalFlowPyramid(curr_keyframe_.image, prevPyr, cv::Size(21,21), 4, true);
     cv::buildOpticalFlowPyramid(curr_frame_.image, currPyr, cv::Size(21,21), 4, true);
-    if( MVO::s_print_log ) std::cerr << "### Build pyramids: " << lsi::toc() << std::endl;
+    if( MVO::s_file_logger.is_open() ) MVO::s_file_logger << "### Build pyramids: " << lsi::toc() << std::endl;
 
     cv::Mat status, err;
     cv::calcOpticalFlowPyrLK(prevPyr, currPyr, pts, fwd_pts, status, err);
     cv::calcOpticalFlowPyrLK(currPyr, prevPyr, fwd_pts, bwd_pts, status, err);
     // cv::calcOpticalFlowPyrLK(prevPyr, currPyr, bwd_pts, fwd_bwd_pts, status, err);
-    if( MVO::s_print_log ) std::cerr << "### Calculate optical flows: " << lsi::toc() << std::endl;
+    if( MVO::s_file_logger.is_open() ) MVO::s_file_logger << "### Calculate optical flows: " << lsi::toc() << std::endl;
 
     std::vector<bool> border_valid, error_valid;
     border_valid.reserve(pts.size());
@@ -385,12 +390,12 @@ void MVO::deleteDeadFeatures(){
 
 void MVO::addFeatures(){
     updateBucket();
-    if( MVO::s_print_log ) std::cerr << "## Update bucket: " << lsi::toc() << std::endl;
+    if( MVO::s_file_logger.is_open() ) MVO::s_file_logger << "## Update bucket: " << lsi::toc() << std::endl;
 
     while( num_feature_ < bucket_.max_features && bucket_.saturated.any() == true )
         addFeature();
 
-    if( MVO::s_print_log ) std::cerr << "! Add features in: " << next_keyframe_.id << std::endl;
+    if( MVO::s_file_logger.is_open() ) MVO::s_file_logger << "! Add features in: " << next_keyframe_.id << std::endl;
 }
 
 void MVO::updateBucket(){
@@ -586,13 +591,13 @@ bool MVO::calculateEssential()
     }
 
     if( (int) points1.size() < params_.th_inlier ){
-        if( MVO::s_print_log ) std::cerr << "Warning: There are a few stable features" << std::endl;
+        if( MVO::s_file_logger.is_open() ) MVO::s_file_logger << "Warning: There are a few stable features" << std::endl;
         return false;
     }
 
     cv::Mat inlier_mat;
     essential_ = cv::findEssentialMat(points1, points2, params_.Kcv, cv::RANSAC, 0.999, 1.5, inlier_mat);
-    if( MVO::s_print_log ) std::cerr << "# Calculate essential: " << lsi::toc() << std::endl;
+    if( MVO::s_file_logger.is_open() ) MVO::s_file_logger << "# Calculate essential: " << lsi::toc() << std::endl;
     
     Eigen::Matrix3d E_;
     cv::cv2eigen(essential_, E_);
@@ -617,7 +622,7 @@ bool MVO::calculateEssential()
         }
     }
     num_feature_2D_inliered_ = inlier_cnt;
-    if( MVO::s_print_log ) std::cerr << "num_feature_2D_inliered_: " << (double) num_feature_2D_inliered_ / num_feature_ * 100 << '%' << std::endl;
+    if( MVO::s_file_logger.is_open() ) MVO::s_file_logger << "num_feature_2D_inliered_: " << (double) num_feature_2D_inliered_ / num_feature_ * 100 << '%' << std::endl;
 
     Eigen::Matrix3d U,V;
     switch( params_.svd_method){
@@ -667,11 +672,11 @@ bool MVO::calculateEssential()
     t_vec_.push_back(U.block(0, 2, 3, 1));
     t_vec_.push_back(-U.block(0, 2, 3, 1));
 
-    if( MVO::s_print_log ) std::cerr << "# Extract R, t: " << lsi::toc() << std::endl;
-    if( MVO::s_print_log ) std::cerr << "! Extract essential between: " << curr_keyframe_.id << " <--> " << curr_frame_.id << std::endl;
+    if( MVO::s_file_logger.is_open() ) MVO::s_file_logger << "# Extract R, t: " << lsi::toc() << std::endl;
+    if( MVO::s_file_logger.is_open() ) MVO::s_file_logger << "! Extract essential between: " << curr_keyframe_.id << " <--> " << curr_frame_.id << std::endl;
 
     if (num_feature_2D_inliered_ < params_.th_inlier){
-        if( MVO::s_print_log ) std::cerr << "Warning: There are a few inliers matching features in 2D" << std::endl;
+        if( MVO::s_file_logger.is_open() ) MVO::s_file_logger << "Warning: There are a few inliers matching features in 2D" << std::endl;
         return false;
     }else{
         is_start_ = true;
@@ -723,7 +728,7 @@ void MVO::extractRoiFeatures(const std::vector<cv::Rect>& rois, const std::vecto
         try{
             cv::goodFeaturesToTrack(curr_frame_.image(roi), keypoints, 50, 0.01, params_.min_px_dist, cv::noArray(), 3, true);
         }catch(std::exception& msg){
-            if( MVO::s_print_log ) std::cerr << "Warning: " << msg.what() << std::endl;
+            if( MVO::s_file_logger.is_open() ) MVO::s_file_logger << "Warning: " << msg.what() << std::endl;
             continue;
         }
         
@@ -733,11 +738,11 @@ void MVO::extractRoiFeatures(const std::vector<cv::Rect>& rois, const std::vecto
                 keypoints[l].y = keypoints[l].y + roi.y - 1;
             }
         }else{
-            if( MVO::s_print_log ) std::cerr << "Warning: There is no keypoints within the bucket" << std::endl;
+            if( MVO::s_file_logger.is_open() ) MVO::s_file_logger << "Warning: There is no keypoints within the bucket" << std::endl;
             try{
                 cv::goodFeaturesToTrack(curr_frame_.image(roi), keypoints, 50, 0.1, params_.min_px_dist, cv::noArray(), 3, true);
             }catch(std::exception& msg){
-                if( MVO::s_print_log ) std::cerr << "Warning: " << msg.what() << std::endl;
+                if( MVO::s_file_logger.is_open() ) MVO::s_file_logger << "Warning: " << msg.what() << std::endl;
                 continue;
             }
         }
@@ -823,7 +828,7 @@ bool MVO::extractRoiFeature(const cv::Rect& roi, const std::vector<cv::Point2f>&
         features_extra_.push_back(newFeature);
         return true;
     }else{
-        if( MVO::s_print_log ) std::cerr << "Warning: There is no best-match keypoint which is far from the adjacent feature" << std::endl;
+        if( MVO::s_file_logger.is_open() ) MVO::s_file_logger << "Warning: There is no best-match keypoint which is far from the adjacent feature" << std::endl;
         return false;
     }
     
