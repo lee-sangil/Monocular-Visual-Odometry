@@ -144,8 +144,8 @@ class MVO{
 	std::vector< std::tuple<uint32_t, cv::Point2f, cv::Point2f> > getMotions() const;
 	const std::vector<Feature>& getFeatures() const;
 	const Eigen::Matrix4d& getCurrentMotion() const;
-	cv::Point2f warpWithIMU(const cv::Point2f& uv);
-	cv::Point2f warpWithPreviousMotion(const Eigen::Vector3d& p);
+	cv::Point2f warpWithIMU(const cv::Point2f& uv) const;
+	cv::Point2f warpWithPreviousMotion(const Eigen::Vector3d& p) const;
 	
 	// Script operations
 	void restart();
@@ -153,9 +153,10 @@ class MVO{
 	void run(const cv::Mat& image);
 	void updateGyro(const double timestamp, const Eigen::Vector3d& gyro);
 	void updateVelocity(const double timestamp, const double speed);
-	void plot();
-	void printFeatures() const;
+	void restartKeyframeLogger();
 	void updateView();
+	void plot() const;
+	void printFeatures() const;
 
 	// Feature operations
 	void kltTrackerRough(std::vector<cv::Point2f>& points, std::vector<bool>& validity);

@@ -13,7 +13,7 @@ void MVO::updateView(){
 	params_.view.P = (Eigen::Matrix<double,3,4>() << params_.view.K * params_.view.R, params_.view.K * params_.view.t).finished();
 }
 
-void MVO::plot(){
+void MVO::plot() const {
 	/*******************************************
 	 * 			Image seen by camera
 	 * *****************************************/
@@ -72,8 +72,6 @@ void MVO::plot(){
 	/*******************************************
 	 * 				Trajectory
 	 * *****************************************/
-	updateView();
-
 	cv::Mat traj = cv::Mat::zeros(params_.view.im_size.height,params_.view.im_size.width,CV_8UC3);
 	Eigen::Matrix4d Tco = TocRec_.back().inverse();
 

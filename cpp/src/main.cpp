@@ -204,6 +204,7 @@ int main(int argc, char * argv[]){
 				
 				std::cout << "Iteration: " << it_rgb << ", Execution time: " << lsi::toc()/1e3 << "ms       " << '\r' << std::flush;
 				
+				vo->updateView();
 				vo->plot();
 
 				it_rgb++;

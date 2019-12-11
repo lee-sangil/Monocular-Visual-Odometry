@@ -309,31 +309,19 @@ void MVO::restart(){
     TocRec_.erase(TocRec_.begin(), TocRec_.end()-1);
     PocRec_.erase(PocRec_.begin(), PocRec_.end()-1);
 
-    if( is_speed_provided_ ){
-        double last_timestamp = timestamp_speed_since_keyframe_.back();
-        double last_speed = speed_since_keyframe_.back();
-
-        timestamp_speed_since_keyframe_.clear();
-        speed_since_keyframe_.clear();
-
-        timestamp_speed_since_keyframe_.push_back(last_timestamp);
-        speed_since_keyframe_.push_back(last_speed);
-    }
-
-    if( is_rotate_provided_ ){
-        double last_timestamp = timestamp_imu_since_keyframe_.back();
-        Eigen::Vector3d last_gyro = gyro_since_keyframe_.back();
-
-        timestamp_imu_since_keyframe_.clear();
-        gyro_since_keyframe_.clear();
-
-        timestamp_imu_since_keyframe_.push_back(last_timestamp);
-        gyro_since_keyframe_.push_back(last_gyro);
-    }
+    restartKeyframeLogger();
 }
 
 void MVO::setImage(const cv::Mat& image){
     step_++;
+    keystep_ = keystep_array_.back();
+    curr_keyframe_.copy(next_keyframe_);
+
+    trigger_keystep_decrease_previous_ = trigger_keystep_decrease_;
+    trigger_keystep_decrease_ = false;
+    trigger_keystep_increase_ = false;
+
+    if( MVO::s_file_logger.is_open() ) MVO::s_file_logger << "============ Iteration: " << step_ << " (keystep: " << keystep_ << ')' << " ============" << std::endl;
 
     prev_frame_.copy(curr_frame_);
     cv::remap(image, undistorted_image_, distort_map1_, distort_map2_, cv::INTER_AREA);
@@ -344,22 +332,13 @@ void MVO::setImage(const cv::Mat& image){
         curr_frame_.image = undistorted_image_.clone();
     curr_frame_.id = step_;
 
-    keystep_ = keystep_array_.back();
-    curr_keyframe_.copy(next_keyframe_);
-
-    trigger_keystep_decrease_previous_ = trigger_keystep_decrease_;
-    trigger_keystep_decrease_ = false;
-    trigger_keystep_increase_ = false;
-
-    if( MVO::s_file_logger.is_open() ) MVO::s_file_logger << "============ Iteration: " << step_ << " (keystep: " << keystep_ << ')' << " ============" << std::endl;
-    
+    if( MVO::s_file_logger.is_open() ) MVO::s_file_logger << "# Grab image: " << lsi::toc() << std::endl;
 }
 
 void MVO::run(const cv::Mat& image){
     
     lsi::tic();
     setImage(image);
-    if( MVO::s_file_logger.is_open() ) MVO::s_file_logger << "# Grab image: " << lsi::toc() << std::endl;
     refresh();
 
     // extract_roi_features(rois, num_feature_);   // Extract extra features in rois
@@ -460,5 +439,29 @@ void MVO::printFeatures() const {
             }
             fid << std::endl;
         }
+    }
+}
+
+void MVO::restartKeyframeLogger() {
+    if( is_speed_provided_ ){
+        double last_timestamp = timestamp_speed_since_keyframe_.back();
+        double last_speed = speed_since_keyframe_.back();
+
+        timestamp_speed_since_keyframe_.clear();
+        speed_since_keyframe_.clear();
+
+        timestamp_speed_since_keyframe_.push_back(last_timestamp);
+        speed_since_keyframe_.push_back(last_speed);
+    }
+
+    if( is_rotate_provided_ ){
+        double last_timestamp = timestamp_imu_since_keyframe_.back();
+        Eigen::Vector3d last_gyro = gyro_since_keyframe_.back();
+
+        timestamp_imu_since_keyframe_.clear();
+        gyro_since_keyframe_.clear();
+
+        timestamp_imu_since_keyframe_.push_back(last_timestamp);
+        gyro_since_keyframe_.push_back(last_gyro);
     }
 }

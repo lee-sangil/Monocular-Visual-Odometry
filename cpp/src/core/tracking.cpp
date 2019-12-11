@@ -170,33 +170,14 @@ void MVO::selectKeyframeAfter(const std::vector<cv::Point2f>& uv_curr, const std
             next_keyframe_.copy(curr_frame_);
             trigger_keystep_increase_ = true;
 
-            if( is_speed_provided_ ){
-                double last_timestamp = timestamp_speed_since_keyframe_.back();
-                double last_speed = speed_since_keyframe_.back();
-
-                timestamp_speed_since_keyframe_.clear();
-                speed_since_keyframe_.clear();
-
-                timestamp_speed_since_keyframe_.push_back(last_timestamp);
-                speed_since_keyframe_.push_back(last_speed);
-            }
-
-            if( is_rotate_provided_ ){
-                double last_timestamp = timestamp_imu_since_keyframe_.back();
-                Eigen::Vector3d last_gyro = gyro_since_keyframe_.back();
-
-                timestamp_imu_since_keyframe_.clear();
-                gyro_since_keyframe_.clear();
-
-                timestamp_imu_since_keyframe_.push_back(last_timestamp);
-                gyro_since_keyframe_.push_back(last_gyro);
-            }
+            restartKeyframeLogger();
+            
             if( MVO::s_file_logger.is_open() ) MVO::s_file_logger << "! <keystep> tracking loss: " << (double) num_feature_matched_ / num_feature_ << std::endl;
         }
     }
 }
 
-cv::Point2f MVO::warpWithIMU(const cv::Point2f& uv){
+cv::Point2f MVO::warpWithIMU(const cv::Point2f& uv) const {
     Eigen::Vector3d pixel, warpedPixel;
     cv::Point2f warpedUV;
     pixel << uv.x, uv.y, 1;
@@ -206,7 +187,7 @@ cv::Point2f MVO::warpWithIMU(const cv::Point2f& uv){
     return warpedUV;
 }
 
-cv::Point2f MVO::warpWithPreviousMotion(const Eigen::Vector3d& p){
+cv::Point2f MVO::warpWithPreviousMotion(const Eigen::Vector3d& p) const {
     Eigen::Vector3d warpedPixel;
     cv::Point2f warpedUV;
     Eigen::Matrix3d Rinv = (TocRec_[keystep_].inverse() * TocRec_.back() * TRec_.back()).block(0,0,3,3).transpose();
