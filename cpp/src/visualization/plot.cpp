@@ -1,5 +1,8 @@
 #include "core/MVO.hpp"
 
+#define RATIO 0.5
+#define GAP 30
+
 void MVO::updateView(){
 	Eigen::Matrix3d rotx, rotz;
 	rotx << 1, 0, 0,
@@ -15,27 +18,29 @@ void MVO::updateView(){
 
 void MVO::plot() const {
 	/*******************************************
-	 * 			Image seen by camera
+	 * 		Figure 1: Image seen by camera
 	 * *****************************************/
 	cv::Mat img(curr_frame_.size(), CV_8UC3);
 	cvtColor(curr_frame_.image, img, CV_GRAY2BGR);
 
-	// buckets
-	for( int c = 0; c < bucket_.grid.width; c++ ){
-		cv::line(img, cv::Point(c*bucket_.size.width,0), cv::Point(c*bucket_.size.width,params_.im_size.height), cv::Scalar(180,180,180), 1, 16);
-	}
-
-	for( int r = 0; r < bucket_.grid.height; r++ ){
-		cv::line(img, cv::Point(0,r*bucket_.size.height), cv::Point(params_.im_size.width,r*bucket_.size.height), cv::Scalar(180,180,180), 1, 16);
-	}
-
-	// feature points
 	double ratio = 1;
 	if( img.rows > 500 ){
-		ratio = 0.5;
+		ratio = RATIO;
 		cv::resize(img, img, cv::Size(img.cols*ratio, img.rows*ratio));
 	}
 
+	cv::Mat mvo(cv::Size(img.cols + img.cols*0.5 + 3*GAP, img.rows + 2*GAP), CV_8UC3, cv::Scalar::all(0));
+
+	// buckets
+	for( int c = 0; c < bucket_.grid.width; c++ ){
+		cv::line(img, cv::Point(c*bucket_.size.width*ratio,0), cv::Point(c*bucket_.size.width*ratio,params_.im_size.height*ratio), cv::Scalar(180,180,180), 1, 16);
+	}
+
+	for( int r = 0; r < bucket_.grid.height; r++ ){
+		cv::line(img, cv::Point(0,r*bucket_.size.height*ratio), cv::Point(params_.im_size.width*ratio,r*bucket_.size.height*ratio), cv::Scalar(180,180,180), 1, 16);
+	}
+
+	// feature points
 	for( int i = 0; i < num_feature_; i++ ){
 		if( features_[i].type == Type::Dynamic || features_[i].is_2D_inliered == false ){
 			cv::circle(img, cv::Point(features_[i].uv.back().x*ratio, features_[i].uv.back().y*ratio), 3, cv::Scalar(255,0,0), 1);
@@ -54,29 +59,62 @@ void MVO::plot() const {
 			int key_idx = features_[i].life - 1 - (step_ - keystep_);
 			if( key_idx >= 0 )
 				cv::line(img, features_[i].uv.back()*ratio, features_[i].uv[key_idx]*ratio, cv::Scalar::all(0), 1, CV_AA);
-			cv::putText(img, std::to_string(features_[i].id), features_[i].uv.back()*ratio, cv::FONT_HERSHEY_SIMPLEX, 0.4, cv::Scalar(0,255,0), 1, CV_AA);
+			cv::putText(img, std::to_string(features_[i].id), features_[i].uv.back()*ratio, cv::FONT_HERSHEY_DUPLEX, 0.4, cv::Scalar(0,255,0), 1, CV_AA);
 		}
 	}
-
-	cv::imshow("MVO", img);
+	img.copyTo(mvo(cv::Rect(GAP,GAP,img.cols,img.rows)));
 
 	/*******************************************
-	 * 				Keyframe
+	 * 		Figure 1: Keyframe
 	 * *****************************************/
 	cv::Mat img_keyframe(curr_keyframe_.size(), CV_8UC3);
 	cvtColor(curr_keyframe_.image, img_keyframe, CV_GRAY2BGR);
-	cv::Mat img_keyframe_resize;
-	cv::resize(img_keyframe, img_keyframe_resize, cv::Size(img.cols/2,img.rows/2));
-	cv::imshow("Keyframe", img_keyframe_resize);
+	cv::resize(img_keyframe, img_keyframe, cv::Size(img.cols*0.5,img.rows*0.5));
+	img_keyframe.copyTo(mvo(cv::Rect(img.cols+2*GAP,GAP,img_keyframe.cols,img_keyframe.rows)));
 
 	/*******************************************
-	 * 				Trajectory
+	 * 		Figure 1: Reconstructed Depth
+	 * *****************************************/
+	cv::Mat distance(img.rows*0.5, img.cols*0.5, CV_8UC3, cv::Scalar::all(0));
+	Eigen::Matrix4d Tco = TocRec_.back().inverse();
+	int r,g,b, depth;
+	Eigen::Vector4d point;
+	for( uint32_t i = 0; i < features_.size(); i++ ){
+		if( params_.output_filtered_depth ){
+			if( features_[i].is_3D_init && features_[i].type != Type::Dynamic){
+				point = Tco * features_[i].point_init;
+				depth = (int) point(2);
+
+				r = std::exp(-depth/150) * std::min(depth*18, 255);
+				g = std::exp(-depth/150) * std::max(255 - depth*8, 30);
+				b = std::exp(-depth/150) * std::max(100 - depth, 0);
+				cv::circle(distance, cv::Point(features_[i].uv.back().x*ratio*0.5, features_[i].uv.back().y*ratio*0.5), std::ceil(5*ratio), cv::Scalar(b, g, r), CV_FILLED);
+			}
+		}else{
+			if( features_[i].is_3D_reconstructed && features_[i].type != Type::Dynamic ){
+				point = features_[i].point_curr;
+				depth = point(2);
+
+				r = std::exp(-depth/150) * std::min(depth*18, 255);
+				g = std::exp(-depth/150) * std::max(255 - depth*8, 30);
+				b = std::exp(-depth/150) * std::max(100 - depth, 0);
+				cv::circle(distance, cv::Point(features_[i].uv.back().x*ratio*0.5, features_[i].uv.back().y*ratio*0.5), std::ceil(5*ratio), cv::Scalar(b, g, r), CV_FILLED);
+			}
+		}
+	}
+	distance.copyTo(mvo(cv::Rect(img.cols+2*GAP,img_keyframe.rows+2*GAP,distance.cols,distance.rows)));
+
+	cv::putText(mvo, "Features", cv::Point(img.cols*0.5 + GAP,GAP*0.7), cv::FONT_HERSHEY_DUPLEX, 0.5, cv::Scalar::all(255), 1, CV_AA);
+	cv::putText(mvo, "Keyframe", cv::Point(img_keyframe.cols*0.5+img.cols+2*GAP,GAP*0.7), cv::FONT_HERSHEY_DUPLEX, 0.5, cv::Scalar::all(255), 1, CV_AA);
+	cv::putText(mvo, "Depth", cv::Point(img_keyframe.cols*0.5+img.cols+2*GAP,img_keyframe.rows+GAP*1.7), cv::FONT_HERSHEY_DUPLEX, 0.5, cv::Scalar::all(255), 1, CV_AA);
+	cv::imshow("MVO", mvo);
+
+	/*******************************************
+	 * 		Figure 2: Trajectory
 	 * *****************************************/
 	cv::Mat traj = cv::Mat::zeros(params_.view.im_size.height,params_.view.im_size.width,CV_8UC3);
-	Eigen::Matrix4d Tco = TocRec_.back().inverse();
 
 	// Points
-	Eigen::Vector4d point;
 	Eigen::Vector3d uv;
 	for( uint32_t i = 0; i < features_dead_.size(); i++ ){
 		if( features_dead_[i].is_3D_init ){
@@ -251,40 +289,4 @@ void MVO::plot() const {
 	// }
 
 	cv::imshow("Trajectory", traj);
-
-	/*******************************************
-	 * 			Reconstructed Depth
-	 * *****************************************/
-	cv::Mat distance = cv::Mat::zeros(curr_frame_.size(), CV_8UC3);
-	int r,g,b, depth;
-	for( uint32_t i = 0; i < features_.size(); i++ ){
-		if( params_.output_filtered_depth ){
-			if( features_[i].is_3D_init && features_[i].type != Type::Dynamic){
-				point = Tco * features_[i].point_init;
-				depth = (int) point(2);
-
-				r = std::exp(-depth/150) * std::min(depth*18, 255);
-				g = std::exp(-depth/150) * std::max(255 - depth*8, 30);
-				b = std::exp(-depth/150) * std::max(100 - depth, 0);
-				cv::circle(distance, cv::Point(features_[i].uv.back().x, features_[i].uv.back().y), 5, cv::Scalar(b, g, r), CV_FILLED);
-			}
-		}else{
-			if( features_[i].is_3D_reconstructed && features_[i].type != Type::Dynamic ){
-				point = features_[i].point_curr;
-				depth = point(2);
-
-				r = std::exp(-depth/150) * std::min(depth*18, 255);
-				g = std::exp(-depth/150) * std::max(255 - depth*8, 30);
-				b = std::exp(-depth/150) * std::max(100 - depth, 0);
-				cv::circle(distance, cv::Point(features_[i].uv.back().x, features_[i].uv.back().y), 5, cv::Scalar(b, g, r), CV_FILLED);
-			}
-		}
-	}
-
-	if( distance.rows > 500 ){
-		cv::Mat img_resize;
-		cv::resize(distance, img_resize, cv::Size(distance.cols/2,distance.rows/2));
-		cv::imshow("Depth", img_resize);
-	}else
-		cv::imshow("Depth", distance);
 }
