@@ -129,7 +129,7 @@ class MVO{
 	void setImage(const cv::Mat& image);
 
 	// Get feature 
-	std::vector< std::tuple<uint32_t, cv::Point2f, Eigen::Vector3d> > getPoints() const;
+	std::vector< std::tuple<uint32_t, cv::Point2f, Eigen::Vector3d, double> > getPoints() const;
 	std::vector< std::tuple<uint32_t, cv::Point2f, cv::Point2f> > getMotions() const;
 	const std::vector<Feature>& getFeatures() const;
 	const Eigen::Matrix4d& getCurrentMotion() const;
