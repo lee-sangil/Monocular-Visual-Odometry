@@ -1,29 +1,28 @@
-#include "core/MVO.hpp"
-#include "core/random.hpp"
+#include "core/ransac.hpp"
 
-void MVO::calculateScale(const std::vector<std::pair<cv::Point3f,cv::Point3f>> &pts, double& scale){
+void lsi::calculateScale(const std::vector<std::pair<cv::Point3f,cv::Point3f>> &pts, double& scale, double reference_value, double reference_weight){
     double num = 0, den = 0;
     for ( const auto & pt : pts ){
         num += (pt.first.x * pt.second.x + pt.first.y * pt.second.y + pt.first.z * pt.second.z);
         den += (pt.first.x * pt.first.x + pt.first.y * pt.first.y + pt.first.z * pt.first.z);
     }
-    scale = (num / pts.size() + MVO::s_scale_reference_weight_ * MVO::s_scale_reference_) / (den / pts.size() + MVO::s_scale_reference_weight_ + 1e-10);
+    scale = (num / pts.size() + reference_weight * reference_value) / (den / pts.size() + reference_weight + 1e-10);
 
     // double sum = 0;
     // for ( const auto & pt : pts ){
-    //     sum += (pt.first.x * pt.second.x + pt.first.y * pt.second.y + pt.first.z * pt.second.z + MVO::s_scale_reference_weight_ * ::scale_reference) / 
-    //     (pt.first.x * pt.first.x + pt.first.y * pt.first.y + pt.first.z * pt.first.z + MVO::s_scale_reference_weight_ + 1e-10);
+    //     sum += (pt.first.x * pt.second.x + pt.first.y * pt.second.y + pt.first.z * pt.second.z + reference_weight * reference_value) / 
+    //     (pt.first.x * pt.first.x + pt.first.y * pt.first.y + pt.first.z * pt.first.z + reference_weight + 1e-10);
     // }
     // scale = sum / pts.size();
 }
 
-void MVO::calculateScaleError(const double scale, const std::vector<std::pair<cv::Point3f,cv::Point3f>> &pts, std::vector<double>& dist){
+void lsi::calculateScaleError(const double scale, const std::vector<std::pair<cv::Point3f,cv::Point3f>> &pts, std::vector<double>& dist){
     dist.clear();
     for( const auto & pt : pts )
         dist.push_back(cv::norm(pt.second - scale * pt.first));
 }
 
-void MVO::calculatePlane(const std::vector<cv::Point3f>& pts, std::vector<double>& plane){
+void lsi::calculatePlane(const std::vector<cv::Point3f>& pts, std::vector<double>& plane){
     // need exact three points
     // return plane's unit normal vector (a, b, c) and distance from origin (d): ax + by + cz + d = 0
     plane.clear();
@@ -106,7 +105,7 @@ void MVO::calculatePlane(const std::vector<cv::Point3f>& pts, std::vector<double
     }
 }
 
-void MVO::calculatePlaneError(const std::vector<double>& plane, const std::vector<cv::Point3f>& pts, std::vector<double>& dist){
+void lsi::calculatePlaneError(const std::vector<double>& plane, const std::vector<cv::Point3f>& pts, std::vector<double>& dist){
     double norm = std::sqrt(std::pow(plane[0],2) + std::pow(plane[1],2) + std::pow(plane[2],2));
     if( std::abs(norm) < 1e-10 ){
         dist.clear();
@@ -121,49 +120,5 @@ void MVO::calculatePlaneError(const std::vector<double>& plane, const std::vecto
         dist.clear();
         for( const auto & pt : pts )
             dist.push_back(std::abs(a * pt.x + b * pt.y + c * pt.z + d));
-    }
-}
-
-double MVO::calcReconstructionError(Eigen::Matrix4d& Toc){
-    std::vector<double> error;
-    error.reserve(features_.size());
-    for( const auto & feature : features_ )
-        error.push_back((Toc * feature.point_curr - feature.point_init).norm());
-
-    std::sort(error.begin(), error.end());
-    return error[std::floor(error.size()/2)];
-}
-
-double MVO::calcReconstructionError(Eigen::Matrix3d& R, Eigen::Vector3d& t){
-    Eigen::Matrix4d Toc;
-    Toc.block(0,0,3,3) = R;
-    Toc.block(0,3,3,1) = t;
-    Toc(3,3) = 1;
-
-    return calcReconstructionError(Toc);
-}
-
-void MVO::calcReconstructionErrorGT(Eigen::MatrixXd& depth){
-    std::vector<double> idx;
-    for( uint32_t i = 0; i < features_.size(); i++ )
-        if( depth(features_[i].uv.back().y, features_[i].uv.back().x) > 0 && features_[i].is_3D_reconstructed == true )
-            idx.push_back(i);
-
-    if( idx.size() > 0 ){
-        if( MVO::s_file_logger.is_open() ) MVO::s_file_logger << "* Reconstruction depth: ";
-
-        // median value
-        // std::sort(error.begin(), error.end());
-        // if( MVO::s_file_logger.is_open() ) MVO::s_file_logger << error[std::floor(error.size()/2)];
-
-        // all elements
-        for( const auto & i : idx )
-            if( MVO::s_file_logger.is_open() ) MVO::s_file_logger << features_[i].point_curr(2) << ' ';
-        if( MVO::s_file_logger.is_open() ) MVO::s_file_logger << std::endl;
-
-        if( MVO::s_file_logger.is_open() ) MVO::s_file_logger << "* Groundtruth depth: ";
-        for( const auto & i : idx )
-            if( MVO::s_file_logger.is_open() ) MVO::s_file_logger << depth(features_[i].uv.back().y, features_[i].uv.back().x) << ' ';
-        if( MVO::s_file_logger.is_open() ) MVO::s_file_logger << std::endl;
     }
 }

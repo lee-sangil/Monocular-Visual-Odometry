@@ -1,4 +1,5 @@
 #include "core/MVO.hpp"
+#include "core/ransac.hpp"
 #include "core/random.hpp"
 #include "core/numerics.hpp"
 #include "core/time.hpp"
@@ -51,7 +52,6 @@ bool MVO::calculateMotion()
         /**** mapping and scaling with PnP only ****/
         if( is_scale_initialized_ == true ){
             findPoseFrom3DPoints(R, t, idx_inlier, idx_outlier);
-            // num_feature_inlier_ = features_.size(); // TODO
         }else{
             R = R_unique;
             t = t_unique;
@@ -607,8 +607,6 @@ bool MVO::scalePropagation(const Eigen::Matrix3d &R, Eigen::Vector3d &t, std::ve
     double scale = 0, scale_from_height = 0;
     bool flag;
 
-    MVO::s_scale_reference_weight_ = params_.weight_scale_ref;
-
     // Initialization
     // initialze scale, in the case of the first time
     if( !is_speed_provided_ ){
@@ -634,7 +632,7 @@ bool MVO::scalePropagation(const Eigen::Matrix3d &R, Eigen::Vector3d &t, std::ve
         if( road_idx.size() > (uint32_t) params_.th_inlier ){
             std::vector<double> plane;
             std::vector<bool> plane_inlier, plane_outlier;
-            MVO::ransac<cv::Point3f, std::vector<double>>(road_candidate, params_.ransac_coef_plane, plane, plane_inlier, plane_outlier);
+            lsi::ransac<cv::Point3f, std::vector<double>>(road_candidate, params_.ransac_coef_plane, plane, plane_inlier, plane_outlier);
 
             if( std::count(plane_inlier.begin(), plane_inlier.end(), true) > (uint32_t) params_.th_inlier ){
                 for( uint32_t i = 0; i < road_idx.size(); i++ ){
@@ -663,8 +661,9 @@ bool MVO::scalePropagation(const Eigen::Matrix3d &R, Eigen::Vector3d &t, std::ve
         uint32_t num_pts = idx.size();
 
         std::vector<bool> scale_inlier, scale_outlier;
-        if( s_scale_reference_weight_ < 0 ){ // Use reference scale directly
-            scale = MVO::s_scale_reference_;
+        if( params_.weight_scale_ref < 0 ){ // Use reference scale directly
+            scale = scale_reference_;
+            if( MVO::s_file_logger.is_open() ) MVO::s_file_logger << "@ scale_from_velocity: " << scale_reference_ << std::endl;
             num_feature_inlier_ = num_feature_3D_reconstructed_;
         }
         else if ( num_pts > params_.ransac_coef_scale.min_num_point){ // Use RANSAC to find suitable scale
@@ -695,15 +694,16 @@ bool MVO::scalePropagation(const Eigen::Matrix3d &R, Eigen::Vector3d &t, std::ve
                 // params_.ransac_coef_scale.weight.push_back( 1/features_[i].point_var );
             }
 
-            MVO::ransac<std::pair<cv::Point3f,cv::Point3f>,double>(Points, params_.ransac_coef_scale, scale, scale_inlier, scale_outlier);
+            params_.ransac_coef_scale.calculate_func = std::bind(lsi::calculateScale, std::placeholders::_1, std::placeholders::_2, scale_reference_, params_.weight_scale_ref);
+            lsi::ransac<std::pair<cv::Point3f,cv::Point3f>,double>(Points, params_.ransac_coef_scale, scale, scale_inlier, scale_outlier);
             num_feature_inlier_ = std::count(scale_inlier.begin(), scale_inlier.end(), true);
 
             if( MVO::s_file_logger.is_open() ) MVO::s_file_logger << "num_feature_inlier_: " << num_feature_inlier_ << std::endl;
         }
 
         // Use the previous scale, if the scale cannot be found
-        // But do not use the previous scale when the velocity reference is fetched directly (s_scale_reference_weight_ < 0)
-        if ( MVO::s_scale_reference_weight_ >= 0 && (num_pts <= params_.ransac_coef_scale.min_num_point || num_feature_inlier_ < (std::size_t)params_.th_inlier || scale == 0) )
+        // But do not use the previous scale when the velocity reference is fetched directly (params_.weight_scale_ref < 0)
+        if ( params_.weight_scale_ref >= 0 && (num_pts <= params_.ransac_coef_scale.min_num_point || num_feature_inlier_ < (std::size_t)params_.th_inlier || scale == 0) )
         {
             if( MVO::s_file_logger.is_open() ) MVO::s_file_logger << "Warning: There are a few scale factor inliers" << std::endl;
 
@@ -714,7 +714,7 @@ bool MVO::scalePropagation(const Eigen::Matrix3d &R, Eigen::Vector3d &t, std::ve
             flag = false;
 
         }else{
-            if( MVO::s_file_logger.is_open() ) MVO::s_file_logger << "@ scale_from_height: " << MVO::s_scale_reference_ << ", " << "scale: " << scale << std::endl;
+            if( MVO::s_file_logger.is_open() ) MVO::s_file_logger << "@ scale_from_height: " << scale_reference_ << ", " << "scale: " << scale << std::endl;
 
             for( uint32_t i = 0, j = 0; i < features_.size(), j < idx.size(); i++ ){
                 if( i == idx[j] ){
@@ -734,7 +734,7 @@ bool MVO::scalePropagation(const Eigen::Matrix3d &R, Eigen::Vector3d &t, std::ve
 
     }else{
         if( is_speed_provided_ )
-            t = MVO::s_scale_reference_ * t;
+            t = scale_reference_ * t;
         else
             t = scale_from_height * t;
 
@@ -758,100 +758,14 @@ bool MVO::scalePropagation(const Eigen::Matrix3d &R, Eigen::Vector3d &t, std::ve
 }
 
 void MVO::updateScaleReference(const double scale){
-    MVO::s_scale_reference_ = scale;
-    // if( MVO::s_scale_reference_ < 0 || is_start_ == false )
-    //     MVO::s_scale_reference_ = scale;
+    scale_reference_ = scale;
+    // if( scale_reference_ < 0 || is_start_ == false )
+    //     scale_reference_ = scale;
     // else{
     //     // low-pass filter
-    //     // MVO::s_scale_reference_ = params_.weightScaleReg * MVO::s_scale_reference_ + (1-params_.weightScaleReg) * scale;
+    //     // scale_reference_ = params_.weightScaleReg * scale_reference_ + (1-params_.weightScaleReg) * scale;
 
     //     // limit slope
-    //     MVO::s_scale_reference_ = MVO::s_scale_reference_ + ((scale > MVO::s_scale_reference_)?1:-1) * std::min(std::abs(scale - MVO::s_scale_reference_), params_.weight_scale_reg);
+    //     scale_reference_ = scale_reference_ + ((scale > scale_reference_)?1:-1) * std::min(std::abs(scale - scale_reference_), params_.weight_scale_reg);
     // }
-}
-
-template <typename DATA, typename FUNC>
-void MVO::ransac(const std::vector<DATA> &samples, const MVO::RansacCoef<DATA, FUNC>& param, FUNC& val, std::vector<bool> &inlier, std::vector<bool> &outlier){
-    uint32_t num_pts = samples.size();
-
-    std::vector<uint32_t> sample_idx;
-    std::vector<DATA> sample;
-    std::vector<double> dist;
-    dist.reserve(num_pts);
-
-    int num_iteration = 1e5;
-    uint32_t num_max_inlier = 0;
-    uint32_t num_inlier = 0;
-    double inlier_ratio;
-    std::vector<bool> in1;
-    in1.reserve(num_pts);
-
-    FUNC max_val;
-
-    for( int it = 0; it < std::min(param.max_iteration, num_iteration); it++ ){
-        // 1. fit using random points
-        if (param.weight.size() > 0)
-            sample_idx = lsi::randweightedpick(param.weight, param.min_num_point);
-        else
-            sample_idx = lsi::randperm(num_pts, param.min_num_point);
-
-        sample.clear();
-        for (uint32_t i = 0; i < sample_idx.size(); i++){
-            sample.push_back(samples[sample_idx[i]]);
-        }
-
-        param.calculate_func(sample, val);
-        param.calculate_dist(val, samples, dist);
-
-        in1.clear();
-        num_inlier = 0;
-        for (uint32_t i = 0; i < num_pts; i++){
-            if( dist[i] < param.th_dist ){
-                in1.push_back( true );
-                num_inlier++;
-            }else{
-                in1.push_back( false );
-            }
-        }
-
-        if (num_inlier > num_max_inlier){
-            num_max_inlier = num_inlier;
-            inlier = in1;
-            inlier_ratio = (double)num_max_inlier / (double)num_pts + 1e-16;
-            num_iteration = static_cast<int>(std::floor(std::log(1 - param.th_inlier_ratio) / std::log(1 - std::pow(inlier_ratio, param.min_num_point))));
-            max_val = val;
-        }
-    }
-    if( MVO::s_file_logger.is_open() ) MVO::s_file_logger << "Ransac iterations: " << std::min(param.max_iteration, num_iteration) << std::endl;
-    if( MVO::s_file_logger.is_open() ) MVO::s_file_logger << "Ransac num_max_inlier: " << num_max_inlier << std::endl;
-
-    if (num_max_inlier == 0){
-        inlier.clear();
-        outlier.clear();
-    }else{
-        // With refinement
-        // sample.clear();
-        // for (uint32_t i = 0; i < inlier.size(); i++)
-        //     if (inlier[i])
-        //         sample.push_back(samples[i]);
-        
-        // param.calculate_func(sample, val);
-        // param.calculate_dist(val, samples, dist);
-
-        // inlier.clear();
-        // outlier.clear();
-        // for (uint32_t i = 0; i < num_pts; i++){
-        //     inlier.push_back(dist[i] < param.th_dist);
-        //     outlier.push_back(dist[i] > param.th_dist_outlier);
-        // }
-
-        // Without refinement
-        param.calculate_dist(max_val, samples, dist);
-
-        outlier.clear();
-        for (uint32_t i = 0; i < num_pts; i++)
-            outlier.push_back(dist[i] > param.th_dist_outlier);
-        
-        val = max_val;
-    }
 }

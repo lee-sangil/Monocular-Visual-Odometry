@@ -6,8 +6,6 @@
 
 double DepthFilter::s_px_error_angle_;
 double DepthFilter::s_meas_max_;
-double MVO::s_scale_reference_ = -1;
-double MVO::s_scale_reference_weight_;
 std::ofstream MVO::s_file_logger;
 uint32_t Feature::new_feature_id = 0;
 
@@ -128,21 +126,20 @@ MVO::MVO(std::string yaml):MVO(){
 	params_.percentile_parallax =   fSettings["Feature.percentile_parallax"];
 
     // RANSAC parameter
-    params_.ransac_coef_scale.max_iteration =      fSettings["RANSAC.maximum_iteration"];
-    params_.ransac_coef_scale.th_inlier_ratio =    fSettings["RANSAC.threshold_inlier_ratio"];
-    params_.ransac_coef_scale.min_num_point =      fSettings["RANSAC.scale.num_sample"];
-    params_.ransac_coef_scale.th_dist =            fSettings["RANSAC.scale.threshold_dist_inlier"]; // standard deviation
-    params_.ransac_coef_scale.th_dist_outlier =    fSettings["RANSAC.scale.threshold_dist_outlier"]; // three times of standard deviation
-    params_.ransac_coef_scale.calculate_func = MVO::calculateScale;
-    params_.ransac_coef_scale.calculate_dist = MVO::calculateScaleError;
+    params_.ransac_coef_scale.max_iteration =       fSettings["RANSAC.maximum_iteration"];
+    params_.ransac_coef_scale.th_inlier_ratio =     fSettings["RANSAC.threshold_inlier_ratio"];
+    params_.ransac_coef_scale.min_num_point =       fSettings["RANSAC.scale.num_sample"];
+    params_.ransac_coef_scale.th_dist =             fSettings["RANSAC.scale.threshold_dist_inlier"]; // standard deviation
+    params_.ransac_coef_scale.th_dist_outlier =     fSettings["RANSAC.scale.threshold_dist_outlier"]; // three times of standard deviation
+    params_.ransac_coef_scale.calculate_dist =      lsi::calculateScaleError;
     
-    params_.ransac_coef_plane.max_iteration =      fSettings["RANSAC.maximum_iteration"];
-    params_.ransac_coef_plane.th_inlier_ratio =    fSettings["RANSAC.threshold_inlier_ratio"];
-    params_.ransac_coef_plane.min_num_point =      3;
-    params_.ransac_coef_plane.th_dist =            fSettings["RANSAC.plane.threshold_dist_inlier"]; // standard deviation
-    params_.ransac_coef_plane.th_dist_outlier =    fSettings["RANSAC.plane.threshold_dist_outlier"]; // three times of standard deviation
-    params_.ransac_coef_plane.calculate_func = MVO::calculatePlane;
-    params_.ransac_coef_plane.calculate_dist = MVO::calculatePlaneError;
+    params_.ransac_coef_plane.max_iteration =       fSettings["RANSAC.maximum_iteration"];
+    params_.ransac_coef_plane.th_inlier_ratio =     fSettings["RANSAC.threshold_inlier_ratio"];
+    params_.ransac_coef_plane.min_num_point =       3;
+    params_.ransac_coef_plane.th_dist =             fSettings["RANSAC.plane.threshold_dist_inlier"]; // standard deviation
+    params_.ransac_coef_plane.th_dist_outlier =     fSettings["RANSAC.plane.threshold_dist_outlier"]; // three times of standard deviation
+    params_.ransac_coef_plane.calculate_func =      lsi::calculatePlane;
+    params_.ransac_coef_plane.calculate_dist =      lsi::calculatePlaneError;
 
     // Bucket
     bucket_ = MVO::Bucket();

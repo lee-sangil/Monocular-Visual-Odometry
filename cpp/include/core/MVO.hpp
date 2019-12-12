@@ -2,6 +2,7 @@
 #define __MVO_HPP__
 
 #include "core/common.hpp"
+#include "core/ransac.hpp"
 
 class MVO{
 	public:
@@ -25,18 +26,6 @@ class MVO{
 		EPNP,
 		DLS,
 		UPNP
-	};
-
-	template <typename DATA, typename FUNC>
-	struct RansacCoef{
-		int max_iteration = 1e4;
-		double min_num_point = 5;
-		double th_inlier_ratio = 0.9;
-		double th_dist = 0.5;
-		double th_dist_outlier = 5.0;
-		std::vector<double> weight;
-		std::function<void(const std::vector<DATA>&, FUNC&)> calculate_func;
-		std::function<void(const FUNC, const std::vector<DATA>&, std::vector<double>&)> calculate_dist;
 	};
 
 	struct Bucket{
@@ -79,8 +68,8 @@ class MVO{
 
 		Eigen::Matrix4d Tci, Tic;
 
-		MVO::RansacCoef<std::pair<cv::Point3f,cv::Point3f>, double> ransac_coef_scale;
-		MVO::RansacCoef<cv::Point3f, std::vector<double>> ransac_coef_plane;
+		lsi::RansacCoef<std::pair<cv::Point3f,cv::Point3f>, double> ransac_coef_scale;
+		lsi::RansacCoef<cv::Point3f, std::vector<double>> ransac_coef_plane;
 		
 		int th_inlier = 5;
 		double th_ratio_keyframe = 0.9;
@@ -190,20 +179,12 @@ class MVO{
 						const Eigen::Matrix3d& R_E, const Eigen::Vector3d& t_E, const bool& success_E,
 						Eigen::Matrix4d& T, Eigen::Matrix4d& Toc, Eigen::Vector4d& Poc);
 	void update3DPoint(Feature& feature, const Eigen::Matrix4d& Toc, const Eigen::Matrix4d& T);
-	double calcReconstructionError(Eigen::Matrix4d& Toc);
-	double calcReconstructionError(Eigen::Matrix3d& R, Eigen::Vector3d& t);
-	void calcReconstructionErrorGT(Eigen::MatrixXd& depth);
 	void updateScaleReference(const double scale);
 
-	// RANSAC
-	template <typename DATA, typename FUNC>
-	static void ransac(const std::vector<DATA>& sample, const MVO::RansacCoef<DATA, FUNC>& ransacCoef, FUNC& val, std::vector<bool>& inlier, std::vector<bool>& outlier);
-	static void calculateScale(const std::vector<std::pair<cv::Point3f,cv::Point3f>>& pts, double& scale);
-	static void calculateScaleError(const double scale, const std::vector<std::pair<cv::Point3f,cv::Point3f>>& pts, std::vector<double>& dist);
-	static void calculatePlane(const std::vector<cv::Point3f>& pts, std::vector<double>& plane);
-	static void calculatePlaneError(const std::vector<double>& plane, const std::vector<cv::Point3f>& pts, std::vector<double>& dist);
-	static double s_scale_reference_;
-	static double s_scale_reference_weight_;
+	// Error
+	double calcReconstructionError(Eigen::Matrix4d& Toc) const;
+	double calcReconstructionError(Eigen::Matrix3d& R, Eigen::Vector3d& t) const;
+	void calcReconstructionErrorGT(Eigen::MatrixXd& depth) const;
 
 	// Add additional feature within bound-box
 	void addExtraFeatures();
@@ -248,6 +229,7 @@ class MVO{
 	bool is_speed_provided_;
 
 	Eigen::Matrix3d rotate_prior_;
+	double scale_reference_;
 
 	int num_feature_;
 	int num_feature_matched_;

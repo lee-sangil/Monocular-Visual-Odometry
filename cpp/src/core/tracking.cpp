@@ -268,9 +268,6 @@ void MVO::kltTrackerPrecise(std::vector<cv::Point2f>& points, std::vector<bool>&
     validity.clear();
     validity.reserve(num_feature_);
 
-    // if( step_ - keystep_ > 1 )
-    //     int a = 1;
-
     std::vector<cv::Point2f> pts, fwd_pts, bwd_pts, fwd_bwd_pts;
     std::vector<uint32_t> idx_track;
 
@@ -290,19 +287,6 @@ void MVO::kltTrackerPrecise(std::vector<cv::Point2f>& points, std::vector<bool>&
             pts.push_back(features_[i].uv.back());
         }
     }
-    
-    // if( MVO::s_file_logger.is_open() ){
-    //     std::stringstream filename;
-    //     filename << "FeatureLogFiles/update_" << keystep_ << "_to_" << step_ << ".txt";
-    //     std::ofstream fid(filename.str());
-    //     for( const auto & feature : features_ ){
-    //         key_idx = feature.life - (step_ - keystep_); // before feature.life increasement
-    //         if( key_idx >= 0 ){
-    //             fid << "ID: " << std::setw(4) << feature.id << "\tINIT: " << std::setw(3) << feature.frame_2d_init << "\tLIFE: " << std::setw(3) << feature.life;
-    //             fid << "\tKEY UV: [" << feature.uv[key_idx].x << ", " << feature.uv[key_idx].y << ']' << std::endl;
-    //         }
-    //     }
-    // }
 
     // Forward-backward error evaluation
     std::vector<cv::Mat>& prevPyr = prev_pyramid_template_;
