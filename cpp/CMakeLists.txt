@@ -33,7 +33,7 @@ message(${EIGEN3_INCLUDE_DIR})
 # Include directory for headers
 include_directories(
   include
-  ${EIGEN3_INCLUDE_DIR}
+  ${EIGEN3_INCLUDE_DIRS}
   ${OpenCV_INCLUDE_DIRS}
   ${Boost_INCLUDE_DIRS}
 )

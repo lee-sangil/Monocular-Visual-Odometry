@@ -74,24 +74,24 @@ namespace lsi{
 			inlier.clear();
 			outlier.clear();
 		}else{
-			// With refinement
-			sample.clear();
-			for (uint32_t i = 0; i < inlier.size(); i++)
-			    if (inlier[i])
-			        sample.push_back(samples[i]);
+			// // With refinement
+			// sample.clear();
+			// for (uint32_t i = 0; i < inlier.size(); i++)
+			//     if (inlier[i])
+			//         sample.push_back(samples[i]);
 			
-			param.calculate_func(sample, val);
-			param.calculate_dist(val, samples, dist);
+			// param.calculate_func(sample, val);
+			// param.calculate_dist(val, samples, dist);
 
-			inlier.clear();
-			outlier.clear();
-			for (uint32_t i = 0; i < num_pts; i++){
-			    inlier.push_back(dist[i] < param.th_dist);
-			    outlier.push_back(dist[i] > param.th_dist_outlier);
-			}
+			// inlier.clear();
+			// outlier.clear();
+			// for (uint32_t i = 0; i < num_pts; i++){
+			//     inlier.push_back(dist[i] < param.th_dist);
+			//     outlier.push_back(dist[i] > param.th_dist_outlier);
+			// }
 
-			// // Without refinement
-			// param.calculate_dist(max_val, samples, dist);
+			// Without refinement
+			param.calculate_dist(max_val, samples, dist);
 
 			outlier.clear();
 			for (uint32_t i = 0; i < num_pts; i++)

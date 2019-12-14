@@ -384,6 +384,16 @@ std::vector< std::tuple<uint32_t, cv::Point2f, Eigen::Vector3d, double> > MVO::g
     return pts;
 }
 
+void MVO::getPointsInRoi(const cv::Rect& roi, std::vector<uint32_t>& idx) const {
+    idx.clear();
+    idx.reserve(num_feature_*0.5);
+
+    for( uint32_t i = 0; i < features_.size(); i++ ){
+        if( features_[i].uv.back().x >= roi.x && features_[i].uv.back().y >= roi.y && features_[i].uv.back().x <= roi.x + roi.width && features_[i].uv.back().x <= roi.x + roi.width )
+            idx.push_back(i);
+    }
+}
+
 std::vector< std::tuple<uint32_t, cv::Point2f, cv::Point2f> > MVO::getMotions() const
 {
     std::vector< std::tuple<uint32_t, cv::Point2f, cv::Point2f> > pts;
@@ -408,27 +418,30 @@ void MVO::printFeatures() const {
         std::stringstream filename;
         filename << "FeatureLogFiles/" << keystep_ << "_to_" << step_ << ".md";
         std::ofstream fid(filename.str());
-        int key_idx;
-        for( const auto & feature : features_ ){
-            fid << "ID: " << std::setw(4) << feature.id << "\tINIT: " << std::setw(3) << feature.frame_2d_init << "\tLIFE: " << std::setw(3) << feature.life;
-            
-            key_idx = feature.life - 1 - (step_ - keystep_);
-            if( key_idx == 0 )
-                fid << "\tUV: **[" << std::setw(4) << (int) feature.uv[0].x << ", " << std::setw(4) << (int) feature.uv[0].y << "]**";
-            else
-                fid << "\tUV: [" << std::setw(4) << (int) feature.uv[0].x << ", " << std::setw(4) << (int) feature.uv[0].y << ']';
 
-            for( uint i = 1; i < feature.uv.size()-1; i++ ){
-                if( key_idx == i )
-                    fid << " => **[" << std::setw(4) << (int) feature.uv[i].x << ", " << std::setw(4) << (int) feature.uv[i].y << "]**";
+        if( fid.is_open() ){
+            int key_idx;
+            for( const auto & feature : features_ ){
+                fid << "ID: " << std::setw(4) << feature.id << "\tINIT: " << std::setw(3) << feature.frame_2d_init << "\tLIFE: " << std::setw(3) << feature.life;
+                
+                key_idx = feature.life - 1 - (step_ - keystep_);
+                if( key_idx == 0 )
+                    fid << "\tUV: **[" << std::setw(4) << (int) feature.uv[0].x << ", " << std::setw(4) << (int) feature.uv[0].y << "]**";
                 else
-                    fid << " => [" << std::setw(4) << (int) feature.uv[i].x << ", " << std::setw(4) << (int) feature.uv[i].y << ']';
+                    fid << "\tUV: [" << std::setw(4) << (int) feature.uv[0].x << ", " << std::setw(4) << (int) feature.uv[0].y << ']';
+
+                for( uint i = 1; i < feature.uv.size()-1; i++ ){
+                    if( key_idx == i )
+                        fid << " => **[" << std::setw(4) << (int) feature.uv[i].x << ", " << std::setw(4) << (int) feature.uv[i].y << "]**";
+                    else
+                        fid << " => [" << std::setw(4) << (int) feature.uv[i].x << ", " << std::setw(4) << (int) feature.uv[i].y << ']';
+                }
+                if( feature.uv.size() > 1 ){
+                    if( key_idx >= 0 ) fid << " => **[" << std::setw(4) << (int) feature.uv.back().x << ", " << std::setw(4) << (int) feature.uv.back().y << "]**";
+                    else fid << " => [" << std::setw(4) << (int) feature.uv.back().x << ", " << std::setw(4) << (int) feature.uv.back().y << ']';
+                }
+                fid << std::endl;
             }
-            if( feature.uv.size() > 1 ){
-                if( key_idx >= 0 ) fid << " => **[" << std::setw(4) << (int) feature.uv.back().x << ", " << std::setw(4) << (int) feature.uv.back().y << "]**";
-                else fid << " => [" << std::setw(4) << (int) feature.uv.back().x << ", " << std::setw(4) << (int) feature.uv.back().y << ']';
-            }
-            fid << std::endl;
         }
     }
 }

@@ -106,10 +106,10 @@ Scale.reference_height: 1.65
 # For scale-propagation, the weight for scale referenced from a vehicle's fixed height
 # If you choose *negative* value, scale-propagation does not executed. It means that the 
 # algorithm *does not minimize* the difference between initialized 3d points and reconstructed points.
-Scale.reference_weight: 10
+Scale.reference_weight: 100
 
 # For scale-propagation, regularization weight for scale smoothness
-Scale.regularization_weight: 0.2
+Scale.regularization_weight: 0.5
 
 # SVD Methods: mid-point(0: recommended), linear least square(1)
 Triangulation.method: 0
@@ -124,8 +124,8 @@ PnP.method: 2
 PnP.reprojection_error: 0.2
 
 # Depth filter
-DepthFilter.minimum_depth: 1
-DepthFilter.pixel_noise: 1
+DepthFilter.minimum_depth: 0.1
+DepthFilter.pixel_noise: 2
 DepthFilter.maximum_variance: 0.001
 
 #--------------------------------------------------------------------------------------------

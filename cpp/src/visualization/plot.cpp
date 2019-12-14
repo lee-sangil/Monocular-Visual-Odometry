@@ -117,7 +117,7 @@ void MVO::plot() const {
 	// Points
 	Eigen::Vector3d uv;
 	for( uint32_t i = 0; i < features_dead_.size(); i++ ){
-		if( features_dead_[i].is_3D_init ){
+		if( features_dead_[i].is_3D_init && features_dead_[i].point_var < params_.max_point_var ){
 			point = Tco * features_dead_[i].point_init;
 			uv = params_.view.P * point;
 			if( uv(2) > 1 ){

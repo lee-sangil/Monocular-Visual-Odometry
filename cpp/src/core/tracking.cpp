@@ -226,7 +226,7 @@ void MVO::kltTrackerRough(std::vector<cv::Point2f>& points, std::vector<bool>& v
     }
     
     cv::Mat status, err;
-    cv::calcOpticalFlowPyrLK(curr_keyframe_.image, curr_frame_.image, pts, fwd_pts, status, err, cv::Size(9,9), 3);
+    cv::calcOpticalFlowPyrLK(curr_keyframe_.image, curr_frame_.image, pts, fwd_pts, status, err, cv::Size(5,5), 3);
     if( MVO::s_file_logger.is_open() ) MVO::s_file_logger << "### Calculate optical flows roughly: " << lsi::toc() << std::endl;
 
     // Validate parallax and matched number
@@ -293,8 +293,8 @@ void MVO::kltTrackerPrecise(std::vector<cv::Point2f>& points, std::vector<bool>&
     std::vector<cv::Mat>& currPyr = curr_pyramid_template_;
     if( MVO::s_file_logger.is_open() ) MVO::s_file_logger << "### Prepare variables: " << lsi::toc() << std::endl;
 
-    cv::buildOpticalFlowPyramid(curr_keyframe_.image, prevPyr, cv::Size(21,21), 4, true);
-    cv::buildOpticalFlowPyramid(curr_frame_.image, currPyr, cv::Size(21,21), 4, true);
+    cv::buildOpticalFlowPyramid(curr_keyframe_.image, prevPyr, cv::Size(21,21), 3, true);
+    cv::buildOpticalFlowPyramid(curr_frame_.image, currPyr, cv::Size(21,21), 3, true);
     if( MVO::s_file_logger.is_open() ) MVO::s_file_logger << "### Build pyramids: " << lsi::toc() << std::endl;
 
     cv::Mat status, err;
@@ -682,6 +682,7 @@ void MVO::extractRoiFeatures(const std::vector<cv::Rect>& rois, const std::vecto
 
     cv::Rect roi;
     std::vector<cv::Point2f> keypoints;
+    std::vector<uint32_t> idx_belong_to_roi;
     const int& bucket_safety = bucket_.safety;
     for( uint32_t i = 0; i < rois.size(); i++ ){
         roi = rois[i];
@@ -691,7 +692,7 @@ void MVO::extractRoiFeatures(const std::vector<cv::Rect>& rois, const std::vecto
         roi.height = std::min(params_.im_size.height-bucket_safety, roi.y+roi.height)-roi.y;
 
         try{
-            cv::goodFeaturesToTrack(curr_frame_.image(roi), keypoints, 50, 0.01, params_.min_px_dist, cv::noArray(), 3, true);
+            cv::goodFeaturesToTrack(next_keyframe_.image(roi), keypoints, 50, 0.01, params_.min_px_dist, cv::noArray(), 3, true);
         }catch(std::exception& msg){
             if( MVO::s_file_logger.is_open() ) MVO::s_file_logger << "Warning: " << msg.what() << std::endl;
             continue;
@@ -705,51 +706,43 @@ void MVO::extractRoiFeatures(const std::vector<cv::Rect>& rois, const std::vecto
         }else{
             if( MVO::s_file_logger.is_open() ) MVO::s_file_logger << "Warning: There is no keypoints within the bucket" << std::endl;
             try{
-                cv::goodFeaturesToTrack(curr_frame_.image(roi), keypoints, 50, 0.1, params_.min_px_dist, cv::noArray(), 3, true);
+                cv::goodFeaturesToTrack(next_keyframe_.image(roi), keypoints, 50, 0.1, params_.min_px_dist, cv::noArray(), 3, true);
             }catch(std::exception& msg){
                 if( MVO::s_file_logger.is_open() ) MVO::s_file_logger << "Warning: " << msg.what() << std::endl;
                 continue;
             }
         }
 
+        int row, col;
+        row = (roi.x-1) / bucket_.size.height;
+        col = (roi.y-1) / bucket_.size.width;
+
+        // Seek index of which feature is extracted specific roi
+        getPointsInRoi(roi, idx_belong_to_roi);
+
         int num_success = 0;
         int num_try = 0;
         while( num_success < num_feature_[i] && num_try++ < 3 )
-            if( extractRoiFeature(roi, keypoints) )
+            if( extractRoiFeature(roi, keypoints, idx_belong_to_roi) )
                 num_success++;
     }
 }
 
-bool MVO::extractRoiFeature(const cv::Rect& roi, const std::vector<cv::Point2f>& keypoints){
+bool MVO::extractRoiFeature(const cv::Rect& roi, const std::vector<cv::Point2f>& keypoints, std::vector<uint32_t>& idx_belong_to_bucket){
 
     int row, col;
     row = (roi.x-1) / bucket_.size.height;
     col = (roi.y-1) / bucket_.size.width;
-
-    // Seek index of which feature is extracted specific bucket
-    std::vector<uint32_t> idx_belong_to_bucket;
-    idx_belong_to_bucket.reserve(num_feature_);
-
-    for( int l = 0; l < num_feature_; l++ ){
-        for( int ii = std::max(col-1,0); ii <= std::min(col+1,bucket_.grid.width-1); ii++){
-            for( int jj = std::max(row-1,0); jj <= std::min(row+1,bucket_.grid.height-1); jj++){
-                if( (features_[l].bucket.x == ii) && (features_[l].bucket.y == jj)){
-                    idx_belong_to_bucket.push_back(l);
-                }
-            }
-        }
-    }
-    uint32_t num_feature_inside_bucket = idx_belong_to_bucket.size();
     
     // Try to find a seperate feature
     bool success;
     double dist, min_dist, max_min_dist = 0;
     cv::Point2f best_keypoint;
-    for( uint32_t l = 0; l < keypoints.size(); l++ ){
+    for( const auto & keypoint : keypoints ){
         success = true;
         min_dist = 1e9; // enough-large number
-        for( uint32_t f = 0; f < num_feature_inside_bucket; f++ ){
-            dist = cv::norm(keypoints[l] - features_[idx_belong_to_bucket[f]].uv.back());
+        for( const auto & idx : idx_belong_to_bucket ){
+            dist = cv::norm(keypoint - features_[idx].uv.back());
             
             if( dist < min_dist )
                 min_dist = dist;
@@ -762,7 +755,7 @@ bool MVO::extractRoiFeature(const cv::Rect& roi, const std::vector<cv::Point2f>&
         if( success ){
             if( min_dist > max_min_dist){
                 max_min_dist = min_dist;
-                best_keypoint = keypoints[l];
+                best_keypoint = keypoint;
             }
         }
     }

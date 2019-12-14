@@ -339,6 +339,8 @@ void MVO::constructDepth(const std::vector<cv::Point2f>& uv_prev, const std::vec
 
             Eigen::Matrix3d M0, M1;
             Eigen::Vector3d c0, c1, u0, u1;
+            double lambda0, lambda1;
+            double u0_norm, u1_norm, u0tu1;
 
             // M0 = P0.block(0,0,3,3).inverse();
             // c0 = -M0*P0.block(0,3,3,1);
@@ -353,6 +355,7 @@ void MVO::constructDepth(const std::vector<cv::Point2f>& uv_prev, const std::vec
                 u0 = M0 * (Eigen::Vector3d() << uv_prev[i].x, uv_prev[i].y, 1).finished();
                 u1 = M1 * (Eigen::Vector3d() << uv_curr[i].x, uv_curr[i].y, 1).finished();
 
+                // Simplified verseion
                 A0 = Eigen::Matrix3d::Identity() - u0 * u0.transpose() / (u0.cwiseProduct(u0)).sum();
                 A1 = Eigen::Matrix3d::Identity() - u1 * u1.transpose() / (u1.cwiseProduct(u1)).sum();
 
@@ -362,6 +365,18 @@ void MVO::constructDepth(const std::vector<cv::Point2f>& uv_prev, const std::vec
                 X_prev.push_back(A.inverse() * b);
                 X_curr.push_back(R * X_prev.back() + t);
                 inlier.push_back(X_prev.back()(2) > 0 && X_curr.back()(2) > 0);
+
+                // Our version
+                // u0_norm = (u0.cwiseProduct(u0)).sum();
+                // u1_norm = (u1.cwiseProduct(u1)).sum();
+                // u0tu1 = (u0.cwiseProduct(u1)).sum();
+
+                // lambda0 = ( u0tu1*u1.transpose() - u1_norm*u0.transpose() ) / (u0_norm*u1_norm - u0tu1*u0tu1) * (c0 - c1);
+                // lambda1 = ( u0_norm*u1.transpose() - u0tu1*u0.transpose() ) / (u0_norm*u1_norm - u0tu1*u0tu1) * (c0 - c1);
+
+                // X_prev.push_back(lambda0 * u0);
+                // X_curr.push_back(lambda1 * u1);
+                // inlier.push_back(X_prev.back()(2) > 0 && X_curr.back()(2) > 0);
             }
             if( MVO::s_file_logger.is_open() ) MVO::s_file_logger << "## Reconstruct 3D points: " << lsi::toc() << std::endl;
             break;
@@ -703,7 +718,11 @@ bool MVO::scalePropagation(const Eigen::Matrix3d &R, Eigen::Vector3d &t, std::ve
 
         // Use the previous scale, if the scale cannot be found
         // But do not use the previous scale when the velocity reference is fetched directly (params_.weight_scale_ref < 0)
-        if ( params_.weight_scale_ref >= 0 && (num_pts <= params_.ransac_coef_scale.min_num_point || num_feature_inlier_ < (std::size_t)params_.th_inlier || scale == 0) )
+        if( params_.weight_scale_ref < 0 ){
+            // Update scale
+            t = scale * t;
+            flag = true;
+        }else if ( params_.weight_scale_ref >= 0 && (num_pts <= params_.ransac_coef_scale.min_num_point || num_feature_inlier_ < (std::size_t)params_.th_inlier || scale == 0) )
         {
             if( MVO::s_file_logger.is_open() ) MVO::s_file_logger << "Warning: There are a few scale factor inliers" << std::endl;
 
@@ -758,14 +777,14 @@ bool MVO::scalePropagation(const Eigen::Matrix3d &R, Eigen::Vector3d &t, std::ve
 }
 
 void MVO::updateScaleReference(const double scale){
-    scale_reference_ = scale;
-    // if( scale_reference_ < 0 || is_start_ == false )
-    //     scale_reference_ = scale;
-    // else{
-    //     // low-pass filter
-    //     // scale_reference_ = params_.weightScaleReg * scale_reference_ + (1-params_.weightScaleReg) * scale;
+    // scale_reference_ = scale;
+    if( scale_reference_ < 0 || is_start_ == false )
+        scale_reference_ = scale;
+    else{
+        // low-pass filter
+        // scale_reference_ = params_.weightScaleReg * scale_reference_ + (1-params_.weightScaleReg) * scale;
 
-    //     // limit slope
-    //     scale_reference_ = scale_reference_ + ((scale > scale_reference_)?1:-1) * std::min(std::abs(scale - scale_reference_), params_.weight_scale_reg);
-    // }
+        // limit slope
+        scale_reference_ = scale_reference_ + ((scale > scale_reference_)?1:-1) * std::min(std::abs(scale - scale_reference_), params_.weight_scale_reg);
+    }
 }

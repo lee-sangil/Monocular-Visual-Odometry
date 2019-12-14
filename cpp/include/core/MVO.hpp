@@ -128,9 +128,10 @@ class MVO{
 	// Set image
 	void setImage(const cv::Mat& image);
 
-	// Get feature 
+	// Get feature
 	std::vector< std::tuple<uint32_t, cv::Point2f, Eigen::Vector3d, double> > getPoints() const;
 	std::vector< std::tuple<uint32_t, cv::Point2f, cv::Point2f> > getMotions() const;
+	void getPointsInRoi(const cv::Rect& roi, std::vector<uint32_t>& idx) const;
 	const std::vector<Feature>& getFeatures() const;
 	const Eigen::Matrix4d& getCurrentMotion() const;
 	cv::Point2f warpWithIMU(const cv::Point2f& uv) const;
@@ -189,7 +190,7 @@ class MVO{
 	// Add additional feature within bound-box
 	void addExtraFeatures();
 	void extractRoiFeatures(const std::vector<cv::Rect>& rois, const std::vector<int>& nFeature);
-	bool extractRoiFeature(const cv::Rect& roi, const std::vector<cv::Point2f>& keypoints);
+	bool extractRoiFeature(const cv::Rect& roi, const std::vector<cv::Point2f>& keypoints, std::vector<uint32_t>& idx_belong_to_bucket);
 	std::vector<Feature> features_extra_;
 
 	private:
@@ -229,7 +230,7 @@ class MVO{
 	bool is_speed_provided_;
 
 	Eigen::Matrix3d rotate_prior_;
-	double scale_reference_;
+	double scale_reference_ = -1;
 
 	int num_feature_;
 	int num_feature_matched_;

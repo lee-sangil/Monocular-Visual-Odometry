@@ -26,10 +26,19 @@ void MVO::calcReconstructionErrorGT(Eigen::MatrixXd& depth) const {
         if( depth(features_[i].uv.back().y, features_[i].uv.back().x) > 0 && features_[i].is_3D_reconstructed == true )
             idx.push_back(i);
 
+    Eigen::Matrix4d Tco = TocRec_.back().inverse();
+    Eigen::Vector3d point;
+    
     if( idx.size() > 0 ){
         if( MVO::s_file_logger.is_open() ) MVO::s_file_logger << "* Reconstruction depth: ";
-        for( const auto & i : idx )
-            if( MVO::s_file_logger.is_open() ) MVO::s_file_logger << features_[i].point_curr(2) << ' ';
+        for( const auto & i : idx ){
+            if( params_.output_filtered_depth ){
+                point = Tco.block(0,0,3,4) * features_[i].point_init;
+                if( MVO::s_file_logger.is_open() ) MVO::s_file_logger << point(2) << ' ';
+            }else{
+                if( MVO::s_file_logger.is_open() ) MVO::s_file_logger << features_[i].point_curr(2) << ' ';
+            }
+        }
         if( MVO::s_file_logger.is_open() ) MVO::s_file_logger << std::endl;
 
         if( MVO::s_file_logger.is_open() ) MVO::s_file_logger << "* Groundtruth depth: ";
