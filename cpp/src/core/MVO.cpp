@@ -81,6 +81,7 @@ MVO::MVO(std::string yaml):MVO(){
 						0, 0, 1;
     params_.Kinv = params_.K.inverse();
     cv::eigen2cv(params_.K, params_.Kcv);
+    excludeMask_ = cv::Mat(params_.im_size, CV_8UC1, cv::Scalar(255));
 
 	params_.radial_distortion.push_back(params_.k1);
 	params_.radial_distortion.push_back(params_.k2);
@@ -158,8 +159,8 @@ MVO::MVO(std::string yaml):MVO(){
     keypoints_of_bucket_.resize(bucket_grid_rows*bucket_grid_cols);
     visit_bucket_ = std::vector<bool>(bucket_grid_rows*bucket_grid_cols, false);
     features_.reserve(bucket_.max_features);
-    prev_pyramid_template_.reserve(10);
-    curr_pyramid_template_.reserve(10);
+    // prev_pyramid_template_.reserve(10);
+    // curr_pyramid_template_.reserve(10);
 
     // 3D reconstruction
     params_.init_scale =                1;
@@ -315,12 +316,13 @@ void MVO::setImage(const cv::Mat& image){
     if( MVO::s_file_logger.is_open() ) MVO::s_file_logger << "============ Iteration: " << step_ << " (keystep: " << keystep_ << ')' << " ============" << std::endl;
 
     prev_frame_.copy(curr_frame_);
-    cv::remap(image, undistorted_image_, distort_map1_, distort_map2_, cv::INTER_AREA);
+
+    cv::remap(image, image, distort_map1_, distort_map2_, CV_INTER_LINEAR);
     
     if( params_.apply_clahe )
-        cvClahe_->apply(undistorted_image_, curr_frame_.image);
+        cvClahe_->apply(image, curr_frame_.image);
     else
-        curr_frame_.image = undistorted_image_.clone();
+        curr_frame_.image = image.clone();
     curr_frame_.id = step_;
 
     if( MVO::s_file_logger.is_open() ) MVO::s_file_logger << "# Grab image: " << lsi::toc() << std::endl;
@@ -332,11 +334,19 @@ void MVO::run(const cv::Mat& image){
     setImage(image);
     refresh();
 
-    // extract_roi_features(rois, num_feature_);   // Extract extra features in rois
-
     if( !extractFeatures() ) { restart(); return; }
     if( !calculateEssential() ) { restart(); return; }
     if( !calculateMotion() ) { restart(); return; }
+    
+    std::vector<cv::Rect> rois;
+    std::vector<int> num_feature;
+    rois.push_back(cv::Rect(200,200,200,200));
+    rois.push_back(cv::Rect(400,400,200,200));
+    rois.push_back(cv::Rect(600,400,200,200));
+    num_feature.push_back(-1);
+    num_feature.push_back(10);
+    num_feature.push_back(-1);
+    updateRoiFeatures(rois, num_feature); // Extract extra features in rois
 }
 
 void MVO::updateGyro(const double timestamp, const Eigen::Vector3d& gyro){
@@ -389,7 +399,7 @@ void MVO::getPointsInRoi(const cv::Rect& roi, std::vector<uint32_t>& idx) const 
     idx.reserve(num_feature_*0.5);
 
     for( uint32_t i = 0; i < features_.size(); i++ ){
-        if( features_[i].uv.back().x >= roi.x && features_[i].uv.back().y >= roi.y && features_[i].uv.back().x <= roi.x + roi.width && features_[i].uv.back().x <= roi.x + roi.width )
+        if( features_[i].uv.back().x >= roi.x && features_[i].uv.back().y >= roi.y && features_[i].uv.back().x <= roi.x + roi.width && features_[i].uv.back().y <= roi.y + roi.height )
             idx.push_back(i);
     }
 }

@@ -62,6 +62,9 @@ void MVO::plot() const {
 			cv::putText(img, std::to_string(features_[i].id), features_[i].uv.back()*ratio, cv::FONT_HERSHEY_DUPLEX, 0.4, cv::Scalar(0,255,0), 1, CV_AA);
 		}
 	}
+	cv::rectangle(img, cv::Rect(200*ratio,200*ratio,200*ratio,200*ratio),cv::Scalar(0,0,255));
+	cv::rectangle(img, cv::Rect(400*ratio,400*ratio,200*ratio,200*ratio),cv::Scalar(0,255,0));
+	cv::rectangle(img, cv::Rect(600*ratio,400*ratio,200*ratio,200*ratio),cv::Scalar(0,0,255));
 	img.copyTo(mvo(cv::Rect(GAP,GAP,img.cols,img.rows)));
 
 	/*******************************************

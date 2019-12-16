@@ -189,8 +189,8 @@ class MVO{
 
 	// Add additional feature within bound-box
 	void addExtraFeatures();
-	void extractRoiFeatures(const std::vector<cv::Rect>& rois, const std::vector<int>& nFeature);
-	bool extractRoiFeature(const cv::Rect& roi, const std::vector<cv::Point2f>& keypoints, std::vector<uint32_t>& idx_belong_to_bucket);
+	void updateRoiFeatures(const std::vector<cv::Rect>& rois, const std::vector<int>& nFeature);
+	bool updateRoiFeature(const cv::Rect& roi, const std::vector<cv::Point2f>& keypoints, std::vector<uint32_t>& idx_compared);
 	std::vector<Feature> features_extra_;
 
 	private:
@@ -212,7 +212,7 @@ class MVO{
 	MVO::Frame next_keyframe_;
 	MVO::Frame prev_frame_;
 	MVO::Frame curr_frame_;
-	cv::Mat undistorted_image_;
+	cv::Mat excludeMask_;
 
 	cv::Ptr<cv::CLAHE> cvClahe_;
 	cv::Mat distort_map1_, distort_map2_;
@@ -246,7 +246,7 @@ class MVO{
 	std::vector<Eigen::Matrix4d> TocRec_;
 	std::vector<Eigen::Vector4d> PocRec_;
 
-	std::vector<cv::Mat> prev_pyramid_template_, curr_pyramid_template_;
+	// std::vector<cv::Mat> prev_pyramid_template_, curr_pyramid_template_;
 	Eigen::MatrixXd map_matrix_template_;
 	std::shared_ptr< Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> > eigen_solver_;
 };
