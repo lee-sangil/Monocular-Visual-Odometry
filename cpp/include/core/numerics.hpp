@@ -1,7 +1,8 @@
 #ifndef __NUMERICS__HPP__
 #define __NUMERICS__HPP__
 
-#include "core/common.hpp"
+#include <eigen3/Eigen/Core>
+#include <eigen3/Eigen/Dense>
 
 inline Eigen::Matrix3d skew(const Eigen::Vector3d& v)
 {

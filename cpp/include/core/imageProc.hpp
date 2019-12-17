@@ -1,7 +1,12 @@
 #ifndef __IMAGE_PROC_HPP__
 #define __IMAGE_PROC_HPP__
 
-#include "core/common.hpp"
+#include <string>
+#include <vector>
+
+#include <opencv2/core/core.hpp>
+#include <opencv2/highgui/highgui.hpp>
+#include <opencv2/imgproc.hpp>
 
 namespace chk{
 	void downScaleImg(const cv::Mat&, cv::Mat&);

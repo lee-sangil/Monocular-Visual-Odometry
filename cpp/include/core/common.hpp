@@ -1,46 +1,10 @@
 #ifndef __COMMON_HPP__
 #define __COMMON_HPP__
 
-#include <algorithm>
-#include <cmath>
-#include <cstdlib>
-#include <ctime>
-#include <chrono>
-#include <functional>
-#include <fstream>
-#include <iostream>
-#include <iomanip>
-#include <iterator>
-#include <map>
-#include <numeric>
-#include <random>
-#include <string>
-#include <sstream>
-#include <sstream>
-#include <stdio.h>
-#include <stdlib.h>
-#include <time.h>
 #include <vector>
-#include <valarray>
 #include <memory>
-
 #include <eigen3/Eigen/Core>
-#include <eigen3/Eigen/Dense>
-#include <eigen3/Eigen/SVD>
-#include <eigen3/Eigen/QR>
-#include <eigen3/Eigen/LU>
-#include <eigen3/Eigen/Eigen>
-#include <eigen3/Eigen/StdVector>
-#include <eigen3/unsupported/Eigen/MatrixFunctions>
 #include <opencv2/core/core.hpp>
-#include <opencv2/core/eigen.hpp>
-#include <opencv2/highgui/highgui.hpp>
-#include <opencv2/opencv.hpp>
-#include <opencv2/features2d/features2d.hpp>
-#include <opencv2/video.hpp>
-#include <opencv2/imgproc.hpp>
-#include <opencv2/calib3d.hpp>
-#include <boost/filesystem.hpp>
 
 #define D_METER 1.2
 #define D_RADIAN M_PI/24

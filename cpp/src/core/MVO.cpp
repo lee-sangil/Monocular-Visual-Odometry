@@ -3,6 +3,7 @@
 #include "core/numerics.hpp"
 #include "core/time.hpp"
 #include "core/DepthFilter.hpp"
+#include <eigen3/unsupported/Eigen/MatrixFunctions>
 
 double DepthFilter::s_px_error_angle_;
 double DepthFilter::s_meas_max_;

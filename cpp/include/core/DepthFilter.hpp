@@ -1,7 +1,8 @@
 #ifndef __DEPTHFILTER_HPP__
 #define __DEPTHFILTER_HPP__
 
-#include "core/common.hpp"
+#include <eigen3/Eigen/Core>
+#include <eigen3/Eigen/Dense>
 
 class DepthFilter{ // inverse-depth estimator
 	private:

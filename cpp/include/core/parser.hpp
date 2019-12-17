@@ -1,7 +1,12 @@
 #ifndef __PARSER_HPP__
 #define __PARSER_HPP__
 
-#include "core/common.hpp"
+#include <iostream>
+#include <stdio.h>
+#include <iterator>
+#include <cassert>
+#include <map>
+#include <string>
 
 class Parser{
 	public:

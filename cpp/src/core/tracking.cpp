@@ -659,6 +659,7 @@ void MVO::addExtraFeatures(){
             Feature::new_feature_id++;
 
             // Update bucket
+            if( MVO::s_file_logger.is_open() ) MVO::s_file_logger << "@@@@@ extra uv: " << features_extra_[i].uv.back().x << ", " << features_extra_[i].uv.back().y << ", bucket: " << features_extra_[i].bucket.x << ", " << features_extra_[i].bucket.y << std::endl;
             bucket_.mass(features_extra_[i].bucket.y, features_extra_[i].bucket.x)++;
         }
         cv::eigen2cv(bucket_.mass, bucket_.cv_mass);
@@ -683,12 +684,16 @@ void MVO::updateRoiFeatures(const std::vector<cv::Rect>& rois, const std::vector
     std::vector<cv::Point2f> keypoints;
     std::vector<uint32_t> idx_belong_to_roi;
     const int& bucket_safety = bucket_.safety;
+    excludeMask_.setTo(cv::Scalar(255));
+    
     for( uint32_t i = 0; i < rois.size(); i++ ){
         roi = rois[i];
         roi.x = std::max(bucket_safety, roi.x);
         roi.y = std::max(bucket_safety, roi.y);
         roi.width = std::min(params_.im_size.width-bucket_safety, roi.x+roi.width)-roi.x;
         roi.height = std::min(params_.im_size.height-bucket_safety, roi.y+roi.height)-roi.y;
+
+        if( MVO::s_file_logger.is_open() ) MVO::s_file_logger << "@@@@@ roi[x,y,w,h]: " << roi.x << ", " << roi.y << ", " << roi.width << ", " << roi.height << ", num: " << num_feature[i] << std::endl;
         
         // Seek index of which feature is extracted specific roi
         if( num_feature[i] < 0 ){
@@ -740,8 +745,8 @@ void MVO::updateRoiFeatures(const std::vector<cv::Rect>& rois, const std::vector
 bool MVO::updateRoiFeature(const cv::Rect& roi, const std::vector<cv::Point2f>& keypoints, std::vector<uint32_t>& idx_compared){
 
     int row, col;
-    row = (roi.x-1) / bucket_.size.height;
-    col = (roi.y-1) / bucket_.size.width;
+    col = (roi.x-1) / bucket_.size.width;
+    row = (roi.y-1) / bucket_.size.height;
     
     // Try to find a seperate feature
     bool success;

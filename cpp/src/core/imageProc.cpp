@@ -1,4 +1,7 @@
 #include "core/imageProc.hpp"
+#include <iostream>
+#include <fstream>
+#include <iomanip>
 
 void chk::downScaleImg(const cv::Mat& img, cv::Mat& img_lower){ // input : double , output : double
 	img_lower.create(cv::Size(img.size().width/2, img.size().height / 2), img.type());

@@ -1,7 +1,11 @@
 #ifndef __RANSAC_HPP__
 #define __RANSAC_HPP__
 
-#include "core/common.hpp"
+#include <functional>
+#include <iostream>
+#include <vector>
+#include <opencv2/core/core.hpp>
+
 #include "core/random.hpp"
 
 namespace lsi{

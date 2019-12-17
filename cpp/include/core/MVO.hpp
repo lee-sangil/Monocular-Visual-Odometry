@@ -1,6 +1,22 @@
 #ifndef __MVO_HPP__
 #define __MVO_HPP__
 
+#include <fstream>
+#include <iostream>
+#include <string>
+#include <vector>
+
+#include <eigen3/Eigen/Core>
+#include <eigen3/Eigen/Dense>
+#include <opencv2/core/core.hpp>
+#include <opencv2/core/eigen.hpp>
+#include <opencv2/highgui/highgui.hpp>
+#include <opencv2/opencv.hpp>
+#include <opencv2/features2d/features2d.hpp>
+#include <opencv2/video.hpp>
+#include <opencv2/imgproc.hpp>
+#include <opencv2/calib3d.hpp>
+
 #include "core/common.hpp"
 #include "core/ransac.hpp"
 

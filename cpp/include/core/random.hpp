@@ -1,7 +1,9 @@
 #ifndef __RANDOM_HPP__
 #define __RANDOM_HPP__
 
-#include "core/common.hpp"
+#include <vector>
+#include <eigen3/Eigen/Core>
+#include <eigen3/Eigen/Dense>
 
 namespace lsi{
 	void seed();

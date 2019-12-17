@@ -4,6 +4,7 @@
 #include "core/MVO.hpp"
 #include "core/time.hpp"
 #include "core/numerics.hpp"
+#include <boost/filesystem.hpp>
 #include <opencv2/imgcodecs.hpp>
 #include <dirent.h>
 
