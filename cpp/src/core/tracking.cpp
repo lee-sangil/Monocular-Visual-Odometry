@@ -696,9 +696,9 @@ void MVO::updateRoiFeatures(const std::vector<cv::Rect>& rois, const std::vector
         if( MVO::s_file_logger.is_open() ) MVO::s_file_logger << "@@@@@ roi[x,y,w,h]: " << roi.x << ", " << roi.y << ", " << roi.width << ", " << roi.height << ", num: " << num_feature[i] << std::endl;
         
         // Seek index of which feature is extracted specific roi
+        getPointsInRoi(roi, idx_belong_to_roi);
+        
         if( num_feature[i] < 0 ){
-			getPointsInRoi(roi, idx_belong_to_roi);
-
             for( uint32_t j = 0; j < idx_belong_to_roi.size(); j++ ){
                 if( features_[idx_belong_to_roi[j]].life > 2 ){
                     features_dead_.push_back(features_[idx_belong_to_roi[j]]);
@@ -743,10 +743,6 @@ void MVO::updateRoiFeatures(const std::vector<cv::Rect>& rois, const std::vector
 }
 
 bool MVO::updateRoiFeature(const cv::Rect& roi, const std::vector<cv::Point2f>& keypoints, std::vector<uint32_t>& idx_compared){
-
-    int row, col;
-    col = (roi.x-1) / bucket_.size.width;
-    row = (roi.y-1) / bucket_.size.height;
     
     // Try to find a seperate feature
     bool success;
@@ -756,7 +752,18 @@ bool MVO::updateRoiFeature(const cv::Rect& roi, const std::vector<cv::Point2f>& 
         success = true;
         min_dist = 1e9; // enough-large number
         for( const auto & idx : idx_compared ){
-            dist = cv::norm(keypoint - features_[idx].uv.back());
+            dist = cv::norm(keypoint - features_.at(idx).uv.back());
+            
+            if( dist < min_dist )
+                min_dist = dist;
+
+            if( dist < params_.min_px_dist/2+1 ){
+                success = false;
+                break;
+            }
+        }
+        for( const auto & feature : features_extra_ ){
+            dist = cv::norm(keypoint - feature.uv.back());
             
             if( dist < min_dist )
                 min_dist = dist;
@@ -775,6 +782,9 @@ bool MVO::updateRoiFeature(const cv::Rect& roi, const std::vector<cv::Point2f>& 
     }
     
     if( max_min_dist > 0.0 ){
+        int row = std::floor((double) best_keypoint.y / params_.im_size.height * bucket_.grid.height);
+        int col = std::floor((double) best_keypoint.x / params_.im_size.width * bucket_.grid.width);
+
         // Add new feature to VO object
         Feature newFeature;
 
