@@ -12,6 +12,7 @@ namespace lsi{
 		double th_inlier_ratio = 0.9;
 		double th_dist = 0.5;
 		double th_dist_outlier = 5.0;
+		std::vector<double> th_dist_arr;
 		std::vector<double> weight;
 		std::function<void(const std::vector<DATA>&, FUNC&)> calculate_func;
 		std::function<void(const FUNC, const std::vector<DATA>&, std::vector<double>&)> calculate_dist;
@@ -25,6 +26,8 @@ namespace lsi{
 		std::vector<DATA> sample;
 		std::vector<double> dist;
 		dist.reserve(num_pts);
+
+		bool use_threshold_array = (param.th_dist_arr.size() > 0);
 
 		int num_iteration = 1e5;
 		uint32_t num_max_inlier = 0;
@@ -52,15 +55,27 @@ namespace lsi{
 
 			in1.clear();
 			num_inlier = 0;
-			for (uint32_t i = 0; i < num_pts; i++){
-				if( dist[i] < param.th_dist ){
-					in1.push_back( true );
-					num_inlier++;
-				}else{
-					in1.push_back( false );
+
+			if( use_threshold_array ){
+				for (uint32_t i = 0; i < num_pts; i++){
+					if( dist[i] < param.th_dist_arr[i] ){
+						in1.push_back( true );
+						num_inlier++;
+					}else{
+						in1.push_back( false );
+					}
+				}
+			}else{
+				for (uint32_t i = 0; i < num_pts; i++){
+					if( dist[i] < param.th_dist ){
+						in1.push_back( true );
+						num_inlier++;
+					}else{
+						in1.push_back( false );
+					}
 				}
 			}
-
+			
 			if (num_inlier > num_max_inlier){
 				num_max_inlier = num_inlier;
 				inlier = in1;
@@ -94,8 +109,13 @@ namespace lsi{
 			param.calculate_dist(max_val, samples, dist);
 
 			outlier.clear();
-			for (uint32_t i = 0; i < num_pts; i++)
-				outlier.push_back(dist[i] > param.th_dist_outlier);
+			if( use_threshold_array ){
+				for (uint32_t i = 0; i < num_pts; i++)
+					outlier.push_back(dist[i] > param.th_dist_arr[i]);
+			}else{
+				for (uint32_t i = 0; i < num_pts; i++)
+					outlier.push_back(dist[i] > param.th_dist_outlier);
+			}
 			
 			val = max_val;
 		}

@@ -63,7 +63,6 @@ typedef struct Feature{
 	cv::Point bucket;
 	Eigen::Vector4d point_curr;
 	Eigen::Vector4d point_init;
-	double point_var;
 	bool is_alive;
 	bool is_matched;
 	bool is_wide;

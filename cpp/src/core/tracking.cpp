@@ -373,7 +373,7 @@ void MVO::updateBucket(){
         col_bucket = std::floor(features_[i].uv.back().x / params_.im_size.width * bucket_.grid.width);
         features_[i].bucket = cv::Point(col_bucket, row_bucket);
 
-        if( col_bucket < 0 || col_bucket > bucket_.grid.width || row_bucket < 0 || row_bucket > bucket_.grid.height ){
+        if( col_bucket < 0 || col_bucket >= bucket_.grid.width || row_bucket < 0 || row_bucket >= bucket_.grid.height ){
             printFeatures();
             std::cout << "Wrong bucket index" << std::endl;
         }
@@ -497,7 +497,6 @@ void MVO::addFeature(){
         newFeature.is_3D_reconstructed = false; // triangulation completion
         newFeature.is_3D_init = false; // scale-compensated
         newFeature.point_init << 0,0,0,1; // scale-compensated 3-dim homogeneous point in the global coordinates
-        newFeature.point_var = 1e9;
         newFeature.type = Type::Unknown;
         newFeature.depthfilter = std::shared_ptr<DepthFilter>(new DepthFilter());
 
@@ -692,11 +691,10 @@ void MVO::updateRoiFeatures(const std::vector<cv::Rect>& rois, const std::vector
         roi.height = std::min(params_.im_size.height-bucket_safety, roi.y+roi.height)-roi.y;
         
         // Seek index of which feature is extracted specific roi
-        getPointsInRoi(roi, idx_belong_to_roi);
-        int num_feature_before = idx_belong_to_roi.size();
-
         if( num_feature[i] < 0 ){
-            for( uint32_t j = 0; j < num_feature_before; j++ ){
+			getPointsInRoi(roi, idx_belong_to_roi);
+
+            for( uint32_t j = 0; j < idx_belong_to_roi.size(); j++ ){
                 if( features_[idx_belong_to_roi[j]].life > 2 ){
                     features_dead_.push_back(features_[idx_belong_to_roi[j]]);
                 }
@@ -730,7 +728,7 @@ void MVO::updateRoiFeatures(const std::vector<cv::Rect>& rois, const std::vector
 
             int num_success = 0;
             int num_fail = 0;
-            while( num_success < num_feature[i]-num_feature_before && num_fail < 3 )
+            while( num_success < num_feature[i] && num_fail < 3 )
                 if( updateRoiFeature(roi, keypoints, idx_belong_to_roi) )
                     num_success++;
                 else
@@ -790,7 +788,6 @@ bool MVO::updateRoiFeature(const cv::Rect& roi, const std::vector<cv::Point2f>& 
         newFeature.is_3D_reconstructed = false; // triangulation completion
         newFeature.is_3D_init = false; // scale-compensated
         newFeature.point_init << 0,0,0,1; // scale-compensated 3-dim homogeneous point in the global coordinates
-        newFeature.point_var = 1e9;
         newFeature.type = Type::Unknown;
         newFeature.depthfilter = std::shared_ptr<DepthFilter>(new DepthFilter());
 

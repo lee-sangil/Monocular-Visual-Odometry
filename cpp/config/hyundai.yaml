@@ -123,7 +123,7 @@ PnP.reprojection_error: 0.2
 # Depth filter
 DepthFilter.minimum_depth: 1
 DepthFilter.pixel_noise: 1
-DepthFilter.maximum_variance: 0.05
+DepthFilter.maximum_variance: 0.001
 
 #--------------------------------------------------------------------------------------------
 # Display Parameters (tunable).

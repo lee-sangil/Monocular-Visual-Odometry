@@ -51,10 +51,6 @@ Feature.number: 500
 # Number of features matching per image 
 Feature.minimum_num_inlier: 6
 
-# Threshold ratio for keyframe, which is updated when nFeatureMatched < nFeature * ratio
-# if threshold is 1, keyframe effect is disappeared.
-Feature.minimum_matching_ratio: 0.9
-
 # Min. feature distance between for extraction
 Feature.minimum_distance_between: 5
 
@@ -71,7 +67,11 @@ Bucket.border_safety: 20
 Bucket.rows: 8
 Bucket.cols: 16
 
-# Parallax
+# Threshold ratio for keyframe, which is updated when nFeatureMatched < nFeature * ratio
+# if threshold is 1, keyframe effect is disappeared.
+Feature.minimum_matching_ratio: 0.9
+
+# Parallax - the lower a threshold, the more often keyframe is updated
 Feature.threshold_parallax: 0.001
 Feature.percentile_parallax: 0.75
 

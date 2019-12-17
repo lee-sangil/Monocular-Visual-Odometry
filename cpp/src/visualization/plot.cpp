@@ -1,4 +1,5 @@
 #include "core/MVO.hpp"
+#include "core/DepthFilter.hpp"
 
 #define RATIO 0.5
 #define GAP 30
@@ -62,9 +63,9 @@ void MVO::plot() const {
 			cv::putText(img, std::to_string(features_[i].id), features_[i].uv.back()*ratio, cv::FONT_HERSHEY_DUPLEX, 0.4, cv::Scalar(0,255,0), 1, CV_AA);
 		}
 	}
-	cv::rectangle(img, cv::Rect(200*ratio,200*ratio,200*ratio,200*ratio),cv::Scalar(0,0,255));
-	cv::rectangle(img, cv::Rect(400*ratio,400*ratio,200*ratio,200*ratio),cv::Scalar(0,255,0));
-	cv::rectangle(img, cv::Rect(600*ratio,400*ratio,200*ratio,200*ratio),cv::Scalar(0,0,255));
+	// cv::rectangle(img, cv::Rect(200*ratio,200*ratio,200*ratio,200*ratio),cv::Scalar(0,0,255));
+	// cv::rectangle(img, cv::Rect(400*ratio,400*ratio,200*ratio,200*ratio),cv::Scalar(0,255,0));
+	// cv::rectangle(img, cv::Rect(600*ratio,400*ratio,200*ratio,200*ratio),cv::Scalar(0,0,255));
 	img.copyTo(mvo(cv::Rect(GAP,GAP,img.cols,img.rows)));
 
 	/*******************************************
@@ -120,7 +121,7 @@ void MVO::plot() const {
 	// Points
 	Eigen::Vector3d uv;
 	for( uint32_t i = 0; i < features_dead_.size(); i++ ){
-		if( features_dead_[i].is_3D_init && features_dead_[i].point_var < params_.max_point_var ){
+		if( features_dead_[i].is_3D_init && features_dead_[i].depthfilter->getVariance() < params_.max_point_var ){
 			point = Tco * features_dead_[i].point_init;
 			uv = params_.view.P * point;
 			if( uv(2) > 1 ){

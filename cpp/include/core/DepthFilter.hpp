@@ -8,7 +8,7 @@ class DepthFilter{ // inverse-depth estimator
 
 	bool initialize_ = false;
 	double mean_;
-	double sigma_;
+	double sigma_ = 1e9;
 	double a_ = 10;
 	double b_ = 10;
 	

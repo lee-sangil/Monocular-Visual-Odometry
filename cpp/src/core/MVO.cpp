@@ -245,6 +245,17 @@ MVO::MVO(std::string yaml):MVO(){
     params_.view.upper_right =  cv::Point3d( 1,-.5, 1);
     params_.view.lower_left =   cv::Point3d(-1, .5, 1);
     params_.view.lower_right =  cv::Point3d( 1, .5, 1);
+
+    Eigen::Matrix3d rotx, rotz;
+	rotx << 1, 0, 0,
+			0, std::cos(params_.view.pitch), -std::sin(params_.view.pitch),
+			0, std::sin(params_.view.pitch), std::cos(params_.view.pitch);
+	rotz << std::cos(params_.view.roll), -std::sin(params_.view.roll), 0,
+			std::sin(params_.view.roll), std::cos(params_.view.roll), 0,
+			0, 0, 1;
+	params_.view.R = (rotz * rotx).transpose();
+	params_.view.t = -(Eigen::Vector3d() << 0,0,-params_.view.height).finished();
+	params_.view.P = (Eigen::Matrix<double,3,4>() << params_.view.K * params_.view.R, params_.view.K * params_.view.t).finished();
 }
 
 void MVO::refresh(){
@@ -284,7 +295,6 @@ void MVO::restart(){
         features_[i].frame_2d_init = 0;
         if( features_[i].is_3D_init )
             features_[i].frame_3d_init = 0;
-        // features_[i].point_var = 1e9;
         features_[i].uv.erase(features_[i].uv.begin(), features_[i].uv.end()-1);
         // features_[i].depthfilter->reset();
     }
@@ -338,15 +348,15 @@ void MVO::run(const cv::Mat& image){
     if( !calculateEssential() ) { restart(); return; }
     if( !calculateMotion() ) { restart(); return; }
     
-    std::vector<cv::Rect> rois;
-    std::vector<int> num_feature;
-    rois.push_back(cv::Rect(200,200,200,200));
-    rois.push_back(cv::Rect(400,400,200,200));
-    rois.push_back(cv::Rect(600,400,200,200));
-    num_feature.push_back(-1);
-    num_feature.push_back(10);
-    num_feature.push_back(-1);
-    updateRoiFeatures(rois, num_feature); // Extract extra features in rois
+    // std::vector<cv::Rect> rois;
+    // std::vector<int> num_feature;
+    // rois.push_back(cv::Rect(200,200,200,200));
+    // rois.push_back(cv::Rect(400,400,200,200));
+    // rois.push_back(cv::Rect(600,400,200,200));
+    // num_feature.push_back(-1);
+    // num_feature.push_back(10);
+    // num_feature.push_back(-1);
+    // updateRoiFeatures(rois, num_feature); // Extract extra features in rois
 }
 
 void MVO::updateGyro(const double timestamp, const Eigen::Vector3d& gyro){
@@ -387,9 +397,9 @@ std::vector< std::tuple<uint32_t, cv::Point2f, Eigen::Vector3d, double> > MVO::g
         uv_curr = features_[i].uv.back();
         
         if( params_.output_filtered_depth )
-            pts.push_back( std::make_tuple(features_[i].id, uv_curr, Tco.block(0,0,3,4) * features_[i].point_init, features_[i].point_var ) );
+            pts.push_back( std::make_tuple(features_[i].id, uv_curr, Tco.block(0,0,3,4) * features_[i].point_init, features_[i].depthfilter->getVariance() ) );
         else
-            pts.push_back( std::make_tuple(features_[i].id, uv_curr, features_[i].point_curr.block(0, 0, 3, 1), features_[i].point_var ) );
+            pts.push_back( std::make_tuple(features_[i].id, uv_curr, features_[i].point_curr.block(0, 0, 3, 1), features_[i].depthfilter->getVariance() ) );
     }
     return pts;
 }

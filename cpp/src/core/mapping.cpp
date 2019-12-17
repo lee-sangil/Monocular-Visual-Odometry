@@ -455,27 +455,6 @@ void MVO::constructDepth(const std::vector<cv::Point2f>& uv_prev, const std::vec
 }
 
 void MVO::update3DPoint(Feature& feature, const Eigen::Matrix4d& Toc, const Eigen::Matrix4d& T){
-    // // Update point under Gaussian model assumption
-    // int key_idx = feature.life - 1 - (step_ - this>keystep_);
-    // double cur_var = 5/(cv::norm(feature.uv[key_idx] - feature.uv.back()));
-    // if( feature.is_3D_init ){
-    //     if( params_.update_init_point ){
-    //         double diffX = (Toc * feature.point_curr - feature.point_init).norm();
-    //         if( diffX < 3*feature.point_var){
-    //             double prv_var = feature.point_var;
-    //             double new_var = 1 / ( (1 / prv_var) + (1 / cur_var) );
-                
-    //             feature.point_init = new_var/cur_var * Toc * feature.point_curr + new_var/prv_var * feature.point_init;
-    //             feature.point_var = new_var;
-    //         }
-    //     }
-    // }else if( feature.is_wide ){
-    //     feature.point_init = Toc * feature.point;
-    //     feature.point_var = cur_var;
-    //     feature.is_3D_init = true;
-    //     feature.frame_3d_init = keystep_;
-    // }
-
     // Use Depthfilter - combination of Gaussian and uniform model
     Eigen::Vector3d point_initframe;
     double z, tau, tau_inverse;
@@ -491,7 +470,6 @@ void MVO::update3DPoint(Feature& feature, const Eigen::Matrix4d& Toc, const Eige
         if( params_.update_init_point ){
             feature.depthfilter->update(1/z, tau_inverse);
             feature.point_init = TocRec_[feature.frame_3d_init] * (Eigen::Vector4d() << point_initframe / z / feature.depthfilter->getMean(), 1).finished();
-            feature.point_var = feature.depthfilter->getVariance();
         }
 
     }else{ // if( feature.is_wide ){
@@ -503,12 +481,11 @@ void MVO::update3DPoint(Feature& feature, const Eigen::Matrix4d& Toc, const Eige
 
         feature.depthfilter->update(1/z, tau_inverse);
         feature.point_init = Toc * T.inverse() * (Eigen::Vector4d() << point_initframe / z / feature.depthfilter->getMean(), 1).finished();
-        feature.point_var = feature.depthfilter->getVariance();
         feature.is_3D_init = true;
         feature.frame_3d_init = keystep_;
     }
 
-    if( feature.point_var > params_.max_point_var )
+    if( feature.depthfilter->getVariance() > params_.max_point_var )
         feature.is_alive = false;
 
     // if( feature.id < 100)
@@ -690,6 +667,8 @@ bool MVO::scalePropagation(const Eigen::Matrix3d &R, Eigen::Vector3d &t, std::ve
             std::vector<std::pair<cv::Point3f,cv::Point3f>> Points;
             Eigen::Vector4d init_point, expt_point, curr_point;
             params_.ransac_coef_scale.weight.clear();
+            params_.ransac_coef_scale.th_dist_arr.clear();
+            double std_inv_z, inv_z, std_z;
             
             for (uint32_t i = 0; i < num_pts; i++){
                 curr_point = features_[idx[i]].point_curr;
@@ -707,6 +686,12 @@ bool MVO::scalePropagation(const Eigen::Matrix3d &R, Eigen::Vector3d &t, std::ve
                 params_.ransac_coef_scale.weight.push_back( std::atan( -curr_point(2)/5 + 3 ) + M_PI / 2 );
                 // params_.ransac_coef_scale.weight.push_back( std::atan( -features_[i].point_var * 1e4 ) + M_PI / 2 );
                 // params_.ransac_coef_scale.weight.push_back( 1/features_[i].point_var );
+
+                // RANSAC threshold
+                std_inv_z = std::sqrt(features_[i].depthfilter->getVariance());
+                inv_z = features_[i].depthfilter->getMean();
+                std_z = 0.5 * std::min(std::abs(std_inv_z/(inv_z*inv_z+std_inv_z*inv_z)), std::abs(std_inv_z/(inv_z*inv_z-std_inv_z*inv_z)));
+                params_.ransac_coef_scale.th_dist_arr.push_back( std::max(params_.ransac_coef_scale.th_dist, std_z) );
             }
 
             params_.ransac_coef_scale.calculate_func = std::bind(lsi::calculateScale, std::placeholders::_1, std::placeholders::_2, scale_reference_, params_.weight_scale_ref);
