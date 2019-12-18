@@ -131,7 +131,8 @@ class MVO{
 	public:
 
 	Parameter params_;
-	static std::ofstream s_file_logger;
+	static std::ofstream s_point_logger_;
+	static std::ofstream s_file_logger_;
 	
 	public:
 
@@ -162,6 +163,7 @@ class MVO{
 	void restartKeyframeLogger();
 	void updateView();
 	void plot() const;
+	void plot(const Eigen::MatrixXd& depth) const;
 	void printFeatures() const;
 
 	// Feature operations

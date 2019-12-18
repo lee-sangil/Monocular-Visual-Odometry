@@ -138,14 +138,16 @@ int main(int argc, char * argv[]){
 	/**************************************************************************
 	 *  Construct MVO object
 	 **************************************************************************/
+	if( Parser::hasOption("-db") )
+		MVO::s_file_logger_.open("log.txt");
+	if( Parser::hasOption("-gt") )
+		MVO::s_point_logger_.open("pointcloud.txt");
+	
 	std::unique_ptr<MVO> vo(new MVO(fsname));
 
 	/**************************************************************************
 	 *  Run MVO object
 	 **************************************************************************/
-	if( Parser::hasOption("-db") )
-		MVO::s_file_logger.open("log.txt");
-	
 	char key;
 	std::cout << "# Key descriptions: " << std::endl;
 	std::cout << "- s: pause and process a one frame" << std::endl << 
@@ -195,18 +197,19 @@ int main(int argc, char * argv[]){
 				chk::getImgTUMdataset(dirRgb, image);
 				
 				vo->run(image);
-				
+				std::cout << "Iteration: " << it_rgb << ", Execution time: " << lsi::toc()/1e3 << "ms       " << '\r' << std::flush;
+
+				vo->updateView();
 				if( Parser::hasOption("-gt") ){
 					std::ostringstream dirDepth;
 					dirDepth << inputFile << "full_depth/" << std::setfill('0') << std::setw(10) << it_rgb+initFrame << ".bin";
 					Eigen::MatrixXd depth = readDepth(dirDepth.str().c_str(), vo->params_.im_size.height, vo->params_.im_size.width);
 					vo->calcReconstructionErrorGT(depth);
+					vo->plot(depth);
+				}else{
+					vo->plot();
 				}
 				
-				std::cout << "Iteration: " << it_rgb << ", Execution time: " << lsi::toc()/1e3 << "ms       " << '\r' << std::flush;
-				
-				vo->updateView();
-				vo->plot();
 
 				it_rgb++;
 
@@ -246,7 +249,7 @@ int main(int argc, char * argv[]){
 		}
 	}
 	std::cout << std::endl;
-	MVO::s_file_logger.close();
+	MVO::s_file_logger_.close();
 	
 	return 0;
 }

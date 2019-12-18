@@ -1,5 +1,7 @@
 #include "core/random.hpp"
 #include "core/time.hpp"
+#include <numeric>
+#include <algorithm>
 
 void lsi::seed(){std::srand(lsi::toc());}
 double lsi::rand(){return std::rand() / (double)RAND_MAX;}

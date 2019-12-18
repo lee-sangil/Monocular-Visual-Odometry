@@ -17,6 +17,35 @@ void MVO::updateView(){
 	params_.view.P = (Eigen::Matrix<double,3,4>() << params_.view.K * params_.view.R, params_.view.K * params_.view.t).finished();
 }
 
+void MVO::plot(const Eigen::MatrixXd& depthMap) const {
+	this->plot();
+
+	cv::Mat img(curr_frame_.size(), CV_8UC3);
+	cvtColor(curr_frame_.image, img, CV_GRAY2BGR);
+
+	double ratio = 1;
+	if( img.rows > 500 ){
+		ratio = RATIO;
+		cv::resize(img, img, cv::Size(img.cols*ratio, img.rows*ratio));
+	}
+	
+	/*******************************************
+	 * 		Figure 3: Groundtruth Depth
+	 * *****************************************/
+	cv::Mat gt_dist(img.rows*0.5, img.cols*0.5, CV_8UC3, cv::Scalar::all(0));
+	int r, g, b, depth;
+	for( uint32_t i = 0; i < features_.size(); i++ ){
+		depth = depthMap(features_[i].uv.back().y, features_[i].uv.back().x);
+
+		r = std::exp(-depth/150) * std::min(depth*18, 255);
+		g = std::exp(-depth/150) * std::max(255 - depth*8, 30);
+		b = std::exp(-depth/150) * std::max(100 - depth, 0);
+		cv::circle(gt_dist, cv::Point(features_[i].uv.back().x*ratio*0.5, features_[i].uv.back().y*ratio*0.5), std::ceil(5*ratio), cv::Scalar(b, g, r), CV_FILLED);
+	}
+
+	cv::imshow("Groundtruth", gt_dist);
+}
+
 void MVO::plot() const {
 	/*******************************************
 	 * 		Figure 1: Image seen by camera
@@ -56,7 +85,7 @@ void MVO::plot() const {
 			if( features_[i].uv_pred.x > 0 && features_[i].uv_pred.y > 0 )
 				cv::drawMarker(img, cv::Point(features_[i].uv_pred.x*ratio, features_[i].uv_pred.y*ratio), cv::Scalar(0,200,0), cv::MARKER_CROSS, 5);
 		}
-		if( MVO::s_file_logger.is_open() ){
+		if( MVO::s_file_logger_.is_open() ){
 			int key_idx = features_[i].life - 1 - (step_ - keystep_);
 			if( key_idx >= 0 )
 				cv::line(img, features_[i].uv.back()*ratio, features_[i].uv[key_idx]*ratio, cv::Scalar::all(0), 1, CV_AA);
