@@ -28,19 +28,21 @@ void MVO::plot(const Eigen::MatrixXd& depthMap) const {
 		ratio = RATIO;
 		cv::resize(img, img, cv::Size(img.cols*ratio, img.rows*ratio));
 	}
-	
+
 	/*******************************************
 	 * 		Figure 3: Groundtruth Depth
 	 * *****************************************/
 	cv::Mat gt_dist(img.rows*0.5, img.cols*0.5, CV_8UC3, cv::Scalar::all(0));
 	int r, g, b, depth;
 	for( uint32_t i = 0; i < features_.size(); i++ ){
-		depth = depthMap(features_[i].uv.back().y, features_[i].uv.back().x);
+		if( features_[i].uv.back().y > params_.im_size.height / 2.0 ){
+			depth = depthMap(features_[i].uv.back().y, features_[i].uv.back().x);
 
-		r = std::exp(-depth/150) * std::min(depth*18, 255);
-		g = std::exp(-depth/150) * std::max(255 - depth*8, 30);
-		b = std::exp(-depth/150) * std::max(100 - depth, 0);
-		cv::circle(gt_dist, cv::Point(features_[i].uv.back().x*ratio*0.5, features_[i].uv.back().y*ratio*0.5), std::ceil(5*ratio), cv::Scalar(b, g, r), CV_FILLED);
+			r = std::exp(-depth/150) * std::min(depth*18, 255);
+			g = std::exp(-depth/150) * std::max(255 - depth*8, 30);
+			b = std::exp(-depth/150) * std::max(100 - depth, 0);
+			cv::circle(gt_dist, cv::Point(features_[i].uv.back().x*ratio*0.5, features_[i].uv.back().y*ratio*0.5), std::ceil(5*ratio), cv::Scalar(b, g, r), CV_FILLED);
+		}
 	}
 
 	cv::imshow("Groundtruth", gt_dist);

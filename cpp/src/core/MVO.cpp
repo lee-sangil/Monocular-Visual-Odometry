@@ -416,7 +416,7 @@ void MVO::getPointsInRoi(const cv::Rect& roi, std::vector<uint32_t>& idx) const 
     idx.reserve(num_feature_*0.5);
 
     for( uint32_t i = 0; i < features_.size(); i++ ){
-        if( features_[i].uv.back().x >= roi.x && features_[i].uv.back().y >= roi.y && features_[i].uv.back().x <= roi.x + roi.width && features_[i].uv.back().y <= roi.y + roi.height )
+        if( features_[i].uv.size() > 0 && features_[i].uv.back().x >= roi.x && features_[i].uv.back().y >= roi.y && features_[i].uv.back().x <= roi.x + roi.width && features_[i].uv.back().y <= roi.y + roi.height )
             idx.push_back(i);
     }
 }

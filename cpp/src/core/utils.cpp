@@ -23,7 +23,7 @@ double MVO::calcReconstructionError(Eigen::Matrix3d& R, Eigen::Vector3d& t) cons
 void MVO::calcReconstructionErrorGT(Eigen::MatrixXd& depth) const {
     std::vector<double> idx;
     for( uint32_t i = 0; i < features_.size(); i++ )
-        if( depth(features_[i].uv.back().y, features_[i].uv.back().x) > 0 && features_[i].is_3D_reconstructed == true )
+        if( depth(features_[i].uv.back().y, features_[i].uv.back().x) > 0 && features_[i].is_3D_reconstructed == true && features_[i].uv.back().y > params_.im_size.height / 2.0 )
             idx.push_back(i);
 
     Eigen::Matrix4d Tco = TocRec_.back().inverse();
@@ -32,31 +32,29 @@ void MVO::calcReconstructionErrorGT(Eigen::MatrixXd& depth) const {
     std::vector<double> relative_error;
     
     if( idx.size() > 0 ){
-        if( MVO::s_point_logger_.is_open() ) MVO::s_point_logger_ << "* Reconstruction: ";
+        if( MVO::s_point_logger_.is_open() ) MVO::s_point_logger_ << "* Reconstruction:";
         for( const auto & i : idx ){
             if( params_.output_filtered_depth ){
                 point = Tco.block(0,0,3,4) * features_[i].point_init;
-                if( MVO::s_point_logger_.is_open() ) MVO::s_point_logger_ << point(0) << ' ' << point(1) << ' ' << point(2) << ' ';
+                if( MVO::s_point_logger_.is_open() ) MVO::s_point_logger_ << ' ' << point(0) << ' ' << point(1) << ' ' << point(2);
             }else{
-                if( MVO::s_point_logger_.is_open() ) MVO::s_point_logger_ << features_[i].point_curr(0) << ' ' << features_[i].point_curr(1) << ' ' << features_[i].point_curr(2) << ' ';
+                if( MVO::s_point_logger_.is_open() ) MVO::s_point_logger_ << ' ' << features_[i].point_curr(0) << ' ' << features_[i].point_curr(1) << ' ' << features_[i].point_curr(2);
             }
         }
         if( MVO::s_point_logger_.is_open() ) MVO::s_point_logger_ << std::endl;
 
-        if( MVO::s_point_logger_.is_open() ) MVO::s_point_logger_ << "* Groundtruth: ";
+        if( MVO::s_point_logger_.is_open() ) MVO::s_point_logger_ << "* Groundtruth:";
         for( const auto & i : idx )
-            if( MVO::s_point_logger_.is_open() ) MVO::s_point_logger_ << features_[i].uv.back().x << ' ' << features_[i].uv.back().y << ' ' << depth(features_[i].uv.back().y, features_[i].uv.back().x) << ' ';
+            if( MVO::s_point_logger_.is_open() ) MVO::s_point_logger_ << ' ' << features_[i].uv.back().x << ' ' << features_[i].uv.back().y << ' ' << depth(features_[i].uv.back().y, features_[i].uv.back().x);
         if( MVO::s_point_logger_.is_open() ) MVO::s_point_logger_ << std::endl;
 
         for( const auto & i : idx){
-            if( features_[i].life > 5 ){
-                double gt_depth = depth(features_[i].uv.back().y, features_[i].uv.back().x);
-                if( params_.output_filtered_depth ){
-                    point = Tco.block(0,0,3,4) * features_[i].point_init;
-                    relative_error.push_back(std::abs(point(2)-gt_depth)/gt_depth);
-                }else{
-                    relative_error.push_back(std::abs(features_[i].point_curr(2)-gt_depth)/gt_depth);
-                }
+            double gt_depth = depth(features_[i].uv.back().y, features_[i].uv.back().x);
+            if( params_.output_filtered_depth ){
+                point = Tco.block(0,0,3,4) * features_[i].point_init;
+                relative_error.push_back(std::abs(point(2)-gt_depth)/gt_depth);
+            }else{
+                relative_error.push_back(std::abs(features_[i].point_curr(2)-gt_depth)/gt_depth);
             }
         }
         if( relative_error.size() > 0 ){

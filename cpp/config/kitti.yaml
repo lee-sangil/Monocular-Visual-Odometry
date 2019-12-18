@@ -75,7 +75,7 @@ Bucket.rows: 8
 Bucket.cols: 16
 
 # Parallax
-Feature.threshold_parallax: 0.001
+Feature.threshold_parallax: 0.002
 Feature.percentile_parallax: 0.75
 
 #--------------------------------------------------------------------------------------------
