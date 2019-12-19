@@ -22,9 +22,15 @@ double MVO::calcReconstructionError(Eigen::Matrix3d& R, Eigen::Vector3d& t) cons
 
 void MVO::calcReconstructionErrorGT(Eigen::MatrixXd& depth) const {
     std::vector<double> idx;
-    for( uint32_t i = 0; i < features_.size(); i++ )
-        if( depth(features_[i].uv.back().y, features_[i].uv.back().x) > 0 && features_[i].is_3D_reconstructed == true && features_[i].uv.back().y > params_.im_size.height / 2.0 )
-            idx.push_back(i);
+    if( params_.output_filtered_depth ){
+        for( uint32_t i = 0; i < features_.size(); i++ )
+            if( depth(features_[i].uv.back().y, features_[i].uv.back().x) > 0 && features_[i].is_3D_init == true && features_[i].uv.back().y > params_.im_size.height / 2.0 && features_[i].life > 1 )
+                idx.push_back(i);
+    }else{
+        for( uint32_t i = 0; i < features_.size(); i++ )
+            if( depth(features_[i].uv.back().y, features_[i].uv.back().x) > 0 && features_[i].is_3D_reconstructed == true && features_[i].uv.back().y > params_.im_size.height / 2.0 && features_[i].life > 1 )
+                idx.push_back(i);
+    }
 
     Eigen::Matrix4d Tco = TocRec_.back().inverse();
     Eigen::Vector3d point;

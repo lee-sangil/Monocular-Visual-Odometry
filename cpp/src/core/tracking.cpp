@@ -41,13 +41,13 @@ bool MVO::updateFeatures(){
         kltTrackerRough(points, validity);
         if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "## KLT tracker: " << lsi::toc() << std::endl;
 
-        selectKeyframeNow(points, validity); // low parallax
+        selectKeyframeNow(); // low parallax
         if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "## Select keyframe: " << lsi::toc() << std::endl;
 
         kltTrackerPrecise(points, validity);
         if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "## KLT tracker: " << lsi::toc() << std::endl;
 
-        selectKeyframeAfter(points, validity); // low tracking ratio
+        selectKeyframeAfter(); // low tracking ratio
         if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "## Select keyframe: " << lsi::toc() << std::endl;
 
         if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "! Update features between: " << curr_keyframe_.id << " <--> " << curr_frame_.id << std::endl;
@@ -119,7 +119,7 @@ bool MVO::updateFeatures(){
     }
 }
 
-void MVO::selectKeyframeNow(const std::vector<cv::Point2f>& uv_curr, const std::vector<bool>& validity){
+void MVO::selectKeyframeNow(){
 
     // Low parallax
     std::vector<double> parallax;
@@ -161,7 +161,7 @@ void MVO::selectKeyframeNow(const std::vector<cv::Point2f>& uv_curr, const std::
     // }
 }
 
-void MVO::selectKeyframeAfter(const std::vector<cv::Point2f>& uv_curr, const std::vector<bool>& validity){
+void MVO::selectKeyframeAfter(){
     // Low tracking ratio
     if( !trigger_keystep_decrease_ && !trigger_keystep_decrease_previous_ ){
         if( num_feature_matched_ <= num_feature_ * params_.th_ratio_keyframe ){

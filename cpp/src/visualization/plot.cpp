@@ -17,7 +17,7 @@ void MVO::updateView(){
 	params_.view.P = (Eigen::Matrix<double,3,4>() << params_.view.K * params_.view.R, params_.view.K * params_.view.t).finished();
 }
 
-void MVO::plot(Eigen::MatrixXd * depthMap){
+void MVO::plot(const Eigen::MatrixXd * const depthMap) const {
 	/*******************************************
 	 * 		Figure 1: Image seen by camera
 	 * *****************************************/

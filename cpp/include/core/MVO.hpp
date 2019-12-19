@@ -162,14 +162,14 @@ class MVO{
 	void updateVelocity(const double timestamp, const double speed);
 	void restartKeyframeLogger();
 	void updateView();
-	void plot(Eigen::MatrixXd * depthMap = NULL);
+	void plot(const Eigen::MatrixXd * const depthMap = NULL) const;
 	void printFeatures() const;
 
 	// Feature operations
 	void kltTrackerRough(std::vector<cv::Point2f>& points, std::vector<bool>& validity);
 	void kltTrackerPrecise(std::vector<cv::Point2f>& points, std::vector<bool>& validity);
-	void selectKeyframeNow(const std::vector<cv::Point2f>& points, const std::vector<bool>& validity);
-	void selectKeyframeAfter(const std::vector<cv::Point2f>& points, const std::vector<bool>& validity);
+	void selectKeyframeNow();
+	void selectKeyframeAfter();
 	void updateBucket();
 	bool extractFeatures();
 	bool updateFeatures();
