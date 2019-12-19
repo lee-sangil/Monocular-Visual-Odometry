@@ -169,27 +169,27 @@ int main(int argc, char * argv[]){
 	int it_imu = 0, it_vel = 0, it_rgb = 0;
 
 	for( int it = 0; it < length && bRun; it++ ){
-		// switch (sensorID[it]) {
-		// 	case 0:
-		// 		// Fetch speed
-		// 		if( Parser::hasOption("-vel"))
-		// 			vo->updateVelocity(timestamp_speed[it_vel], data_speed[it_vel]);
-				
-		// 		it_vel++;
-		// 		break;
-
-		// 	case 1:
-		// 		// Fetch imu
-		// 		if( Parser::hasOption("-imu"))
-		// 			vo->updateGyro(timestamp_imu[it_imu], data_gyro[it_imu]);
-
-		// 		it_imu++;
-		// 		break;
-
-		// 	case 2:
-				// Fetch velocity synchronously (erase switch statement)
+		switch (sensorID[it]) {
+			case 0:
+				// Fetch speed
 				if( Parser::hasOption("-vel"))
-					vo->updateVelocity(timestamp_image[it_rgb], data_speed[it_rgb]);
+					vo->updateVelocity(timestamp_speed[it_vel], data_speed[it_vel]);
+				
+				it_vel++;
+				break;
+
+			case 1:
+				// Fetch imu
+				if( Parser::hasOption("-imu"))
+					vo->updateGyro(timestamp_imu[it_imu], data_gyro[it_imu]);
+
+				it_imu++;
+				break;
+
+			case 2:
+				// // Fetch velocity synchronously (erase switch statement)
+				// if( Parser::hasOption("-vel"))
+				// 	vo->updateVelocity(timestamp_image[it_rgb], data_speed[it_rgb]);
 
 				// Fetch images
 				dirRgb.clear();
@@ -230,8 +230,8 @@ int main(int argc, char * argv[]){
 					}
 				}
 
-		// 		break;
-		// }
+				break;
+		}
 
 		//KeyBoard Process
 		key = cv::waitKey(1);

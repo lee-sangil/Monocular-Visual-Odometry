@@ -401,13 +401,21 @@ std::vector< std::tuple<uint32_t, cv::Point2f, Eigen::Vector3d, double> > MVO::g
     Eigen::Matrix4d Tco = TocRec_.back().inverse();
     std::vector< std::tuple<uint32_t, cv::Point2f, Eigen::Vector3d, double> > pts;
     cv::Point2f uv_curr;
-    for( uint32_t i = 0; i < features_.size(); i++ ){
-        uv_curr = features_[i].uv.back();
-        
-        if( params_.output_filtered_depth )
-            pts.push_back( std::make_tuple(features_[i].id, uv_curr, Tco.block(0,0,3,4) * features_[i].point_init, features_[i].depthfilter->getVariance() ) );
-        else
-            pts.push_back( std::make_tuple(features_[i].id, uv_curr, features_[i].point_curr.block(0, 0, 3, 1), features_[i].depthfilter->getVariance() ) );
+
+    if( params_.output_filtered_depth ){
+        for( uint32_t i = 0; i < features_.size(); i++ ){
+            uv_curr = features_[i].uv.back();
+            
+            if( features_[i].is_3D_init && features_[i].life > 1 )
+                pts.push_back( std::make_tuple(features_[i].id, uv_curr, Tco.block(0,0,3,4) * features_[i].point_init, features_[i].depthfilter->getVariance() ) );
+        }
+    }else{
+        for( uint32_t i = 0; i < features_.size(); i++ ){
+            uv_curr = features_[i].uv.back();
+            
+            if( features_[i].is_3D_reconstructed && features_[i].life > 1 )
+                pts.push_back( std::make_tuple(features_[i].id, uv_curr, features_[i].point_curr.block(0, 0, 3, 1), features_[i].depthfilter->getVariance() ) );
+        }
     }
     return pts;
 }
