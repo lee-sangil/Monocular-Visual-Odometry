@@ -162,8 +162,7 @@ class MVO{
 	void updateVelocity(const double timestamp, const double speed);
 	void restartKeyframeLogger();
 	void updateView();
-	void plot() const;
-	void plot(const Eigen::MatrixXd& depth) const;
+	void plot(Eigen::MatrixXd * depthMap = NULL);
 	void printFeatures() const;
 
 	// Feature operations

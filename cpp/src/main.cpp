@@ -205,7 +205,7 @@ int main(int argc, char * argv[]){
 					dirDepth << inputFile << "full_depth/" << std::setfill('0') << std::setw(10) << it_rgb+initFrame << ".bin";
 					Eigen::MatrixXd depth = readDepth(dirDepth.str().c_str(), vo->params_.im_size.height, vo->params_.im_size.width);
 					vo->calcReconstructionErrorGT(depth);
-					vo->plot(depth);
+					vo->plot(&depth);
 				}else{
 					vo->plot();
 				}

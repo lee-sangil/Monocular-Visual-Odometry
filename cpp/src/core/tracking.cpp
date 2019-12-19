@@ -688,11 +688,6 @@ void MVO::updateRoiFeatures(const std::vector<cv::Rect>& rois, const std::vector
     
     for( uint32_t i = 0; i < rois.size(); i++ ){
         roi = rois[i];
-        roi.x = std::max(bucket_safety, roi.x);
-        roi.y = std::max(bucket_safety, roi.y);
-        roi.width = std::min(params_.im_size.width-bucket_safety, roi.x+roi.width)-roi.x;
-        roi.height = std::min(params_.im_size.height-bucket_safety, roi.y+roi.height)-roi.y;
-
         if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "@@@@@ roi[x,y,w,h]: " << roi.x << ", " << roi.y << ", " << roi.width << ", " << roi.height << ", num: " << num_feature[i] << std::endl;
         
         // Seek index of which feature is extracted specific roi
@@ -706,8 +701,12 @@ void MVO::updateRoiFeatures(const std::vector<cv::Rect>& rois, const std::vector
                 features_.erase(features_.end() - (num_feature_ - idx_belong_to_roi[j]));
             }
             num_feature_ = features_.size();
-            excludeMask_(roi) = cv::Scalar(0);
-            
+            try{
+                excludeMask_(roi) = cv::Scalar(0);
+            }catch(std::exception& msg){
+                if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "Warning: " << msg.what() << std::endl;
+                continue;
+            }
         }else if( num_feature[i] > 0 ){
             try{
                 cv::goodFeaturesToTrack(next_keyframe_.image(roi), keypoints, 50, 0.01, params_.min_px_dist, excludeMask_(roi), 3, true);

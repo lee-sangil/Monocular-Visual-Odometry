@@ -106,7 +106,7 @@ Scale.reference_height: 1.65
 # For scale-propagation, the weight for scale referenced from a vehicle's fixed height
 # If you choose *negative* value, scale-propagation does not executed. It means that the 
 # algorithm *does not minimize* the difference between initialized 3d points and reconstructed points.
-Scale.reference_weight: -1
+Scale.reference_weight: 100
 
 # For scale-propagation, regularization weight for scale smoothness
 Scale.regularization_weight: 0.5

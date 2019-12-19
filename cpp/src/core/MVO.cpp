@@ -45,12 +45,6 @@ MVO::MVO(){
 
     // random seed
     lsi::seed();
-
-    cv::namedWindow("MVO");
-    cv::moveWindow("MVO", 20, 20);
-
-    cv::namedWindow("Trajectory");
-    cv::moveWindow("Trajectory", 1320, 20);
 }
 
 MVO::MVO(std::string yaml):MVO(){
@@ -157,6 +151,13 @@ MVO::MVO(std::string yaml):MVO(){
 
 	bucket_.grid = cv::Size(bucket_grid_cols,bucket_grid_rows);
 	bucket_.size = cv::Size(params_.im_size.width/bucket_.grid.width, params_.im_size.height/bucket_.grid.height);
+
+    if( std::min(bucket_.size.width, bucket_.size.height) < 2*bucket_.safety ){
+        std::cout << bucket_.safety << std::endl;
+        bucket_.safety = static_cast<int>(std::floor(std::min(bucket_.size.width, bucket_.size.height)*0.125));
+        std::cout << bucket_.safety << std::endl;
+    }
+
 	bucket_.mass.setZero(bucket_.grid.height, bucket_.grid.width);
 	bucket_.prob.resize(bucket_.grid.height, bucket_.grid.width);
     bucket_.prob.fill(1.0);
