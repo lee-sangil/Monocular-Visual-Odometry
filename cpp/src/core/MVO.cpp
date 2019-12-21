@@ -390,7 +390,6 @@ void MVO::updateVelocity(const double timestamp, const double speed){
         scale += (speed_since_keyframe_[i]+speed_since_keyframe_[i+1])/2 * (timestamp_speed_since_keyframe_[i+1]-timestamp_speed_since_keyframe_[i]);
     
     updateScaleReference(scale);
-    if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "scale: " << scale << std::endl;
 }
 
 const std::vector<Feature>& MVO::getFeatures() const {return features_;}

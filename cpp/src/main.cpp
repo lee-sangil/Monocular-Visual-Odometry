@@ -182,7 +182,7 @@ int main(int argc, char * argv[]){
 				// Fetch imu
 				if( Parser::hasOption("-imu"))
 					vo->updateGyro(timestamp_imu[it_imu], data_gyro[it_imu]);
-
+				
 				it_imu++;
 				break;
 

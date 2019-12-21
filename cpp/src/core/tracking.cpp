@@ -695,7 +695,7 @@ void MVO::updateRoiFeatures(const std::vector<cv::Rect>& rois, const std::vector
         
         if( num_feature[i] < 0 ){
             for( uint32_t j = 0; j < idx_belong_to_roi.size(); j++ ){
-                if( features_[idx_belong_to_roi[j]].life > 2 ){
+                if( features_.at(idx_belong_to_roi[j]).life > 2 ){
                     features_dead_.push_back(features_[idx_belong_to_roi[j]]);
                 }
                 features_.erase(features_.end() - (num_feature_ - idx_belong_to_roi[j]));

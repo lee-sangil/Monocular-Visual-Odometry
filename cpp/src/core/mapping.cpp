@@ -762,14 +762,17 @@ bool MVO::scalePropagation(const Eigen::Matrix3d &R, Eigen::Vector3d &t, std::ve
 }
 
 void MVO::updateScaleReference(const double scale){
-    // scale_reference_ = scale;
-    if( scale_reference_ < 0 || is_start_ == false )
+    if( params_.weight_scale_ref < 0 )
         scale_reference_ = scale;
     else{
-        // low-pass filter
-        // scale_reference_ = params_.weightScaleReg * scale_reference_ + (1-params_.weightScaleReg) * scale;
+        if( scale_reference_ < 0 || is_start_ == false )
+            scale_reference_ = scale;
+        else{
+            // low-pass filter
+            // scale_reference_ = params_.weightScaleReg * scale_reference_ + (1-params_.weightScaleReg) * scale;
 
-        // limit slope
-        scale_reference_ = scale_reference_ + ((scale > scale_reference_)?1:-1) * std::min(std::abs(scale - scale_reference_), params_.weight_scale_reg);
+            // limit slope
+            scale_reference_ = scale_reference_ + ((scale > scale_reference_)?1:-1) * std::min(std::abs(scale - scale_reference_), params_.weight_scale_reg);
+        }
     }
 }

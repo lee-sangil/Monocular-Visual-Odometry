@@ -69,10 +69,10 @@ Bucket.cols: 16
 
 # Threshold ratio for keyframe, which is updated when nFeatureMatched < nFeature * ratio
 # if threshold is 1, keyframe effect is disappeared.
-Feature.minimum_matching_ratio: 0.9
+Feature.minimum_matching_ratio: 1
 
 # Parallax - the lower a threshold, the more often keyframe is updated
-Feature.threshold_parallax: 0.001
+Feature.threshold_parallax: 0.000
 Feature.percentile_parallax: 0.75
 
 #--------------------------------------------------------------------------------------------
@@ -103,7 +103,7 @@ Scale.reference_height: 1.2
 # For scale-propagation, the weight for scale referenced from a vehicle's fixed height
 # If you choose *negative* value, scale-propagation does not executed. It means that the 
 # algorithm *does not minimize* the difference between initialized 3d points and reconstructed points.
-Scale.reference_weight: 10
+Scale.reference_weight: 100
 
 # For scale-propagation, regularization weight for scale smoothness
 Scale.regularization_weight: 0.2
