@@ -64,24 +64,26 @@ void MVO::plot(const Eigen::MatrixXd * const depthMap) const {
 
 	// feature points
 	for( int i = 0; i < num_feature_; i++ ){
-		if( features_[i].type == Type::Dynamic || features_[i].is_2D_inliered == false ){
-			cv::circle(img, cv::Point(features_[i].uv.back().x*ratio, features_[i].uv.back().y*ratio), 3, cv::Scalar(255,0,0), 1);
-			if( features_[i].uv_pred.x > 0 && features_[i].uv_pred.y > 0 )
-				cv::drawMarker(img, cv::Point(features_[i].uv_pred.x*ratio, features_[i].uv_pred.y*ratio), cv::Scalar(255,0,0), cv::MARKER_CROSS, 5);
-		}else if( features_[i].type == Type::Road ){
-			cv::circle(img, cv::Point(features_[i].uv.back().x*ratio, features_[i].uv.back().y*ratio), 3, cv::Scalar(50,50,255), 1);
-			if( features_[i].uv_pred.x > 0 && features_[i].uv_pred.y > 0 )
-				cv::drawMarker(img, cv::Point(features_[i].uv_pred.x*ratio, features_[i].uv_pred.y*ratio), cv::Scalar(50,50,255), cv::MARKER_CROSS, 5);
-		}else{
-			cv::circle(img, cv::Point(features_[i].uv.back().x*ratio, features_[i].uv.back().y*ratio), 3, cv::Scalar(0,200,0), 1);
-			if( features_[i].uv_pred.x > 0 && features_[i].uv_pred.y > 0 )
-				cv::drawMarker(img, cv::Point(features_[i].uv_pred.x*ratio, features_[i].uv_pred.y*ratio), cv::Scalar(0,200,0), cv::MARKER_CROSS, 5);
-		}
-		if( MVO::s_file_logger_.is_open() ){
-			int key_idx = features_[i].life - 1 - (step_ - keystep_);
-			if( key_idx >= 0 )
-				cv::line(img, features_[i].uv.back()*ratio, features_[i].uv[key_idx]*ratio, cv::Scalar::all(0), 1, CV_AA);
-			cv::putText(img, decimalTo36Base(features_[i].id), (features_[i].uv.back()+cv::Point2f(5,5))*ratio, cv::FONT_HERSHEY_DUPLEX, 0.4, cv::Scalar(0,255,0), 1, CV_AA);
+		if( features_[i].life > 1 ){
+			if( features_[i].type == Type::Dynamic || features_[i].is_2D_inliered == false ){
+				cv::circle(img, cv::Point(features_[i].uv.back().x*ratio, features_[i].uv.back().y*ratio), 3, cv::Scalar(255,0,0), 1);
+				if( features_[i].uv_pred.x > 0 && features_[i].uv_pred.y > 0 )
+					cv::drawMarker(img, cv::Point(features_[i].uv_pred.x*ratio, features_[i].uv_pred.y*ratio), cv::Scalar(255,0,0), cv::MARKER_CROSS, 5);
+			}else if( features_[i].type == Type::Road ){
+				cv::circle(img, cv::Point(features_[i].uv.back().x*ratio, features_[i].uv.back().y*ratio), 3, cv::Scalar(50,50,255), 1);
+				if( features_[i].uv_pred.x > 0 && features_[i].uv_pred.y > 0 )
+					cv::drawMarker(img, cv::Point(features_[i].uv_pred.x*ratio, features_[i].uv_pred.y*ratio), cv::Scalar(50,50,255), cv::MARKER_CROSS, 5);
+			}else{
+				cv::circle(img, cv::Point(features_[i].uv.back().x*ratio, features_[i].uv.back().y*ratio), 3, cv::Scalar(0,200,0), 1);
+				if( features_[i].uv_pred.x > 0 && features_[i].uv_pred.y > 0 )
+					cv::drawMarker(img, cv::Point(features_[i].uv_pred.x*ratio, features_[i].uv_pred.y*ratio), cv::Scalar(0,200,0), cv::MARKER_CROSS, 5);
+			}
+			if( MVO::s_file_logger_.is_open() ){
+				int key_idx = features_[i].life - 1 - (step_ - keystep_);
+				if( key_idx >= 0 )
+					cv::line(img, features_[i].uv.back()*ratio, features_[i].uv[key_idx]*ratio, cv::Scalar::all(0), 1, CV_AA);
+				cv::putText(img, decimalTo36Base(features_[i].id), (features_[i].uv.back()+cv::Point2f(5,5))*ratio, cv::FONT_HERSHEY_DUPLEX, 0.4, cv::Scalar(0,255,0), 1, CV_AA);
+			}
 		}
 	}
 	// cv::rectangle(img, cv::Rect(200*ratio,200*ratio,200*ratio,200*ratio),cv::Scalar(0,0,255));
