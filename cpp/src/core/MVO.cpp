@@ -377,7 +377,7 @@ void MVO::updateGyro(const double timestamp, const Eigen::Vector3d& gyro){
         radian += (gyro_since_keyframe_[i]+gyro_since_keyframe_[i+1])/2 * (timestamp_imu_since_keyframe_[i+1]-timestamp_imu_since_keyframe_[i]);
 
     rotate_prior_ = params_.Tci.block(0,0,3,3) * skew(-radian).exp() * params_.Tic.block(0,0,3,3);
-    if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "rotate_prior: " << radian << std::endl;
+    if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "rotate_prior: " << radian.transpose() << std::endl;
 }
 
 void MVO::updateVelocity(const double timestamp, const double speed){

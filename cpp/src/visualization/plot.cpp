@@ -1,8 +1,29 @@
 #include "core/MVO.hpp"
 #include "core/DepthFilter.hpp"
+#include <stack>
 
 #define RATIO 0.5
 #define GAP 30
+
+std::string decimalTo36Base(int num){
+	char rem;
+	std::stack<char> base;
+	while( num > 0 ){
+		rem = num % 36;
+		num /= 36;
+
+		if( rem < 10 )
+			base.push(48+rem);
+		else
+			base.push(55+rem);
+	}
+	std::stringstream ss;
+	while( !base.empty() ){
+		ss << base.top();
+		base.pop();
+	}
+	return ss.str();
+}
 
 void MVO::updateView(){
 	Eigen::Matrix3d rotx, rotz;
@@ -60,7 +81,7 @@ void MVO::plot(const Eigen::MatrixXd * const depthMap) const {
 			int key_idx = features_[i].life - 1 - (step_ - keystep_);
 			if( key_idx >= 0 )
 				cv::line(img, features_[i].uv.back()*ratio, features_[i].uv[key_idx]*ratio, cv::Scalar::all(0), 1, CV_AA);
-			cv::putText(img, std::to_string(features_[i].id), (features_[i].uv.back()+cv::Point2f(5,5))*ratio, cv::FONT_HERSHEY_DUPLEX, 0.4, cv::Scalar(0,255,0), 1, CV_AA);
+			cv::putText(img, decimalTo36Base(features_[i].id), (features_[i].uv.back()+cv::Point2f(5,5))*ratio, cv::FONT_HERSHEY_DUPLEX, 0.4, cv::Scalar(0,255,0), 1, CV_AA);
 		}
 	}
 	// cv::rectangle(img, cv::Rect(200*ratio,200*ratio,200*ratio,200*ratio),cv::Scalar(0,0,255));
