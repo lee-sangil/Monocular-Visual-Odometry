@@ -58,17 +58,18 @@ bool MVO::updateFeatures(){
         for( int i = 0; i < num_feature_; i++ ){
             if( validity[i] && features_[i].is_alive ){
                 key_idx = features_[i].life - (step_ - keystep_); // before feature.life increasement
+
+                // Memory the previous uv point
                 if( key_idx >= 0 )
                     uv_prev = features_[i].uv[key_idx];
                 else
                     uv_prev = features_[i].uv.back();
-
-                if( is_rotate_provided_ ) features_[i].uv_pred = warpWithIMU(uv_prev);
-                else if( features_[i].is_3D_init ) features_[i].uv_pred = warpWithPreviousMotion(Tko * features_[i].point_init);
                 
+                // Flag KLT matching
                 if( features_[i].frame_2d_init < 0 ) features_[i].frame_2d_init = keystep_;
                 features_[i].is_matched = true;
                 
+                // Update features properties: life, uv
                 while( features_[i].frame_2d_init + features_[i].life - 1 - step_ < -1 ){
                     features_[i].life++;
                     features_[i].uv.push_back(cv::Point2f(-1,-1)); // In the case of newly-registered-features in the keyframe
@@ -78,28 +79,37 @@ bool MVO::updateFeatures(){
                     features_[i].uv.push_back(points[i]);
                 }
 
-                if( is_rotate_provided_ ){
-                    Eigen::Vector3d epiLine = fundamental_ * (Eigen::Vector3d() << uv_prev.x, uv_prev.y, 1).finished();
-                    double dist_from_epiline = std::abs(epiLine(0)*features_[i].uv_pred.x + epiLine(1)*features_[i].uv_pred.y + epiLine(2)) / epiLine.topRows(2).norm();
-                    if( is_start_){
-                        // if( dist_from_epiline > params_.max_dist ){
-                        //     features_[i].type = Type::Dynamic;
-                        //     features_[i].is_3D_init = false;
-                        // }else{
-                        //     if( features_[i].type == Type::Dynamic ) features_[i].type = Type::Unknown;
-                        // }
-                    }
-                }else if( features_[i].is_3D_init ){
-                    double dist_from_predicted_point = cv::norm(features_[i].uv_pred - features_[i].uv.back());
-                    if( is_start_ ){
-                        // if( dist_from_predicted_point > params_.max_dist ){
-                        //     features_[i].type = Type::Dynamic;
-                        //     features_[i].is_3D_init = false;
-                        // }else{
-                        //     if( features_[i].type == Type::Dynamic ) features_[i].type = Type::Unknown;
-                        // }
-                    }
-                }
+                // Predict the current uv point from the previous uv point
+                if( is_rotate_provided_ ) {
+                    if( is_speed_provided_ && features_[i].is_3D_init )
+                        features_[i].uv_pred = warpWithCAN(Tko * features_[i].point_init);
+                    else
+                        features_[i].uv_pred = warpWithIMU(uv_prev);
+                }else if( features_[i].is_3D_init ) features_[i].uv_pred = warpWithPreviousMotion(Tko * features_[i].point_init);
+
+                // Reject unpredicted motion using the previous uv or point and prior knowledge
+                // if( is_rotate_provided_  && !is_speed_provided_){
+                //     Eigen::Vector3d epiLine = fundamental_ * (Eigen::Vector3d() << uv_prev.x, uv_prev.y, 1).finished();
+                //     double dist_from_epiline = std::abs(epiLine(0)*features_[i].uv_pred.x + epiLine(1)*features_[i].uv_pred.y + epiLine(2)) / epiLine.topRows(2).norm();
+                //     if( is_start_){
+                //         if( dist_from_epiline > params_.max_dist ){
+                //             features_[i].type = Type::Dynamic;
+                //             features_[i].is_3D_init = false;
+                //         }else{
+                //             if( features_[i].type == Type::Dynamic ) features_[i].type = Type::Unknown;
+                //         }
+                //     }
+                // }else if( features_[i].is_3D_init ){
+                //     double dist_from_predicted_point = cv::norm(features_[i].uv_pred - features_[i].uv.back());
+                //     if( is_start_ ){
+                //         if( dist_from_predicted_point > params_.max_dist ){
+                //             features_[i].type = Type::Dynamic;
+                //             features_[i].is_3D_init = false;
+                //         }else{
+                //             if( features_[i].type == Type::Dynamic ) features_[i].type = Type::Unknown;
+                //         }
+                //     }
+                // }
 
             }else
                 features_[i].is_alive = false;
@@ -179,24 +189,26 @@ void MVO::selectKeyframeAfter(){
 
 cv::Point2f MVO::warpWithIMU(const cv::Point2f& uv) const {
     Eigen::Vector3d pixel, warpedPixel;
-    cv::Point2f warpedUV;
+    Eigen::Vector3d t = (TocRec_[keystep_].inverse() * TocRec_.back() * TRec_.back()).block(0,3,3,1);
     pixel << uv.x, uv.y, 1;
-    warpedPixel = params_.K * rotate_prior_ * params_.Kinv * pixel;
-    warpedUV.x = warpedPixel(0)/warpedPixel(2);
-    warpedUV.y = warpedPixel(1)/warpedPixel(2);
-    return warpedUV;
+    warpedPixel = params_.K * rotate_prior_ * (params_.Kinv * pixel - t);
+    return cv::Point2f(warpedPixel(0)/warpedPixel(2), warpedPixel(1)/warpedPixel(2));
+}
+
+cv::Point2f MVO::warpWithCAN(const Eigen::Vector3d& p) const {
+    Eigen::Vector3d pixel, warpedPixel;
+    Eigen::Vector3d t = (TocRec_[keystep_].inverse() * TocRec_.back() * TRec_.back()).block(0,3,3,1);
+    warpedPixel = params_.K * rotate_prior_ * (p-t);
+    return cv::Point2f(warpedPixel(0)/warpedPixel(2), warpedPixel(1)/warpedPixel(2));
 }
 
 cv::Point2f MVO::warpWithPreviousMotion(const Eigen::Vector3d& p) const {
     Eigen::Vector3d warpedPixel;
-    cv::Point2f warpedUV;
     Eigen::Matrix3d Rinv = (TocRec_[keystep_].inverse() * TocRec_.back() * TRec_.back()).block(0,0,3,3).transpose();
     Eigen::Vector3d t = (TocRec_[keystep_].inverse() * TocRec_.back() * TRec_.back()).block(0,3,3,1);
     
     warpedPixel = params_.K * Rinv * (p-t);
-    warpedUV.x = warpedPixel(0)/warpedPixel(2);
-    warpedUV.y = warpedPixel(1)/warpedPixel(2);
-    return warpedUV;
+    return cv::Point2f(warpedPixel(0)/warpedPixel(2), warpedPixel(1)/warpedPixel(2));
 }
 
 void MVO::kltTrackerRough(std::vector<cv::Point2f>& points, std::vector<bool>& validity){
@@ -695,10 +707,10 @@ void MVO::updateRoiFeatures(const std::vector<cv::Rect>& rois, const std::vector
         
         if( num_feature[i] < 0 ){
             for( uint32_t j = 0; j < idx_belong_to_roi.size(); j++ ){
-                if( features_.at(idx_belong_to_roi[j]).life > 2 ){
-                    features_dead_.push_back(features_[idx_belong_to_roi[j]]);
+                if( features_.at(idx_belong_to_roi[j]-j).life > 2 ){
+                    features_dead_.push_back(features_.at(idx_belong_to_roi[j]-j));
                 }
-                features_.erase(features_.end() - (num_feature_ - idx_belong_to_roi[j]));
+                features_.erase(features_.begin()+idx_belong_to_roi[j]-j);
             }
             num_feature_ = features_.size();
             try{
@@ -751,25 +763,29 @@ bool MVO::updateRoiFeature(const cv::Rect& roi, const std::vector<cv::Point2f>& 
         success = true;
         min_dist = 1e9; // enough-large number
         for( const auto & idx : idx_compared ){
-            dist = cv::norm(keypoint - features_.at(idx).uv.back());
-            
-            if( dist < min_dist )
-                min_dist = dist;
+            if( features_.at(idx).uv.size() > 0 ){
+                dist = cv::norm(keypoint - features_.at(idx).uv.back());
+                
+                if( dist < min_dist )
+                    min_dist = dist;
 
-            if( dist < params_.min_px_dist/2+1 ){
-                success = false;
-                break;
+                if( dist < params_.min_px_dist/2+1 ){
+                    success = false;
+                    break;
+                }
             }
         }
         for( const auto & feature : features_extra_ ){
-            dist = cv::norm(keypoint - feature.uv.back());
-            
-            if( dist < min_dist )
-                min_dist = dist;
+            if( feature.uv.size() > 0 ){
+                dist = cv::norm(keypoint - feature.uv.back());
+                
+                if( dist < min_dist )
+                    min_dist = dist;
 
-            if( dist < params_.min_px_dist/2+1 ){
-                success = false;
-                break;
+                if( dist < params_.min_px_dist/2+1 ){
+                    success = false;
+                    break;
+                }
             }
         }
         if( success ){

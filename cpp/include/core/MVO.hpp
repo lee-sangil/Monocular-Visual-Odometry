@@ -152,6 +152,7 @@ class MVO{
 	const std::vector<Feature>& getFeatures() const;
 	const Eigen::Matrix4d& getCurrentMotion() const;
 	cv::Point2f warpWithIMU(const cv::Point2f& uv) const;
+	cv::Point2f warpWithCAN(const Eigen::Vector3d& p) const;
 	cv::Point2f warpWithPreviousMotion(const Eigen::Vector3d& p) const;
 	
 	// Script operations
