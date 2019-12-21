@@ -211,7 +211,7 @@ int main(int argc, char * argv[]){
 				dirRgb.append(inputFile).append(rgbNameRaw[it_rgb]);
 				chk::getImgTUMdataset(dirRgb, image);
 				
-				vo->run(image);
+				vo->run(image, timestamp_image[it_rgb]);
 				std::cout << "Iteration: " << it_rgb << ", Execution time: " << lsi::toc()/1e3 << "ms       " << '\r' << std::flush;
 
 				vo->updateView();

@@ -64,7 +64,7 @@ void MVO::plot(const Eigen::MatrixXd * const depthMap) const {
 
 	// feature points
 	for( int i = 0; i < num_feature_; i++ ){
-		if( features_[i].life > 1 ){
+		if( features_[i].life > 2 ){
 			if( features_[i].type == Type::Dynamic || features_[i].is_2D_inliered == false ){
 				cv::circle(img, cv::Point(features_[i].uv.back().x*ratio, features_[i].uv.back().y*ratio), 3, cv::Scalar(255,0,0), 1);
 				if( features_[i].uv_pred.x > 0 && features_[i].uv_pred.y > 0 )

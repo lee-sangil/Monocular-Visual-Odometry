@@ -80,13 +80,13 @@ bool MVO::updateFeatures(){
                 }
 
                 // Predict the current uv point from the previous uv point
-                if( is_rotate_provided_ ) {
-                    if( is_speed_provided_ && features_[i].is_3D_init )
-                        features_[i].uv_pred = warpWithCAN(Tko * features_[i].point_init);
-                    else
-                        features_[i].uv_pred = warpWithIMU(uv_prev);
-                }else if( features_[i].is_3D_init ) features_[i].uv_pred = warpWithPreviousMotion(Tko * features_[i].point_init);
-
+                // if( is_rotate_provided_ ) {
+                //     if( is_speed_provided_ && features_[i].is_3D_init )
+                //         features_[i].uv_pred = warpWithCAN(Tko * features_[i].point_init);
+                //     else
+                //         features_[i].uv_pred = warpWithIMU(uv_prev);
+                // }else if( features_[i].is_3D_init ) features_[i].uv_pred = warpWithPreviousMotion(Tko * features_[i].point_init);
+                // 
                 // Reject unpredicted motion using the previous uv or point and prior knowledge
                 // if( is_rotate_provided_  && !is_speed_provided_){
                 //     Eigen::Vector3d epiLine = fundamental_ * (Eigen::Vector3d() << uv_prev.x, uv_prev.y, 1).finished();
@@ -122,8 +122,8 @@ bool MVO::updateFeatures(){
             return true;
         }
     }else{
-        curr_keyframe_.copy(curr_frame_);
-        next_keyframe_.copy(curr_frame_);
+        curr_keyframe_.copy(curr_frame_); // for logging velocity and gyro
+        next_keyframe_.copy(curr_frame_); // for extracting new features
 
         return true;
     }
@@ -180,7 +180,7 @@ void MVO::selectKeyframeAfter(){
             next_keyframe_.copy(curr_frame_);
             trigger_keystep_increase_ = true;
 
-            restartKeyframeLogger();
+            // restartKeyframeLogger();
             
             if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "! <keystep> tracking loss: " << (double) num_feature_matched_ / num_feature_ << std::endl;
         }

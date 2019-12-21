@@ -117,11 +117,20 @@ class MVO{
 
 	struct Frame{
 		cv::Mat image;
+		double timestamp = 0;
 		int id = -1;
 
+		std::vector<std::pair<double,double>> linear_velocity_since_;
+		std::vector<std::pair<double,Eigen::Vector3d>> angular_velocity_since_;
+		
 		void copy(const MVO::Frame& im){
 			this->image = im.image.clone();
+			this->timestamp = im.timestamp;
 			this->id = im.id;
+			this->angular_velocity_since_.clear();
+			this->angular_velocity_since_.assign(im.angular_velocity_since_.begin(),im.angular_velocity_since_.end());
+			this->linear_velocity_since_.clear();
+			this->linear_velocity_since_.assign(im.linear_velocity_since_.begin(),im.linear_velocity_since_.end());
 		}
 		cv::Size size() const{
 			return this->image.size();
@@ -143,7 +152,7 @@ class MVO{
 	}
 	
 	// Set image
-	void setImage(const cv::Mat& image);
+	void setImage(const cv::Mat& image, double timestamp);
 
 	// Get feature
 	std::vector< std::tuple<uint32_t, cv::Point2f, Eigen::Vector3d, double> > getPoints() const;
@@ -158,7 +167,7 @@ class MVO{
 	// Script operations
 	void restart();
 	void refresh();
-	void run(const cv::Mat& image);
+	void run(const cv::Mat& image, double timestamp);
 	void updateGyro(const double timestamp, const Eigen::Vector3d& gyro);
 	void updateVelocity(const double timestamp, const double speed);
 	void restartKeyframeLogger();
@@ -219,11 +228,6 @@ class MVO{
 	bool trigger_keystep_decrease_ = false;
 	bool trigger_keystep_increase_ = false;
 	bool trigger_keystep_decrease_previous_ = false;
-
-	std::vector<double> timestamp_speed_since_keyframe_;
-	std::vector<double> timestamp_imu_since_keyframe_;
-	std::vector<double> speed_since_keyframe_;
-	std::vector<Eigen::Vector3d> gyro_since_keyframe_;
 	
 	MVO::Frame prev_keyframe_;
 	MVO::Frame curr_keyframe_;

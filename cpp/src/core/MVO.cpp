@@ -318,13 +318,15 @@ void MVO::restart(){
     TocRec_.erase(TocRec_.begin(), TocRec_.end()-1);
     PocRec_.erase(PocRec_.begin(), PocRec_.end()-1);
 
-    restartKeyframeLogger();
+    // restartKeyframeLogger();
 }
 
-void MVO::setImage(const cv::Mat& image){
+void MVO::setImage(const cv::Mat& image, double timestamp){
     step_++;
     keystep_ = keystep_array_.back();
-    curr_keyframe_.copy(next_keyframe_);
+    
+    if( trigger_keystep_decrease_ || trigger_keystep_increase_ )
+        curr_keyframe_.copy(next_keyframe_);
 
     trigger_keystep_decrease_previous_ = trigger_keystep_decrease_;
     trigger_keystep_decrease_ = false;
@@ -342,14 +344,15 @@ void MVO::setImage(const cv::Mat& image){
     else
         curr_frame_.image = image.clone();
     curr_frame_.id = step_;
+    curr_frame_.timestamp = timestamp;
 
     if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "# Grab image: " << lsi::toc() << std::endl;
 }
 
-void MVO::run(const cv::Mat& image){
+void MVO::run(const cv::Mat& image, double timestamp = 0){
     
     lsi::tic();
-    setImage(image);
+    setImage(image, timestamp);
     refresh();
 
     if( !extractFeatures() ) { restart(); return; }
@@ -369,26 +372,42 @@ void MVO::run(const cv::Mat& image){
 
 void MVO::updateGyro(const double timestamp, const Eigen::Vector3d& gyro){
     is_rotate_provided_ = true;
-    timestamp_imu_since_keyframe_.push_back(timestamp);
-    gyro_since_keyframe_.push_back(gyro);
 
     Eigen::Vector3d radian = Eigen::Vector3d::Zero();
-    for( uint32_t i = 0; i < gyro_since_keyframe_.size()-1; i++ )
-        radian += (gyro_since_keyframe_[i]+gyro_since_keyframe_[i+1])/2 * (timestamp_imu_since_keyframe_[i+1]-timestamp_imu_since_keyframe_[i]);
+    if( trigger_keystep_increase_ ){
+        auto & stack = next_keyframe_.angular_velocity_since_;
+        stack.emplace_back(timestamp,gyro);
 
+        for( uint32_t i = 0; i < stack.size()-1; i++ )
+            radian += (stack[i].second+stack[i+1].second)/2 * (stack[i+1].first-stack[i].first);
+    }else{
+        auto & stack = curr_keyframe_.angular_velocity_since_;
+        stack.emplace_back(timestamp,gyro);
+
+        for( uint32_t i = 0; i < stack.size()-1; i++ )
+            radian += (stack[i].second+stack[i+1].second)/2 * (stack[i+1].first-stack[i].first);
+    }
     rotate_prior_ = params_.Tci.block(0,0,3,3) * skew(-radian).exp() * params_.Tic.block(0,0,3,3);
     if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "rotate_prior: " << radian.transpose() << std::endl;
 }
 
 void MVO::updateVelocity(const double timestamp, const double speed){
     is_speed_provided_ = true;
-    timestamp_speed_since_keyframe_.push_back(timestamp);
-    speed_since_keyframe_.push_back(speed);
-
-    double scale = 0.0;
-    for( uint32_t i = 0; i < speed_since_keyframe_.size()-1; i++ )
-        scale += (speed_since_keyframe_[i]+speed_since_keyframe_[i+1])/2 * (timestamp_speed_since_keyframe_[i+1]-timestamp_speed_since_keyframe_[i]);
     
+    double scale = 0.0;
+    if( trigger_keystep_increase_ ){
+        auto & stack = next_keyframe_.linear_velocity_since_;
+        stack.emplace_back(timestamp,speed);
+
+        for( uint32_t i = 0; i < stack.size()-1; i++ )
+            scale += (stack[i].second+stack[i+1].second)/2 * (stack[i+1].first-stack[i].first);
+    }else{
+        auto & stack = curr_keyframe_.linear_velocity_since_;
+        stack.emplace_back(timestamp,speed);
+        
+        for( uint32_t i = 0; i < stack.size()-1; i++ )
+            scale += (stack[i].second+stack[i+1].second)/2 * (stack[i+1].first-stack[i].first);
+    }
     updateScaleReference(scale);
 }
 
@@ -482,25 +501,25 @@ void MVO::printFeatures() const {
 }
 
 void MVO::restartKeyframeLogger() {
-    if( is_speed_provided_ ){
-        double last_timestamp = timestamp_speed_since_keyframe_.back();
-        double last_speed = speed_since_keyframe_.back();
+    // if( is_speed_provided_ ){
+    //     double last_timestamp = timestamp_speed_since_keyframe_.back();
+    //     double last_speed = speed_since_keyframe_.back();
 
-        timestamp_speed_since_keyframe_.clear();
-        speed_since_keyframe_.clear();
+    //     timestamp_speed_since_keyframe_.clear();
+    //     speed_since_keyframe_.clear();
 
-        timestamp_speed_since_keyframe_.push_back(last_timestamp);
-        speed_since_keyframe_.push_back(last_speed);
-    }
+    //     timestamp_speed_since_keyframe_.push_back(last_timestamp);
+    //     speed_since_keyframe_.push_back(last_speed);
+    // }
 
-    if( is_rotate_provided_ ){
-        double last_timestamp = timestamp_imu_since_keyframe_.back();
-        Eigen::Vector3d last_gyro = gyro_since_keyframe_.back();
+    // if( is_rotate_provided_ ){
+    //     double last_timestamp = timestamp_imu_since_keyframe_.back();
+    //     Eigen::Vector3d last_gyro = gyro_since_keyframe_.back();
 
-        timestamp_imu_since_keyframe_.clear();
-        gyro_since_keyframe_.clear();
+    //     timestamp_imu_since_keyframe_.clear();
+    //     gyro_since_keyframe_.clear();
 
-        timestamp_imu_since_keyframe_.push_back(last_timestamp);
-        gyro_since_keyframe_.push_back(last_gyro);
-    }
+    //     timestamp_imu_since_keyframe_.push_back(last_timestamp);
+    //     gyro_since_keyframe_.push_back(last_gyro);
+    // }
 }
