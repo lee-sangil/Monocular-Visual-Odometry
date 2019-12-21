@@ -354,7 +354,7 @@ void MVO::kltTrackerPrecise(std::vector<cv::Point2f>& points, std::vector<bool>&
 void MVO::deleteDeadFeatures(){
     for( uint32_t i = 0; i < features_.size(); ){
         if( features_[i].is_alive == false ){
-            if( features_[i].life > 2 ){
+            if( features_[i].life > 2 && MVO::s_file_logger_.is_open() ){
                 features_dead_.push_back(features_[i]);
             }
             features_.erase(features_.begin()+i);
@@ -707,7 +707,7 @@ void MVO::updateRoiFeatures(const std::vector<cv::Rect>& rois, const std::vector
         
         if( num_feature[i] < 0 ){
             for( uint32_t j = 0; j < idx_belong_to_roi.size(); j++ ){
-                if( features_.at(idx_belong_to_roi[j]-j).life > 2 ){
+                if( features_.at(idx_belong_to_roi[j]-j).life > 2 && MVO::s_file_logger_.is_open() ){
                     features_dead_.push_back(features_.at(idx_belong_to_roi[j]-j));
                 }
                 features_.erase(features_.begin()+idx_belong_to_roi[j]-j);

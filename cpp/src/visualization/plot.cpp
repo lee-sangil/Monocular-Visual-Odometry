@@ -157,95 +157,97 @@ void MVO::plot(const Eigen::MatrixXd * const depthMap) const {
 	cv::imshow("MVO", mvo);
 
 	/*******************************************
-	 * 		Figure 2: Trajectory
+	 * 		Figure 2: Trajectory - debug
 	 * *****************************************/
-	cv::Mat traj = cv::Mat::zeros(params_.view.im_size.height,params_.view.im_size.width,CV_8UC3);
+	if( MVO::s_file_logger_.is_open() ){
+		cv::Mat traj = cv::Mat::zeros(params_.view.im_size.height,params_.view.im_size.width,CV_8UC3);
 
-	// Points
-	Eigen::Vector3d uv;
-	for( uint32_t i = 0; i < features_dead_.size(); i++ ){
-		if( features_dead_[i].is_3D_init && features_dead_[i].depthfilter->getVariance() < params_.max_point_var ){
-			point = Tco * features_dead_[i].point_init;
-			uv = params_.view.P * point;
-			if( uv(2) > 1 ){
-				switch (features_dead_[i].type){
-				case Type::Unknown:
-					cv::circle(traj, cv::Point(uv(0)/uv(2), uv(1)/uv(2)), 1, cv::Scalar(128,128,128), CV_FILLED);
-					break;
-				case Type::Road:
-					cv::circle(traj, cv::Point(uv(0)/uv(2), uv(1)/uv(2)), 1, cv::Scalar(128,128,200), CV_FILLED);
-					break;
-				case Type::Dynamic:
-					cv::circle(traj, cv::Point(uv(0)/uv(2), uv(1)/uv(2)), 1, cv::Scalar(100,50,50), CV_FILLED);
-					break;
+		// Points
+		Eigen::Vector3d uv;
+		for( uint32_t i = 0; i < features_dead_.size(); i++ ){
+			if( features_dead_[i].is_3D_init && features_dead_[i].depthfilter->getVariance() < params_.max_point_var ){
+				point = Tco * features_dead_[i].point_init;
+				uv = params_.view.P * point;
+				if( uv(2) > 1 ){
+					switch (features_dead_[i].type){
+					case Type::Unknown:
+						cv::circle(traj, cv::Point(uv(0)/uv(2), uv(1)/uv(2)), 1, cv::Scalar(128,128,128), CV_FILLED);
+						break;
+					case Type::Road:
+						cv::circle(traj, cv::Point(uv(0)/uv(2), uv(1)/uv(2)), 1, cv::Scalar(128,128,200), CV_FILLED);
+						break;
+					case Type::Dynamic:
+						cv::circle(traj, cv::Point(uv(0)/uv(2), uv(1)/uv(2)), 1, cv::Scalar(100,50,50), CV_FILLED);
+						break;
+					}
 				}
 			}
 		}
-	}
-	for( uint32_t i = 0; i < features_.size(); i++ ){
-		if( features_[i].is_3D_init ){
-			point = Tco * features_[i].point_init;
-			uv = params_.view.P * point;
-			if( uv(2) > 1 ){
-				switch (features_[i].type){
-				case Type::Unknown:
-					cv::circle(traj, cv::Point(uv(0)/uv(2), uv(1)/uv(2)), 1, cv::Scalar(128,128,128), CV_FILLED);
-					break;
-				case Type::Road:
-					cv::circle(traj, cv::Point(uv(0)/uv(2), uv(1)/uv(2)), 1, cv::Scalar(128,128,200), CV_FILLED);
-					break;
-				case Type::Dynamic:
-					cv::circle(traj, cv::Point(uv(0)/uv(2), uv(1)/uv(2)), 1, cv::Scalar(100,50,50), CV_FILLED);
-					break;
-				}
-				if( params_.output_filtered_depth ){
-					if( features_[i].is_3D_init && features_[i].frame_3d_init < step_ && features_[i].type != Type::Dynamic )
-						cv::circle(traj, cv::Point(uv(0)/uv(2), uv(1)/uv(2)), 1, cv::Scalar(0,255,0), CV_FILLED);
-				}else{
-					if( features_[i].is_3D_reconstructed && features_[i].frame_3d_init < step_ && features_[i].type != Type::Dynamic )
-						cv::circle(traj, cv::Point(uv(0)/uv(2), uv(1)/uv(2)), 1, cv::Scalar(0,255,0), CV_FILLED);
+		for( uint32_t i = 0; i < features_.size(); i++ ){
+			if( features_[i].is_3D_init ){
+				point = Tco * features_[i].point_init;
+				uv = params_.view.P * point;
+				if( uv(2) > 1 ){
+					switch (features_[i].type){
+					case Type::Unknown:
+						cv::circle(traj, cv::Point(uv(0)/uv(2), uv(1)/uv(2)), 1, cv::Scalar(128,128,128), CV_FILLED);
+						break;
+					case Type::Road:
+						cv::circle(traj, cv::Point(uv(0)/uv(2), uv(1)/uv(2)), 1, cv::Scalar(128,128,200), CV_FILLED);
+						break;
+					case Type::Dynamic:
+						cv::circle(traj, cv::Point(uv(0)/uv(2), uv(1)/uv(2)), 1, cv::Scalar(100,50,50), CV_FILLED);
+						break;
+					}
+					if( params_.output_filtered_depth ){
+						if( features_[i].is_3D_init && features_[i].frame_3d_init < step_ && features_[i].type != Type::Dynamic )
+							cv::circle(traj, cv::Point(uv(0)/uv(2), uv(1)/uv(2)), 1, cv::Scalar(0,255,0), CV_FILLED);
+					}else{
+						if( features_[i].is_3D_reconstructed && features_[i].frame_3d_init < step_ && features_[i].type != Type::Dynamic )
+							cv::circle(traj, cv::Point(uv(0)/uv(2), uv(1)/uv(2)), 1, cv::Scalar(0,255,0), CV_FILLED);
+					}
 				}
 			}
 		}
-	}
 
-	// Camera
-	Eigen::Vector3d uv0, uv1, uv2, uv3, uv4;
-	uv0 = params_.view.P * (Eigen::Vector4d() << 0,0,0,1).finished();
-	uv1 = params_.view.P * (Eigen::Vector4d() << params_.view.upper_left.x,params_.view.upper_left.y,params_.view.upper_left.z,1).finished();
-	uv2 = params_.view.P * (Eigen::Vector4d() << params_.view.upper_right.x,params_.view.upper_right.y,params_.view.upper_right.z,1).finished();
-	uv3 = params_.view.P * (Eigen::Vector4d() << params_.view.lower_right.x,params_.view.lower_right.y,params_.view.lower_right.z,1).finished();
-	uv4 = params_.view.P * (Eigen::Vector4d() << params_.view.lower_left.x,params_.view.lower_left.y,params_.view.lower_left.z,1).finished();
-	if( uv0(2) > 1 && uv1(2) > 1 && uv2(2) > 1 && uv3(2) > 1 && uv4(2) > 1){
-		cv::line(traj, cv::Point(uv0(0)/uv0(2), uv0(1)/uv0(2)), cv::Point(uv1(0)/uv1(2), uv1(1)/uv1(2)), cv::Scalar(0,0,255), 2);
-		cv::line(traj, cv::Point(uv0(0)/uv0(2), uv0(1)/uv0(2)), cv::Point(uv2(0)/uv2(2), uv2(1)/uv2(2)), cv::Scalar(0,0,255), 2);
-		cv::line(traj, cv::Point(uv0(0)/uv0(2), uv0(1)/uv0(2)), cv::Point(uv3(0)/uv3(2), uv3(1)/uv3(2)), cv::Scalar(0,0,255), 2);
-		cv::line(traj, cv::Point(uv0(0)/uv0(2), uv0(1)/uv0(2)), cv::Point(uv4(0)/uv4(2), uv4(1)/uv4(2)), cv::Scalar(0,0,255), 2);
-		cv::line(traj, cv::Point(uv1(0)/uv1(2), uv1(1)/uv1(2)), cv::Point(uv2(0)/uv2(2), uv2(1)/uv2(2)), cv::Scalar(0,0,255), 2);
-		cv::line(traj, cv::Point(uv2(0)/uv2(2), uv2(1)/uv2(2)), cv::Point(uv3(0)/uv3(2), uv3(1)/uv3(2)), cv::Scalar(0,0,255), 2);
-		cv::line(traj, cv::Point(uv3(0)/uv3(2), uv3(1)/uv3(2)), cv::Point(uv4(0)/uv4(2), uv4(1)/uv4(2)), cv::Scalar(0,0,255), 2);
-		cv::line(traj, cv::Point(uv4(0)/uv4(2), uv4(1)/uv4(2)), cv::Point(uv1(0)/uv1(2), uv1(1)/uv1(2)), cv::Scalar(0,0,255), 2);
-	}
-
-	// Keyframes
-	for( uint32_t i = 0; i < keystep_array_.size(); i++ ){
-		Eigen::Matrix4d T = TocRec_[keystep_array_[i]];
-		uv0 = params_.view.P * Tco * T * (Eigen::Vector4d() << 0,0,0,1).finished();
-		uv1 = params_.view.P * Tco * T * (Eigen::Vector4d() << params_.view.upper_left.x,params_.view.upper_left.y,params_.view.upper_left.z,1).finished();
-		uv2 = params_.view.P * Tco * T * (Eigen::Vector4d() << params_.view.upper_right.x,params_.view.upper_right.y,params_.view.upper_right.z,1).finished();
-		uv3 = params_.view.P * Tco * T * (Eigen::Vector4d() << params_.view.lower_right.x,params_.view.lower_right.y,params_.view.lower_right.z,1).finished();
-		uv4 = params_.view.P * Tco * T * (Eigen::Vector4d() << params_.view.lower_left.x,params_.view.lower_left.y,params_.view.lower_left.z,1).finished();
+		// Camera
+		Eigen::Vector3d uv0, uv1, uv2, uv3, uv4;
+		uv0 = params_.view.P * (Eigen::Vector4d() << 0,0,0,1).finished();
+		uv1 = params_.view.P * (Eigen::Vector4d() << params_.view.upper_left.x,params_.view.upper_left.y,params_.view.upper_left.z,1).finished();
+		uv2 = params_.view.P * (Eigen::Vector4d() << params_.view.upper_right.x,params_.view.upper_right.y,params_.view.upper_right.z,1).finished();
+		uv3 = params_.view.P * (Eigen::Vector4d() << params_.view.lower_right.x,params_.view.lower_right.y,params_.view.lower_right.z,1).finished();
+		uv4 = params_.view.P * (Eigen::Vector4d() << params_.view.lower_left.x,params_.view.lower_left.y,params_.view.lower_left.z,1).finished();
 		if( uv0(2) > 1 && uv1(2) > 1 && uv2(2) > 1 && uv3(2) > 1 && uv4(2) > 1){
-			cv::line(traj, cv::Point(uv0(0)/uv0(2), uv0(1)/uv0(2)), cv::Point(uv1(0)/uv1(2), uv1(1)/uv1(2)), cv::Scalar(255,0,255), 1);
-			cv::line(traj, cv::Point(uv0(0)/uv0(2), uv0(1)/uv0(2)), cv::Point(uv2(0)/uv2(2), uv2(1)/uv2(2)), cv::Scalar(255,0,255), 1);
-			cv::line(traj, cv::Point(uv0(0)/uv0(2), uv0(1)/uv0(2)), cv::Point(uv3(0)/uv3(2), uv3(1)/uv3(2)), cv::Scalar(255,0,255), 1);
-			cv::line(traj, cv::Point(uv0(0)/uv0(2), uv0(1)/uv0(2)), cv::Point(uv4(0)/uv4(2), uv4(1)/uv4(2)), cv::Scalar(255,0,255), 1);
-			cv::line(traj, cv::Point(uv1(0)/uv1(2), uv1(1)/uv1(2)), cv::Point(uv2(0)/uv2(2), uv2(1)/uv2(2)), cv::Scalar(255,0,255), 1);
-			cv::line(traj, cv::Point(uv2(0)/uv2(2), uv2(1)/uv2(2)), cv::Point(uv3(0)/uv3(2), uv3(1)/uv3(2)), cv::Scalar(255,0,255), 1);
-			cv::line(traj, cv::Point(uv3(0)/uv3(2), uv3(1)/uv3(2)), cv::Point(uv4(0)/uv4(2), uv4(1)/uv4(2)), cv::Scalar(255,0,255), 1);
-			cv::line(traj, cv::Point(uv4(0)/uv4(2), uv4(1)/uv4(2)), cv::Point(uv1(0)/uv1(2), uv1(1)/uv1(2)), cv::Scalar(255,0,255), 1);
+			cv::line(traj, cv::Point(uv0(0)/uv0(2), uv0(1)/uv0(2)), cv::Point(uv1(0)/uv1(2), uv1(1)/uv1(2)), cv::Scalar(0,0,255), 2);
+			cv::line(traj, cv::Point(uv0(0)/uv0(2), uv0(1)/uv0(2)), cv::Point(uv2(0)/uv2(2), uv2(1)/uv2(2)), cv::Scalar(0,0,255), 2);
+			cv::line(traj, cv::Point(uv0(0)/uv0(2), uv0(1)/uv0(2)), cv::Point(uv3(0)/uv3(2), uv3(1)/uv3(2)), cv::Scalar(0,0,255), 2);
+			cv::line(traj, cv::Point(uv0(0)/uv0(2), uv0(1)/uv0(2)), cv::Point(uv4(0)/uv4(2), uv4(1)/uv4(2)), cv::Scalar(0,0,255), 2);
+			cv::line(traj, cv::Point(uv1(0)/uv1(2), uv1(1)/uv1(2)), cv::Point(uv2(0)/uv2(2), uv2(1)/uv2(2)), cv::Scalar(0,0,255), 2);
+			cv::line(traj, cv::Point(uv2(0)/uv2(2), uv2(1)/uv2(2)), cv::Point(uv3(0)/uv3(2), uv3(1)/uv3(2)), cv::Scalar(0,0,255), 2);
+			cv::line(traj, cv::Point(uv3(0)/uv3(2), uv3(1)/uv3(2)), cv::Point(uv4(0)/uv4(2), uv4(1)/uv4(2)), cv::Scalar(0,0,255), 2);
+			cv::line(traj, cv::Point(uv4(0)/uv4(2), uv4(1)/uv4(2)), cv::Point(uv1(0)/uv1(2), uv1(1)/uv1(2)), cv::Scalar(0,0,255), 2);
 		}
-	}
 
-	cv::imshow("Trajectory", traj);
+		// Keyframes
+		for( uint32_t i = 0; i < keystep_array_.size(); i++ ){
+			Eigen::Matrix4d T = TocRec_[keystep_array_[i]];
+			uv0 = params_.view.P * Tco * T * (Eigen::Vector4d() << 0,0,0,1).finished();
+			uv1 = params_.view.P * Tco * T * (Eigen::Vector4d() << params_.view.upper_left.x,params_.view.upper_left.y,params_.view.upper_left.z,1).finished();
+			uv2 = params_.view.P * Tco * T * (Eigen::Vector4d() << params_.view.upper_right.x,params_.view.upper_right.y,params_.view.upper_right.z,1).finished();
+			uv3 = params_.view.P * Tco * T * (Eigen::Vector4d() << params_.view.lower_right.x,params_.view.lower_right.y,params_.view.lower_right.z,1).finished();
+			uv4 = params_.view.P * Tco * T * (Eigen::Vector4d() << params_.view.lower_left.x,params_.view.lower_left.y,params_.view.lower_left.z,1).finished();
+			if( uv0(2) > 1 && uv1(2) > 1 && uv2(2) > 1 && uv3(2) > 1 && uv4(2) > 1){
+				cv::line(traj, cv::Point(uv0(0)/uv0(2), uv0(1)/uv0(2)), cv::Point(uv1(0)/uv1(2), uv1(1)/uv1(2)), cv::Scalar(255,0,255), 1);
+				cv::line(traj, cv::Point(uv0(0)/uv0(2), uv0(1)/uv0(2)), cv::Point(uv2(0)/uv2(2), uv2(1)/uv2(2)), cv::Scalar(255,0,255), 1);
+				cv::line(traj, cv::Point(uv0(0)/uv0(2), uv0(1)/uv0(2)), cv::Point(uv3(0)/uv3(2), uv3(1)/uv3(2)), cv::Scalar(255,0,255), 1);
+				cv::line(traj, cv::Point(uv0(0)/uv0(2), uv0(1)/uv0(2)), cv::Point(uv4(0)/uv4(2), uv4(1)/uv4(2)), cv::Scalar(255,0,255), 1);
+				cv::line(traj, cv::Point(uv1(0)/uv1(2), uv1(1)/uv1(2)), cv::Point(uv2(0)/uv2(2), uv2(1)/uv2(2)), cv::Scalar(255,0,255), 1);
+				cv::line(traj, cv::Point(uv2(0)/uv2(2), uv2(1)/uv2(2)), cv::Point(uv3(0)/uv3(2), uv3(1)/uv3(2)), cv::Scalar(255,0,255), 1);
+				cv::line(traj, cv::Point(uv3(0)/uv3(2), uv3(1)/uv3(2)), cv::Point(uv4(0)/uv4(2), uv4(1)/uv4(2)), cv::Scalar(255,0,255), 1);
+				cv::line(traj, cv::Point(uv4(0)/uv4(2), uv4(1)/uv4(2)), cv::Point(uv1(0)/uv1(2), uv1(1)/uv1(2)), cv::Scalar(255,0,255), 1);
+			}
+		}
+
+		cv::imshow("Trajectory", traj);
+	}
 }
