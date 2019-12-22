@@ -46,7 +46,7 @@ LiDAR.T: [-0.4822433, -0.0082169, 0.4185907]
 #--------------------------------------------------------------------------------------------
 
 # Number of features
-Feature.number: 200
+Feature.number: 500
 
 # Number of features matching per image 
 Feature.minimum_num_inlier: 6
@@ -72,7 +72,7 @@ Bucket.cols: 16
 Feature.minimum_matching_ratio: .9
 
 # Parallax - the lower a threshold, the more often keyframe is updated
-Feature.threshold_parallax: 0.000
+Feature.threshold_parallax: 0.002
 Feature.percentile_parallax: 0.75
 
 #--------------------------------------------------------------------------------------------

@@ -123,14 +123,19 @@ class MVO{
 		std::vector<std::pair<double,double>> linear_velocity_since_;
 		std::vector<std::pair<double,Eigen::Vector3d>> angular_velocity_since_;
 		
-		void copy(const MVO::Frame& im){
+		void assign(const MVO::Frame& im){
 			this->image = im.image.clone();
 			this->timestamp = im.timestamp;
 			this->id = im.id;
-			this->angular_velocity_since_.clear();
 			this->angular_velocity_since_.assign(im.angular_velocity_since_.begin(),im.angular_velocity_since_.end());
-			this->linear_velocity_since_.clear();
 			this->linear_velocity_since_.assign(im.linear_velocity_since_.begin(),im.linear_velocity_since_.end());
+		}
+		void merge(const MVO::Frame& im){
+			this->image = im.image.clone();
+			this->timestamp = im.timestamp;
+			this->id = im.id;
+			this->angular_velocity_since_.insert(this->angular_velocity_since_.begin(),im.angular_velocity_since_.begin(),im.angular_velocity_since_.end());
+			this->linear_velocity_since_.insert(this->linear_velocity_since_.begin(),im.linear_velocity_since_.begin(),im.linear_velocity_since_.end());
 		}
 		cv::Size size() const{
 			return this->image.size();

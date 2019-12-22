@@ -325,8 +325,8 @@ void MVO::setImage(const cv::Mat& image, double timestamp){
     step_++;
     keystep_ = keystep_array_.back();
     
-    if( trigger_keystep_decrease_ || trigger_keystep_increase_ )
-        curr_keyframe_.copy(next_keyframe_);
+    if( trigger_keystep_increase_ )
+        curr_keyframe_.assign(next_keyframe_);
 
     trigger_keystep_decrease_previous_ = trigger_keystep_decrease_;
     trigger_keystep_decrease_ = false;
@@ -335,7 +335,7 @@ void MVO::setImage(const cv::Mat& image, double timestamp){
     if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "============ Iteration: " << step_ << " (keystep: " << keystep_ << ')' << " ============" << std::endl;
     if( MVO::s_point_logger_.is_open() ) MVO::s_point_logger_ << "============ Iteration: " << step_ << " (keystep: " << keystep_ << ')' << " ============" << std::endl;
 
-    prev_frame_.copy(curr_frame_);
+    prev_frame_.assign(curr_frame_);
 
     cv::remap(image, image, distort_map1_, distort_map2_, CV_INTER_LINEAR);
     

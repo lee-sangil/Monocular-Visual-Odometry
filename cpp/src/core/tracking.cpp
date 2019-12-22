@@ -52,6 +52,12 @@ bool MVO::updateFeatures(){
 
         if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "! Update features between: " << curr_keyframe_.id << " <--> " << curr_frame_.id << std::endl;
 
+        // if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "key_time: " << std::setprecision(19) << curr_keyframe_.timestamp << ", curr_time: " << curr_frame_.timestamp << std::endl;
+        // if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "logging time:"; 
+        // for( int i = 0; i < curr_keyframe_.linear_velocity_since_.size(); i++ )
+        //     if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << " " << std::setprecision(19) << curr_keyframe_.linear_velocity_since_[i].first;
+        // if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << std::endl;
+
         int key_idx;
         cv::Point2f uv_prev;
         Eigen::Matrix<double,3,4> Tko = TocRec_[keystep_].inverse().block(0,0,3,4);
@@ -122,8 +128,8 @@ bool MVO::updateFeatures(){
             return true;
         }
     }else{
-        curr_keyframe_.copy(curr_frame_); // for logging velocity and gyro
-        next_keyframe_.copy(curr_frame_); // for extracting new features
+        curr_keyframe_.assign(curr_frame_); // for logging velocity and gyro
+        next_keyframe_.assign(curr_frame_); // for extracting new features
 
         return true;
     }
@@ -144,10 +150,21 @@ void MVO::selectKeyframeNow(){
         // std::cout << "parallax_percentile:" << parallax_percentile << std::endl;
         if( parallax_percentile < params_.th_parallax ){
             if( keystep_array_.size() > 0 && !prev_keyframe_.image.empty() ){
+
+                // // Delete features which is created at keyframe and not be used in the next iteration
+                // for( uint32_t i = 0; i < num_feature_; i++ )
+                //     if( features_[i].life == 1 )
+                //         features_[i].is_alive = false;
+
                 keystep_array_.pop_back();
+
+                // Extract features in the current iteration
+                next_keyframe_.assign(prev_keyframe_);
+
+                // Select keyframe in the current iteration
                 keystep_ = keystep_array_.back();
-                next_keyframe_.copy(prev_keyframe_);
-                curr_keyframe_.copy(prev_keyframe_);
+                curr_keyframe_.merge(prev_keyframe_);
+
                 trigger_keystep_decrease_ = true;
                 
                 if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "! <keystep> low parallax: " << parallax_percentile << std::endl;
@@ -161,14 +178,6 @@ void MVO::selectKeyframeNow(){
     //         MVO::s_file_logger_ << feature.parallax << ' ';
     //     MVO::s_file_logger_ << std::endl;
     // }
-
-    // // Delete features which is created at keyframe
-    // if( trigger_keystep_decrease_ ){
-    //     int prev_keystep = keystep_array_.back(); // Used when keystep is decreased only
-    //     for( uint32_t i = 0; i < num_feature_; i++ )
-    //         if( features_[i].life == prev_keystep )
-    //             features_[i].is_alive = false;
-    // }
 }
 
 void MVO::selectKeyframeAfter(){
@@ -176,11 +185,13 @@ void MVO::selectKeyframeAfter(){
     if( !trigger_keystep_decrease_ && !trigger_keystep_decrease_previous_ ){
         if( num_feature_matched_ <= num_feature_ * params_.th_ratio_keyframe ){
             keystep_array_.push_back(step_);
-            prev_keyframe_.copy(curr_keyframe_);
-            next_keyframe_.copy(curr_frame_);
-            trigger_keystep_increase_ = true;
 
-            // restartKeyframeLogger();
+            prev_keyframe_.assign(curr_keyframe_);
+
+            // Extract features in the current iteration, but select keyframe in the next iteration
+            next_keyframe_.assign(curr_frame_);
+
+            trigger_keystep_increase_ = true;
             
             if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "! <keystep> tracking loss: " << (double) num_feature_matched_ / num_feature_ << std::endl;
         }
