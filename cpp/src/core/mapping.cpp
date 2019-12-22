@@ -767,8 +767,10 @@ void MVO::updateScaleReference(double scale){
     if( is_speed_provided_ ){
         scale = 0;
         auto & stack = curr_keyframe_.linear_velocity_since_;
-        for( uint32_t i = 0; i < stack.size()-1; i++ )
-            scale += (stack[i].second+stack[i+1].second)/2 * (stack[i+1].first-stack[i].first);
+        if( stack.size() > 1 ){
+            for( uint32_t i = 0; i < stack.size()-1; i++ )
+                scale += (stack[i].second+stack[i+1].second)/2 * (stack[i+1].first-stack[i].first);
+        }
     }
 
     if( params_.weight_scale_ref < 0 )

@@ -157,7 +157,7 @@ class MVO{
 	}
 	
 	// Set image
-	void setImage(const cv::Mat& image, double timestamp);
+	void setImage(const cv::Mat& image, double timestamp = -1);
 
 	// Get feature
 	std::vector< std::tuple<uint32_t, cv::Point2f, Eigen::Vector3d, double> > getPoints() const;
@@ -172,7 +172,7 @@ class MVO{
 	// Script operations
 	void restart();
 	void refresh();
-	void run(const cv::Mat& image, double timestamp);
+	void run(const cv::Mat& image, double timestamp = -1);
 	void updateGyro(const double timestamp, const Eigen::Vector3d& gyro);
 	void updateVelocity(const double timestamp, const double speed);
 	void restartKeyframeLogger();

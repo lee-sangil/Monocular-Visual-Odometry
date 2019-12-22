@@ -46,7 +46,7 @@ LiDAR.T: [-0.4822433, -0.0082169, 0.4185907]
 #--------------------------------------------------------------------------------------------
 
 # Number of features
-Feature.number: 500
+Feature.number: 200
 
 # Number of features matching per image 
 Feature.minimum_num_inlier: 6

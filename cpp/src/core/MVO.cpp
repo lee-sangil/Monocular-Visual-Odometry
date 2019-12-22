@@ -347,7 +347,7 @@ void MVO::setImage(const cv::Mat& image, double timestamp){
     if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "# Grab image: " << lsi::toc() << std::endl;
 }
 
-void MVO::run(const cv::Mat& image, double timestamp = 0){
+void MVO::run(const cv::Mat& image, double timestamp){
     
     lsi::tic();
     setImage(image, timestamp);
