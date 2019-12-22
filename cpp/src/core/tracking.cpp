@@ -2,7 +2,8 @@
 #include "core/random.hpp"
 #include "core/time.hpp"
 #include "core/DepthFilter.hpp"
-
+#include "core/numerics.hpp"
+#include <eigen3/unsupported/Eigen/MatrixFunctions>
 #include <exception>
 
 bool MVO::extractFeatures(){
@@ -57,6 +58,8 @@ bool MVO::updateFeatures(){
         // for( int i = 0; i < curr_keyframe_.linear_velocity_since_.size(); i++ )
         //     if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << " " << std::setprecision(19) << curr_keyframe_.linear_velocity_since_[i].first;
         // if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << std::endl;
+
+        updateRotatePrior();
 
         int key_idx;
         cv::Point2f uv_prev;
@@ -839,4 +842,15 @@ bool MVO::updateRoiFeature(const cv::Rect& roi, const std::vector<cv::Point2f>& 
         return false;
     }
     
+}
+
+void MVO::updateRotatePrior(){
+    if( is_rotate_provided_ ){
+        Eigen::Vector3d radian = Eigen::Vector3d::Zero();
+        auto & stack = curr_keyframe_.angular_velocity_since_;
+        for( uint32_t i = 0; i < stack.size()-1; i++ )
+            radian += (stack[i].second+stack[i+1].second)/2 * (stack[i+1].first-stack[i].first);
+        rotate_prior_ = params_.Tci.block(0,0,3,3) * skew(-radian).exp() * params_.Tic.block(0,0,3,3);
+        if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "rotate_prior: " << radian.transpose() << std::endl;
+    }
 }

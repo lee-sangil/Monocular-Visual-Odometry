@@ -183,11 +183,13 @@ int main(int argc, char * argv[]){
 	bool bRun = true, bStep = false;
 	int it_imu = 0, it_vel = 0, it_rgb = 0;
 
+	lsi::tic();
+
 	for( int it = 0; it < length && bRun; it++ ){
 		switch (sensorID[it]) {
 			case 0:
 				// Fetch speed
-				if( it_rgb > 0 && Parser::hasOption("-v"))
+				if( Parser::hasOption("-v"))
 					vo->updateVelocity(timestamp_speed[it_vel], data_speed[it_vel]);
 				
 				it_vel++;
@@ -195,7 +197,7 @@ int main(int argc, char * argv[]){
 
 			case 1:
 				// Fetch imu
-				if( it_rgb > 0 && Parser::hasOption("-w"))
+				if( Parser::hasOption("-w"))
 					vo->updateGyro(timestamp_imu[it_imu], data_gyro[it_imu]);
 				
 				it_imu++;
@@ -224,6 +226,8 @@ int main(int argc, char * argv[]){
 				}else{
 					vo->plot();
 				}
+
+				if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "# Plot: " << lsi::toc() << std::endl;
 
 				it_rgb++;
 

@@ -1,9 +1,7 @@
 #include "core/MVO.hpp"
 #include "core/random.hpp"
-#include "core/numerics.hpp"
 #include "core/time.hpp"
 #include "core/DepthFilter.hpp"
-#include <eigen3/unsupported/Eigen/MatrixFunctions>
 
 double DepthFilter::s_px_error_angle_;
 double DepthFilter::s_meas_max_;
@@ -373,42 +371,21 @@ void MVO::run(const cv::Mat& image, double timestamp = 0){
 void MVO::updateGyro(const double timestamp, const Eigen::Vector3d& gyro){
     is_rotate_provided_ = true;
 
-    Eigen::Vector3d radian = Eigen::Vector3d::Zero();
     if( trigger_keystep_increase_ ){
-        auto & stack = next_keyframe_.angular_velocity_since_;
-        stack.emplace_back(timestamp,gyro);
-
-        for( uint32_t i = 0; i < stack.size()-1; i++ )
-            radian += (stack[i].second+stack[i+1].second)/2 * (stack[i+1].first-stack[i].first);
+        next_keyframe_.angular_velocity_since_.emplace_back(timestamp,gyro);
     }else{
-        auto & stack = curr_keyframe_.angular_velocity_since_;
-        stack.emplace_back(timestamp,gyro);
-
-        for( uint32_t i = 0; i < stack.size()-1; i++ )
-            radian += (stack[i].second+stack[i+1].second)/2 * (stack[i+1].first-stack[i].first);
+        curr_keyframe_.angular_velocity_since_.emplace_back(timestamp,gyro);
     }
-    rotate_prior_ = params_.Tci.block(0,0,3,3) * skew(-radian).exp() * params_.Tic.block(0,0,3,3);
-    if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "rotate_prior: " << radian.transpose() << std::endl;
 }
 
 void MVO::updateVelocity(const double timestamp, const double speed){
     is_speed_provided_ = true;
     
-    double scale = 0.0;
     if( trigger_keystep_increase_ ){
-        auto & stack = next_keyframe_.linear_velocity_since_;
-        stack.emplace_back(timestamp,speed);
-
-        for( uint32_t i = 0; i < stack.size()-1; i++ )
-            scale += (stack[i].second+stack[i+1].second)/2 * (stack[i+1].first-stack[i].first);
+        next_keyframe_.linear_velocity_since_.emplace_back(timestamp,speed);
     }else{
-        auto & stack = curr_keyframe_.linear_velocity_since_;
-        stack.emplace_back(timestamp,speed);
-        
-        for( uint32_t i = 0; i < stack.size()-1; i++ )
-            scale += (stack[i].second+stack[i+1].second)/2 * (stack[i+1].first-stack[i].first);
+        curr_keyframe_.linear_velocity_since_.emplace_back(timestamp,speed);
     }
-    updateScaleReference(scale);
 }
 
 const std::vector<Feature>& MVO::getFeatures() const {return features_;}

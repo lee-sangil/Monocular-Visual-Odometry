@@ -596,6 +596,8 @@ bool MVO::scalePropagation(const Eigen::Matrix3d &R, Eigen::Vector3d &t, std::ve
     inlier.clear();
     outlier.clear();
 
+    updateScaleReference();
+
     double scale = 0, scale_from_height = 0;
     bool flag;
 
@@ -761,7 +763,14 @@ bool MVO::scalePropagation(const Eigen::Matrix3d &R, Eigen::Vector3d &t, std::ve
         return flag;
 }
 
-void MVO::updateScaleReference(const double scale){
+void MVO::updateScaleReference(double scale){
+    if( is_speed_provided_ ){
+        scale = 0;
+        auto & stack = curr_keyframe_.linear_velocity_since_;
+        for( uint32_t i = 0; i < stack.size()-1; i++ )
+            scale += (stack[i].second+stack[i+1].second)/2 * (stack[i+1].first-stack[i].first);
+    }
+
     if( params_.weight_scale_ref < 0 )
         scale_reference_ = scale;
     else{
