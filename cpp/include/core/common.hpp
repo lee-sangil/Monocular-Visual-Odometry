@@ -6,9 +6,9 @@
 #include <eigen3/Eigen/Core>
 #include <opencv2/core/core.hpp>
 
-#define D_METER 1.2
-#define D_RADIAN M_PI/24
-#define YAML_VERSION 2.5
+#define D_METER 1.2 // for key interrupt
+#define D_RADIAN M_PI/24 // for key interrupt
+#define YAML_VERSION 2.5 // compatibility check
 
 enum Type{Unknown,Dynamic,Road,};
 

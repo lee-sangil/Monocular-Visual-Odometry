@@ -18,6 +18,8 @@ MVO::MVO(){
     is_scale_initialized_ = false;
     is_speed_provided_ = false;
     is_rotate_provided_ = false;
+
+    // implemented, but not used
     cvClahe_ = cv::createCLAHE();
 
     // Variables
@@ -35,6 +37,7 @@ MVO::MVO(){
     R_vec_.reserve(4);
 	t_vec_.reserve(4);
 
+    // prior information for rejecting outlier in feature tracking
     rotate_prior_ = Eigen::Matrix3d::Identity();
 
     // file_logger
@@ -55,6 +58,7 @@ MVO::MVO(std::string yaml):MVO(){
 		std::cout << "Failed to open: " << yaml << std::endl;
 		abort();
 	}
+
 
     double version = fSettings["Version"];
     if( version != YAML_VERSION ){
@@ -79,6 +83,8 @@ MVO::MVO(std::string yaml):MVO(){
 						0, 0, 1;
     params_.Kinv = params_.K.inverse();
     cv::eigen2cv(params_.K, params_.Kcv);
+
+    // Mask for excluding vehicle's feature
     excludeMask_ = cv::Mat(params_.im_size, CV_8UC1, cv::Scalar(255));
 
 	params_.radial_distortion.push_back(params_.k1);
@@ -263,6 +269,7 @@ MVO::MVO(std::string yaml):MVO(){
 	params_.view.P = (Eigen::Matrix<double,3,4>() << params_.view.K * params_.view.R, params_.view.K * params_.view.t).finished();
 }
 
+// Execute before each iteration
 void MVO::refresh(){
     num_feature_matched_ = 0;
     num_feature_2D_inliered_ = 0;
@@ -315,17 +322,18 @@ void MVO::restart(){
     TRec_.erase(TRec_.begin(), TRec_.end()-1);
     TocRec_.erase(TocRec_.begin(), TocRec_.end()-1);
     PocRec_.erase(PocRec_.begin(), PocRec_.end()-1);
-
-    // restartKeyframeLogger();
 }
 
 void MVO::setImage(const cv::Mat& image, double timestamp){
+    // Update step
     step_++;
     keystep_ = keystep_array_.back();
     
+    // if there is a new keystep, update the keyframe
     if( trigger_keystep_increase_ )
         curr_keyframe_.assign(next_keyframe_);
 
+    // reset keystep trigger
     trigger_keystep_decrease_previous_ = trigger_keystep_decrease_;
     trigger_keystep_decrease_ = false;
     trigger_keystep_increase_ = false;
@@ -335,18 +343,23 @@ void MVO::setImage(const cv::Mat& image, double timestamp){
 
     prev_frame_.assign(curr_frame_);
 
+    // undistort the current image
     cv::remap(image, image, distort_map1_, distort_map2_, CV_INTER_LINEAR);
     
+    // implemented, but not used now
     if( params_.apply_clahe )
         cvClahe_->apply(image, curr_frame_.image);
     else
         curr_frame_.image = image.clone();
+
+    // construct the current Frame object
     curr_frame_.id = step_;
     curr_frame_.timestamp = timestamp;
 
     if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "# Grab image: " << lsi::toc() << std::endl;
 }
 
+// run script for main.cpp in Monocular-Visual-Odometry
 void MVO::run(const cv::Mat& image, double timestamp){
     
     lsi::tic();
@@ -368,6 +381,7 @@ void MVO::run(const cv::Mat& image, double timestamp){
     // updateRoiFeatures(rois, num_feature); // Extract extra features in rois
 }
 
+// update gyro value for rotate_prior parameter
 void MVO::updateGyro(const double timestamp, const Eigen::Vector3d& gyro){
     is_rotate_provided_ = true;
 
@@ -378,6 +392,7 @@ void MVO::updateGyro(const double timestamp, const Eigen::Vector3d& gyro){
     }
 }
 
+// update speed reference value
 void MVO::updateVelocity(const double timestamp, const double speed){
     is_speed_provided_ = true;
     
@@ -391,6 +406,7 @@ void MVO::updateVelocity(const double timestamp, const double speed){
 const std::vector<Feature>& MVO::getFeatures() const {return features_;}
 const Eigen::Matrix4d& MVO::getCurrentMotion() const {return TRec_.back();}
 
+// return the current uv-point and the current 3D x,y,z-position of features with variance
 std::vector< std::tuple<uint32_t, cv::Point2f, Eigen::Vector3d, double> > MVO::getPoints() const
 {
     Eigen::Matrix4d Tco = TocRec_.back().inverse();
@@ -415,6 +431,7 @@ std::vector< std::tuple<uint32_t, cv::Point2f, Eigen::Vector3d, double> > MVO::g
     return pts;
 }
 
+// return index which belongs to the roi
 void MVO::getPointsInRoi(const cv::Rect& roi, std::vector<uint32_t>& idx) const {
     idx.clear();
     idx.reserve(num_feature_*0.5);
@@ -425,6 +442,7 @@ void MVO::getPointsInRoi(const cv::Rect& roi, std::vector<uint32_t>& idx) const 
     }
 }
 
+// return the previous and the current uv-point of features
 std::vector< std::tuple<uint32_t, cv::Point2f, cv::Point2f> > MVO::getMotions() const
 {
     std::vector< std::tuple<uint32_t, cv::Point2f, cv::Point2f> > pts;
@@ -475,28 +493,4 @@ void MVO::printFeatures() const {
             }
         }
     }
-}
-
-void MVO::restartKeyframeLogger() {
-    // if( is_speed_provided_ ){
-    //     double last_timestamp = timestamp_speed_since_keyframe_.back();
-    //     double last_speed = speed_since_keyframe_.back();
-
-    //     timestamp_speed_since_keyframe_.clear();
-    //     speed_since_keyframe_.clear();
-
-    //     timestamp_speed_since_keyframe_.push_back(last_timestamp);
-    //     speed_since_keyframe_.push_back(last_speed);
-    // }
-
-    // if( is_rotate_provided_ ){
-    //     double last_timestamp = timestamp_imu_since_keyframe_.back();
-    //     Eigen::Vector3d last_gyro = gyro_since_keyframe_.back();
-
-    //     timestamp_imu_since_keyframe_.clear();
-    //     gyro_since_keyframe_.clear();
-
-    //     timestamp_imu_since_keyframe_.push_back(last_timestamp);
-    //     gyro_since_keyframe_.push_back(last_gyro);
-    // }
 }

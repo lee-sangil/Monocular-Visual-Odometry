@@ -43,7 +43,7 @@ namespace lsi{
 		FUNC max_val;
 
 		for( int it = 0; it < std::min(param.max_iteration, num_iteration); it++ ){
-			// 1. fit using random points
+			// choose random samples
 			if (param.weight.size() > 0)
 				sample_idx = lsi::randweightedpick(param.weight, param.min_num_point);
 			else
@@ -54,12 +54,16 @@ namespace lsi{
 				sample.push_back(samples[sample_idx[i]]);
 			}
 
+			// generate model using chosen samples
 			param.calculate_func(sample, val);
+
+			// evaluate model
 			param.calculate_dist(val, samples, dist);
 
 			in1.clear();
 			num_inlier = 0;
 
+			// count inliers
 			if( use_threshold_array ){
 				for (uint32_t i = 0; i < num_pts; i++){
 					if( dist[i] < param.th_dist_arr[i] ){
@@ -80,6 +84,7 @@ namespace lsi{
 				}
 			}
 			
+			// find model with maximum inlier
 			if (num_inlier > num_max_inlier){
 				num_max_inlier = num_inlier;
 				inlier = in1;
@@ -112,6 +117,7 @@ namespace lsi{
 			// Without refinement
 			param.calculate_dist(max_val, samples, dist);
 
+			// count outliers
 			outlier.clear();
 			if( use_threshold_array ){
 				for (uint32_t i = 0; i < num_pts; i++)

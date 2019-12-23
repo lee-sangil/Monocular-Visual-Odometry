@@ -175,7 +175,6 @@ class MVO{
 	void run(const cv::Mat& image, double timestamp = -1);
 	void updateGyro(const double timestamp, const Eigen::Vector3d& gyro);
 	void updateVelocity(const double timestamp, const double speed);
-	void restartKeyframeLogger();
 	void updateView();
 	void plot(const Eigen::MatrixXd * const depthMap = NULL) const;
 	void printFeatures() const;

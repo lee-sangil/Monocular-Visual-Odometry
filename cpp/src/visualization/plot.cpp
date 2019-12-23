@@ -5,6 +5,7 @@
 #define RATIO 0.5
 #define GAP 30
 
+// convert 10-base to 36-base (0, 1, ..., 9, A, ..., Z)
 std::string decimalTo36Base(int num){
 	char rem;
 	std::stack<char> base;
@@ -25,6 +26,7 @@ std::string decimalTo36Base(int num){
 	return ss.str();
 }
 
+// update parameters of viewcam for main.cpp
 void MVO::updateView(){
 	Eigen::Matrix3d rotx, rotz;
 	rotx << 1, 0, 0,

@@ -112,7 +112,7 @@ bool MVO::calculateMotion()
     if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "percentage_feature_3D_inliered: " << (double) num_feature_inlier_ / num_feature_ * 100 << '%' << std::endl;
     if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "num_feature_inlier_: " << num_feature_inlier_ << " " << std::endl;
 
-    /**** ****/
+    /**** return success or failure ****/
     if (num_feature_inlier_ < params_.th_inlier){
         if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "Warning: There are few inliers reconstructed and accorded in 3D" << std::endl;
         return false;
@@ -130,6 +130,7 @@ bool MVO::calculateMotion()
     }
 }
 
+// find reasonable R, t combination by counting positive depths
 bool MVO::verifySolutions(const std::vector<Eigen::Matrix3d>& R_vec, const std::vector<Eigen::Vector3d>& t_vec, Eigen::Matrix3d& R, Eigen::Vector3d& t){
     
 	bool success;
@@ -175,7 +176,7 @@ bool MVO::verifySolutions(const std::vector<Eigen::Matrix3d>& R_vec, const std::
 		}
 	}
 
-	// Store 3D characteristics in features
+	// Store 3D position in features
 	if( max_num < num_feature_2D_inliered_*0.5 ){
         if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "Warning: There is no verified solution" << std::endl;
 		success = false;
@@ -193,11 +194,13 @@ bool MVO::verifySolutions(const std::vector<Eigen::Matrix3d>& R_vec, const std::
 	return success;
 }
 
+// find 6dof pose instantly using PnP method
 bool MVO::findPoseFrom3DPoints(Eigen::Matrix3d &R, Eigen::Vector3d &t, std::vector<int>& idx_inlier, std::vector<int>& idx_outlier){    
     // Seek index of which feature is 3D reconstructed currently,
     // and 3D initialized previously
 	bool flag;
 
+    // indices whose feature is initialized in 3d world coordinates
     std::vector<int> idx;
     for (int i = 0; i < num_feature_; i++)
         if (features_[i].is_3D_init)
@@ -218,6 +221,7 @@ bool MVO::findPoseFrom3DPoints(Eigen::Matrix3d &R, Eigen::Vector3d &t, std::vect
         // r_vec = cv::Mat::zeros(3,1,CV_32F);
         // t_vec = cv::Mat::zeros(3,1,CV_32F);
 
+        // if the currently-estimated R, t is not accurate, use the previous R, t
         cv::Mat R_cv, r_vec, t_vec;
         if( R.determinant() < .1){
             Eigen::Matrix3d R_prev = TocRec_.back().block(0,0,3,3).transpose();
@@ -233,6 +237,7 @@ bool MVO::findPoseFrom3DPoints(Eigen::Matrix3d &R, Eigen::Vector3d &t, std::vect
             cv::Rodrigues(R_cv, r_vec);
         }
 
+        // solve PnP
         switch( params_.pnp_method ){
             case MVO::PNP::LM : 
             case MVO::PNP::ITERATIVE : {
@@ -286,6 +291,7 @@ bool MVO::findPoseFrom3DPoints(Eigen::Matrix3d &R, Eigen::Vector3d &t, std::vect
         }
         if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "## Solve PnP: " << lsi::toc() << std::endl;
 
+        // change format
         cv::Rodrigues(r_vec, R_cv);
         cv::cv2eigen(R_cv, R);
         cv::cv2eigen(t_vec, t);
@@ -320,6 +326,7 @@ bool MVO::findPoseFrom3DPoints(Eigen::Matrix3d &R, Eigen::Vector3d &t, std::vect
     return flag;
 }
 
+// construct depth using the corresponding uv-point pairs and R, t
 void MVO::constructDepth(const std::vector<cv::Point2f>& uv_prev, const std::vector<cv::Point2f>& uv_curr, 
                         const Eigen::Matrix3d& R, const Eigen::Vector3d& t, 
                         std::vector<Eigen::Vector3d> &X_prev, std::vector<Eigen::Vector3d> &X_curr, 
@@ -454,25 +461,30 @@ void MVO::constructDepth(const std::vector<cv::Point2f>& uv_prev, const std::vec
     }
 }
 
+// Update 3d point attributes and depth filter of features
 void MVO::update3DPoint(Feature& feature, const Eigen::Matrix4d& Toc, const Eigen::Matrix4d& T){
     // Use Depthfilter - combination of Gaussian and uniform model
     Eigen::Vector3d point_initframe;
     double z, tau, tau_inverse;
 
     if( feature.is_3D_init ){
+        // compute depth seen from the keyframe
         Eigen::Matrix4d Tkc = TocRec_[feature.frame_3d_init].inverse() * Toc;
         point_initframe = Tkc.block(0,0,3,4) * feature.point_curr;
         z = point_initframe(2);
 
+        // compute variance of inverse-depth
         tau = DepthFilter::computeTau(Tkc, point_initframe);
         tau_inverse = DepthFilter::computeInverseTau(z, tau);
 
         if( params_.update_init_point ){
+            // apply the depth of depth filter; point_initframe/z is a homogeneous form of the current 3d position
             feature.depthfilter->update(1/z, tau_inverse);
             feature.point_init = TocRec_[feature.frame_3d_init] * (Eigen::Vector4d() << point_initframe / z / feature.depthfilter->getMean(), 1).finished();
         }
 
     }else{ // if( feature.is_wide ){
+        // compute depth seen from the keyframe
         point_initframe = T.block(0,0,3,4) * feature.point_curr;
         z = point_initframe(2);
 
@@ -482,9 +494,10 @@ void MVO::update3DPoint(Feature& feature, const Eigen::Matrix4d& Toc, const Eige
         feature.depthfilter->update(1/z, tau_inverse);
         feature.point_init = Toc * T.inverse() * (Eigen::Vector4d() << point_initframe / z / feature.depthfilter->getMean(), 1).finished();
         feature.is_3D_init = true;
-        feature.frame_3d_init = keystep_;
+        feature.frame_3d_init = keystep_; // reference frame to update depth filter
     }
 
+    // remove feature with abnormally-high variance
     if( feature.depthfilter->getVariance() > params_.max_point_var )
         feature.is_alive = false;
 
@@ -492,7 +505,7 @@ void MVO::update3DPoint(Feature& feature, const Eigen::Matrix4d& Toc, const Eige
     //     if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "& " << feature.id << " " << z << " " << feature.depthfilter->getMean() << " " << tau << " " << tau_inverse << " " << feature.point_var << " " << feature.depthfilter->getA() << " " << feature.depthfilter->getB() << std::endl;
 }
 
-// without PnP
+// update points without PnP
 void MVO::update3DPoints(const Eigen::Matrix3d &R, const Eigen::Vector3d &t, 
                         const std::vector<bool> &inlier, const std::vector<bool> &outlier, 
                         Eigen::Matrix4d &T, Eigen::Matrix4d &Toc, Eigen::Vector4d &Poc){
@@ -501,6 +514,8 @@ void MVO::update3DPoints(const Eigen::Matrix3d &R, const Eigen::Vector3d &t,
     
     // Seek index of which feature is 3D reconstructed currently
     // and 3D initialized previously
+
+    /* Find pose by accumulating transform, T */
     Eigen::Matrix4d tform;
     tform.setIdentity();
     tform.block(0,0,3,3) = R.transpose();
@@ -509,8 +524,8 @@ void MVO::update3DPoints(const Eigen::Matrix3d &R, const Eigen::Vector3d &t,
     Poc = Toc.block(0,3,4,1);
     T = TocRec_.back().inverse() * Toc;
     
+    /* Update point */
     for( uint32_t i = 0; i < features_.size(); i++ ){
-        // TODO: features_[i].is_3D_reconstructed && inlier[i]: inlier is classified by hard-manner, recommend soft-manner using point-variance
         if( features_[i].is_3D_reconstructed ){
             features_[i].point_curr.block(0,0,3,1) *= scale;
             update3DPoint(features_[i], Toc, tform);
@@ -518,13 +533,15 @@ void MVO::update3DPoints(const Eigen::Matrix3d &R, const Eigen::Vector3d &t,
     }
 }
 	
-// with pnp
+// update points with pnp
 void MVO::update3DPoints(const Eigen::Matrix3d &R, const Eigen::Vector3d &t, 
                         const std::vector<bool> &inlier, const std::vector<bool> &outlier, 
                         const Eigen::Matrix3d &R_E, const Eigen::Vector3d &t_E, const bool &success_E, 
                         Eigen::Matrix4d &T, Eigen::Matrix4d &Toc, Eigen::Vector4d &Poc){
     // with PnP
     // Extract homogeneous 2D point which is inliered with essential constraint
+
+    /* Find pose from PnP directly */
     Toc.setIdentity();
     Toc.block(0,0,3,3) = R.transpose();
     Toc.block(0,3,3,1) = -R.transpose()*t;
@@ -536,7 +553,8 @@ void MVO::update3DPoints(const Eigen::Matrix3d &R, const Eigen::Vector3d &t,
     Tco.block(0,0,3,3) = R;
     Tco.block(0,3,3,1) = t;
 
-    if(success_E){
+    /* Update point */
+    if(success_E){ // using essential constraint
         double scale = t_E.norm();
 
         for( uint32_t i = 0; i < features_.size(); i++ ){
@@ -596,13 +614,13 @@ bool MVO::scalePropagation(const Eigen::Matrix3d &R, Eigen::Vector3d &t, std::ve
     inlier.clear();
     outlier.clear();
 
+    // compute and update scale reference from velocity stacks if speed raw data are provided
     updateScaleReference();
 
     double scale = 0, scale_from_height = 0;
     bool flag;
 
-    // Initialization
-    // initialze scale, in the case of the first time
+    // calculate distance between road and the camera without speed data
     if( !is_speed_provided_ ){
         cv::Point2f uv_curr;
         Eigen::Vector4d point_curr;
@@ -613,6 +631,7 @@ bool MVO::scalePropagation(const Eigen::Matrix3d &R, Eigen::Vector3d &t, std::ve
             if( features_[i].is_3D_reconstructed ){
                 uv_curr = features_[i].uv.back(); //latest feature
 
+                // road region candidate in image plane
                 if (uv_curr.y > params_.im_size.height * 0.5 
                 && uv_curr.y > params_.im_size.height - 0.7 * uv_curr.x 
                 && uv_curr.y > params_.im_size.height + 0.7 * (uv_curr.x - params_.im_size.width)){
@@ -623,6 +642,7 @@ bool MVO::scalePropagation(const Eigen::Matrix3d &R, Eigen::Vector3d &t, std::ve
             }
         }
 
+        // do ransac
         if( road_idx.size() > (uint32_t) params_.th_inlier ){
             std::vector<double> plane;
             std::vector<bool> plane_inlier, plane_outlier;
@@ -685,17 +705,20 @@ bool MVO::scalePropagation(const Eigen::Matrix3d &R, Eigen::Vector3d &t, std::ve
                                     cv::Point3f(init_point(0),init_point(1),init_point(2)));
                 
                 // RANSAC weight
+                // the smaller depth is, the larger weight is
                 params_.ransac_coef_scale.weight.push_back( std::atan( -curr_point(2)/5 + 3 ) + M_PI / 2 );
                 // params_.ransac_coef_scale.weight.push_back( std::atan( -features_[i].depthfilter->getVariance() * 1e4 ) + M_PI / 2 );
                 // params_.ransac_coef_scale.weight.push_back( 1.0/features_[i].depthfilter->getVariance() );
 
                 // RANSAC threshold
+                // the larger variance is, the larger threshold is
                 std_inv_z = std::sqrt(features_[i].depthfilter->getVariance());
                 inv_z = features_[i].depthfilter->getMean();
                 std_z = 0.5 * std::min(std::abs(std_inv_z/(inv_z*inv_z+std_inv_z*inv_z)), std::abs(std_inv_z/(inv_z*inv_z-std_inv_z*inv_z)));
                 params_.ransac_coef_scale.th_dist_arr.push_back( std::max(params_.ransac_coef_scale.th_dist, std_z) );
             }
 
+            // do ransac
             params_.ransac_coef_scale.calculate_func = std::bind(lsi::calculateScale, std::placeholders::_1, std::placeholders::_2, scale_reference_, params_.weight_scale_ref);
             lsi::ransac<std::pair<cv::Point3f,cv::Point3f>,double>(Points, params_.ransac_coef_scale, scale, scale_inlier, scale_outlier);
             num_feature_inlier_ = std::count(scale_inlier.begin(), scale_inlier.end(), true);
@@ -739,11 +762,13 @@ bool MVO::scalePropagation(const Eigen::Matrix3d &R, Eigen::Vector3d &t, std::ve
         }
 
     }else{
+        // update scale directly
         if( is_speed_provided_ )
             t = scale_reference_ * t;
         else
             t = scale_from_height * t;
 
+        // find inliers
         for( uint32_t i = 0; i < features_.size(); i++ ){
             if( features_[i].is_3D_reconstructed )
                 inlier.push_back(true);
@@ -763,6 +788,7 @@ bool MVO::scalePropagation(const Eigen::Matrix3d &R, Eigen::Vector3d &t, std::ve
         return flag;
 }
 
+// compute scale reference from speed raw data, and update scale value
 void MVO::updateScaleReference(double scale){
     if( is_speed_provided_ ){
         scale = 0;

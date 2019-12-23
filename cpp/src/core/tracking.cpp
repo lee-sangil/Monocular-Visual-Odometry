@@ -25,6 +25,7 @@ bool MVO::extractFeatures(){
 
         if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "# Add features: " << lsi::toc() << std::endl;
         
+        // Print features for debugging
         printFeatures();
 
         return true;
@@ -39,16 +40,19 @@ bool MVO::updateFeatures(){
         // Track the points
         std::vector<cv::Point2f> points;
         std::vector<bool> validity;
+
+        // rough klt tracker
         kltTrackerRough(points, validity);
         if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "## KLT tracker: " << lsi::toc() << std::endl;
 
-        selectKeyframeNow(); // low parallax
+        selectKeyframeNow(); // update the current keyframe by triggering low parallax
         if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "## Select keyframe: " << lsi::toc() << std::endl;
 
+        // precise klt tracker
         kltTrackerPrecise(points, validity);
         if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "## KLT tracker: " << lsi::toc() << std::endl;
 
-        selectKeyframeAfter(); // low tracking ratio
+        selectKeyframeAfter(); // update the next keyframe by triggering low tracking ratio
         if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "## Select keyframe: " << lsi::toc() << std::endl;
 
         if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "! Update features between: " << curr_keyframe_.id << " <--> " << curr_frame_.id << std::endl;
@@ -59,8 +63,10 @@ bool MVO::updateFeatures(){
         //     if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << " " << std::setprecision(19) << curr_keyframe_.linear_velocity_since_[i].first;
         // if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << std::endl;
 
+        // calculate and update rotate information from gyro logging data
         updateRotatePrior();
 
+        // update 2d attributes of the matched features
         int key_idx;
         cv::Point2f uv_prev;
         Eigen::Matrix<double,3,4> Tko = TocRec_[keystep_].inverse().block(0,0,3,4);
@@ -68,7 +74,7 @@ bool MVO::updateFeatures(){
             if( validity[i] && features_[i].is_alive ){
                 key_idx = features_[i].life - (step_ - keystep_); // before feature.life increasement
 
-                // Memory the previous uv point
+                // memorize the previous uv point
                 if( key_idx >= 0 )
                     uv_prev = features_[i].uv[key_idx];
                 else
@@ -88,15 +94,15 @@ bool MVO::updateFeatures(){
                     features_[i].uv.push_back(points[i]);
                 }
 
-                // Predict the current uv point from the previous uv point
+                // // Predict the current uv point from the previous uv point
                 // if( is_rotate_provided_ ) {
                 //     if( is_speed_provided_ && features_[i].is_3D_init )
                 //         features_[i].uv_pred = warpWithCAN(Tko * features_[i].point_init);
                 //     else
                 //         features_[i].uv_pred = warpWithIMU(uv_prev);
                 // }else if( features_[i].is_3D_init ) features_[i].uv_pred = warpWithPreviousMotion(Tko * features_[i].point_init);
-                // 
-                // Reject unpredicted motion using the previous uv or point and prior knowledge
+                
+                // // Reject unpredicted motion using the previous uv or point and prior knowledge
                 // if( is_rotate_provided_  && !is_speed_provided_){
                 //     Eigen::Vector3d epiLine = fundamental_ * (Eigen::Vector3d() << uv_prev.x, uv_prev.y, 1).finished();
                 //     double dist_from_epiline = std::abs(epiLine(0)*features_[i].uv_pred.x + epiLine(1)*features_[i].uv_pred.y + epiLine(2)) / epiLine.topRows(2).norm();
@@ -147,10 +153,13 @@ void MVO::selectKeyframeNow(){
         if( feature.parallax >= 0 && !std::isnan(feature.parallax) )
             parallax.push_back(feature.parallax);
     
+    // grab the specific percentile of parallaxes
     if( parallax.size() > 0 ){
         std::sort(parallax.begin(), parallax.end());
         double parallax_percentile = (parallax[std::floor(parallax.size()*params_.percentile_parallax)]+parallax[std::ceil(parallax.size()*params_.percentile_parallax)])/2;
         // std::cout << "parallax_percentile:" << parallax_percentile << std::endl;
+
+        // if low parallax appears
         if( parallax_percentile < params_.th_parallax ){
             if( keystep_array_.size() > 0 && !prev_keyframe_.image.empty() ){
 
@@ -159,9 +168,10 @@ void MVO::selectKeyframeNow(){
                 //     if( features_[i].life == 1 )
                 //         features_[i].is_alive = false;
 
+                // remove the current keyframe
                 keystep_array_.pop_back();
 
-                // Extract features in the current iteration
+                // Extract features in the current iteration, prev_keyframe is now the current keyframe
                 next_keyframe_.assign(prev_keyframe_);
 
                 // Select keyframe in the current iteration
@@ -185,13 +195,16 @@ void MVO::selectKeyframeNow(){
 
 void MVO::selectKeyframeAfter(){
     // Low tracking ratio
-    if( !trigger_keystep_decrease_ && !trigger_keystep_decrease_previous_ ){
+    if( !trigger_keystep_decrease_ && !trigger_keystep_decrease_previous_ ){ // only if there is no trigger about low parallax
         if( num_feature_matched_ <= num_feature_ * params_.th_ratio_keyframe ){
+
+            // add new keystep and keyframe
             keystep_array_.push_back(step_);
 
+            // update the previous keyframe
             prev_keyframe_.assign(curr_keyframe_);
 
-            // Extract features in the current iteration, but select keyframe in the next iteration
+            // Extract features in the current iteration, but curr_frame will be chosen as the current keyframe in the next iteration
             next_keyframe_.assign(curr_frame_);
 
             trigger_keystep_increase_ = true;
@@ -201,6 +214,7 @@ void MVO::selectKeyframeAfter(){
     }
 }
 
+// warp uv with imu
 cv::Point2f MVO::warpWithIMU(const cv::Point2f& uv) const {
     Eigen::Vector3d pixel, warpedPixel;
     Eigen::Vector3d t = (TocRec_[keystep_].inverse() * TocRec_.back() * TRec_.back()).block(0,3,3,1);
@@ -209,6 +223,7 @@ cv::Point2f MVO::warpWithIMU(const cv::Point2f& uv) const {
     return cv::Point2f(warpedPixel(0)/warpedPixel(2), warpedPixel(1)/warpedPixel(2));
 }
 
+// warp uv with can
 cv::Point2f MVO::warpWithCAN(const Eigen::Vector3d& p) const {
     Eigen::Vector3d pixel, warpedPixel;
     Eigen::Vector3d t = (TocRec_[keystep_].inverse() * TocRec_.back() * TRec_.back()).block(0,3,3,1);
@@ -216,6 +231,7 @@ cv::Point2f MVO::warpWithCAN(const Eigen::Vector3d& p) const {
     return cv::Point2f(warpedPixel(0)/warpedPixel(2), warpedPixel(1)/warpedPixel(2));
 }
 
+// warp uv with the previous motion
 cv::Point2f MVO::warpWithPreviousMotion(const Eigen::Vector3d& p) const {
     Eigen::Vector3d warpedPixel;
     Eigen::Matrix3d Rinv = (TocRec_[keystep_].inverse() * TocRec_.back() * TRec_.back()).block(0,0,3,3).transpose();
@@ -261,6 +277,7 @@ void MVO::kltTrackerRough(std::vector<cv::Point2f>& points, std::vector<bool>& v
     for( uint32_t i = 0; i < pts.size(); i++ )
         border_valid.emplace_back((fwd_pts[i].x > 0) && (fwd_pts[i].x < params_.im_size.width) && (fwd_pts[i].y > 0) && (fwd_pts[i].y < params_.im_size.height));
 
+    // check validity
     cv::Point2f uv_keystep;
     uint32_t j = 0;
     for( uint32_t i = 0; i < num_feature_; i++ ){
@@ -365,10 +382,11 @@ void MVO::kltTrackerPrecise(std::vector<cv::Point2f>& points, std::vector<bool>&
     }
 }
 
+// delete untracked or rejected features
 void MVO::deleteDeadFeatures(){
     for( uint32_t i = 0; i < features_.size(); ){
         if( features_[i].is_alive == false ){
-            if( features_[i].life > 2 && MVO::s_file_logger_.is_open() ){
+            if( features_[i].life > 2 && MVO::s_file_logger_.is_open() ){ // add features_dead for plotting if debugging mode
                 features_dead_.push_back(features_[i]);
             }
             features_.erase(features_.begin()+i);
@@ -383,12 +401,14 @@ void MVO::addFeatures(){
     updateBucket();
     if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "## Update bucket: " << lsi::toc() << std::endl;
 
+    // add feature until the number of feature reaches the desired value or all buckets are fail to extract separable feature
     while( num_feature_ < bucket_.max_features && bucket_.saturated.any() == true )
         addFeature();
 
     if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "! Add features in: " << next_keyframe_.id << std::endl;
 }
 
+// update bucket attribute of feature and refresh buckets
 void MVO::updateBucket(){
     bucket_.mass.fill(0.0);
     bucket_.saturated.fill(1.0);
@@ -441,8 +461,10 @@ void MVO::addFeature(){
     // Try to find a seperate feature
     std::vector<cv::Point2f> keypoints;
     if( visit_bucket_[row + bucket_.grid.height * col] ){
+        // if the bucket is visited before, use the previous keypoints extracted at the first time
         keypoints = keypoints_of_bucket_[row + bucket_.grid.height * col];
     }else{
+        // if the bucket is visited for the first time, extract keypoint from the cropped image
         cv::goodFeaturesToTrack(next_keyframe_.image(roi), keypoints, 50, 0.01, params_.min_px_dist, excludeMask_(roi), 3, true);
         keypoints_of_bucket_[row + bucket_.grid.height * col] = keypoints;
         visit_bucket_[row + bucket_.grid.height * col] = true;
@@ -452,6 +474,7 @@ void MVO::addFeature(){
         bucket_.saturated(row,col) = 0.0;
         return;
     }else{
+        // compensate the location of the extracted keypoints
         for( uint32_t l = 0; l < keypoints.size(); l++ ){
             keypoints[l].x = keypoints[l].x + roi.x - 1;
             keypoints[l].y = keypoints[l].y + roi.y - 1;
@@ -469,17 +492,17 @@ void MVO::addFeature(){
         min_dist = 1e9; // enough-large number
         for( uint32_t f = 0; f < num_feature_inside_bucket; f++ ){
             dist = 1e9;
-            if( trigger_keystep_decrease_ ){
+            if( trigger_keystep_decrease_ ){ // the previous keyframe will be the keyframe in the next iteration
                 key_idx = features_[idx_belong_to_bucket[f]].life - 1 - (step_ - prev_keystep); // after feature.life increasement
                 if( key_idx >= 0 )
                     dist = cv::norm(keypoints[l] - features_[idx_belong_to_bucket[f]].uv[key_idx]);
                 else if( features_[idx_belong_to_bucket[f]].frame_2d_init < 0 )
                     dist = cv::norm(keypoints[l] - features_[idx_belong_to_bucket[f]].uv.back());
             
-            }else if( trigger_keystep_increase_ ){
+            }else if( trigger_keystep_increase_ ){ // the current frame will be the keyframe in the next iteration
                 dist = cv::norm(keypoints[l] - features_[idx_belong_to_bucket[f]].uv.back());
             
-            }else{
+            }else{ // the current keyframe will be the keyframe in the next iteration
                 key_idx = features_[idx_belong_to_bucket[f]].life - 1 - (step_ - keystep_); // after feature.life increasement
                 if( key_idx >= 0 )
                     dist = cv::norm(keypoints[l] - features_[idx_belong_to_bucket[f]].uv[key_idx]);
@@ -512,19 +535,19 @@ void MVO::addFeature(){
         newFeature.frame_3d_init = -1; // frame step when the 3d point is initialized
         newFeature.parallax = 0; // parallax between associated features
         newFeature.uv.push_back(best_keypoint); // uv point in pixel coordinates
-        newFeature.uv_pred = cv::Point2f(-1,-1);
+        newFeature.uv_pred = cv::Point2f(-1,-1); // uv point predicted before
         newFeature.life = 1; // the number of frames in where the feature is observed
         newFeature.bucket = cv::Point(col, row); // the location of bucket where the feature belong to
         newFeature.point_curr << 0,0,0,1; // 3-dim homogeneous point in the local coordinates
-        newFeature.is_alive = true;
+        newFeature.is_alive = true; // if false, the feature is deleted
         newFeature.is_matched = false; // matched between both frame
         newFeature.is_wide = false; // verify whether features btw the initial and current are wide enough
         newFeature.is_2D_inliered = false; // belong to major (or meaningful) movement
         newFeature.is_3D_reconstructed = false; // triangulation completion
         newFeature.is_3D_init = false; // scale-compensated
         newFeature.point_init << 0,0,0,1; // scale-compensated 3-dim homogeneous point in the global coordinates
-        newFeature.type = Type::Unknown;
-        newFeature.depthfilter = std::shared_ptr<DepthFilter>(new DepthFilter());
+        newFeature.type = Type::Unknown; // type of feature
+        newFeature.depthfilter = std::shared_ptr<DepthFilter>(new DepthFilter()); // depth filter
 
         features_.push_back(newFeature);
         num_feature_++;
@@ -568,8 +591,8 @@ bool MVO::calculateEssential()
     for( int i = 0; i < num_feature_; i++ ){
         key_idx = features_[i].life - 1 - (step_ - keystep_);
         if( key_idx >= 0 && features_[i].type != Type::Dynamic ){
-            points1.push_back(features_[i].uv[key_idx]);
-            points2.push_back(features_[i].uv.back());   // latest
+            points1.push_back(features_[i].uv[key_idx]); // uv of keyframe
+            points2.push_back(features_[i].uv.back());   // latest uv
             idx_static.push_back(i);
             if( cv::norm(features_[i].uv[key_idx] - features_[i].uv.back()) > params_.th_px_wide ){
                 features_[i].is_wide = true;
@@ -585,6 +608,7 @@ bool MVO::calculateEssential()
         return false;
     }
 
+    // calculate essential matrix with ransac
     cv::Mat inlier_mat;
     essential_ = cv::findEssentialMat(points1, points2, params_.Kcv, CV_RANSAC, 0.999, 1.5, inlier_mat);
     if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "# Calculate essential: " << lsi::toc() << std::endl;
@@ -600,6 +624,7 @@ bool MVO::calculateEssential()
     //     essential_error.push_back(error);
     // }
 
+    // check inliers
     uint32_t inlier_cnt = 0;
     bool* inlier = inlier_mat.ptr<bool>(0);
     for (int i = 0; i < inlier_mat.rows; i++){
@@ -614,6 +639,7 @@ bool MVO::calculateEssential()
     num_feature_2D_inliered_ = inlier_cnt;
     if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "num_feature_2D_inliered_: " << (double) num_feature_2D_inliered_ / num_feature_ * 100 << '%' << std::endl;
 
+    // extract R, t
     Eigen::Matrix3d U,V;
     switch( params_.svd_method){
         case MVO::SVD::JACOBI:{
@@ -674,6 +700,7 @@ bool MVO::calculateEssential()
     }
 }
 
+// add extra feature extracted from the designated roi such as sign or crosswalk
 void MVO::addExtraFeatures(){
 
     if( features_extra_.size() > 0 ){
@@ -719,7 +746,7 @@ void MVO::updateRoiFeatures(const std::vector<cv::Rect>& rois, const std::vector
         // Seek index of which feature is extracted specific roi
         getPointsInRoi(roi, idx_belong_to_roi);
         
-        if( num_feature[i] < 0 ){
+        if( num_feature[i] < 0 ){ // remove all features within the roi
             for( uint32_t j = 0; j < idx_belong_to_roi.size(); j++ ){
                 if( features_.at(idx_belong_to_roi[j]-j).life > 2 && MVO::s_file_logger_.is_open() ){
                     features_dead_.push_back(features_.at(idx_belong_to_roi[j]-j));
@@ -727,13 +754,14 @@ void MVO::updateRoiFeatures(const std::vector<cv::Rect>& rois, const std::vector
                 features_.erase(features_.begin()+idx_belong_to_roi[j]-j);
             }
             num_feature_ = features_.size();
+
             try{
-                excludeMask_(roi) = cv::Scalar(0);
+                excludeMask_(roi) = cv::Scalar(0); // update mask to not extract feature within the roi
             }catch(std::exception& msg){
                 if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "Warning: " << msg.what() << std::endl;
                 continue;
             }
-        }else if( num_feature[i] > 0 ){
+        }else if( num_feature[i] > 0 ){ // add features within the roi
             try{
                 cv::goodFeaturesToTrack(next_keyframe_.image(roi), keypoints, 50, 0.01, params_.min_px_dist, excludeMask_(roi), 3, true);
             }catch(std::exception& msg){
@@ -844,6 +872,7 @@ bool MVO::updateRoiFeature(const cv::Rect& roi, const std::vector<cv::Point2f>& 
     
 }
 
+// compute rotate prior value from gyro or can
 void MVO::updateRotatePrior(){
     if( is_rotate_provided_ ){
         Eigen::Vector3d radian = Eigen::Vector3d::Zero();

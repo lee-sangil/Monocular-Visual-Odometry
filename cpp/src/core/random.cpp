@@ -7,6 +7,7 @@ void lsi::seed(){std::srand(lsi::toc());}
 double lsi::rand(){return std::rand() / (double)RAND_MAX;}
 double lsi::randn(){return std::sqrt(-2.0 * std::log(lsi::rand())) * std::cos(2*M_PI*lsi::rand());}
 
+// select random bucket index
 void lsi::idx_randselect(Eigen::MatrixXd weight, Eigen::MatrixXd& mask, int& idx_row, int& idx_col){
 
     // Calculate weight
@@ -32,6 +33,7 @@ void lsi::idx_randselect(Eigen::MatrixXd weight, Eigen::MatrixXd& mask, int& idx
 	}
 }
 
+// generate random permutation
 std::vector<uint32_t> lsi::randperm(uint32_t ptNum, int minPtNum){
     std::vector<uint32_t> vector;
     for (uint32_t i = 0; i < ptNum; i++)
@@ -41,6 +43,7 @@ std::vector<uint32_t> lsi::randperm(uint32_t ptNum, int minPtNum){
     return sample;
 }
 
+// pick random index with weighted probability
 std::vector<uint32_t> lsi::randweightedpick(const std::vector<double> &h, int n /*=1*/){
     int u = h.size();
     int s_under;

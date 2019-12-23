@@ -24,6 +24,7 @@ unsigned long lsi::tic(){
 
 }
 
+// return elapsed time [sec]
 unsigned long lsi::toc(){
 
 	struct timeval tf;

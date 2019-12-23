@@ -105,6 +105,7 @@ void lsi::calculatePlane(const std::vector<cv::Point3f>& pts, std::vector<double
     }
 }
 
+// calculate the distance between the plane and points
 void lsi::calculatePlaneError(const std::vector<double>& plane, const std::vector<cv::Point3f>& pts, std::vector<double>& dist){
     double norm = std::sqrt(std::pow(plane[0],2) + std::pow(plane[1],2) + std::pow(plane[2],2));
     if( std::abs(norm) < 1e-10 ){

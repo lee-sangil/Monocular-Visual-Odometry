@@ -38,6 +38,7 @@ double DepthFilter::getA() const {return a_;}
 double DepthFilter::getB() const {return b_;}
 void DepthFilter::reset() {initialize_ = false; sigma_ = 1e9;}
 
+// Compute variance of depth, z
 double DepthFilter::computeTau(const Eigen::Matrix4d& Toc, const Eigen::Vector3d& p){
 	Eigen::Vector3d t = Toc.block(0,3,3,1);
 	Eigen::Vector3d a = p-t;
@@ -52,6 +53,7 @@ double DepthFilter::computeTau(const Eigen::Matrix4d& Toc, const Eigen::Vector3d
 	return std::abs(z_plus - p(2)); // tau
 }
 
+// Compute the variance of inverse-depth using the variance of depth, z
 double DepthFilter::computeInverseTau(const double z, const double tau){
 	// return tau*tau/std::pow(z,4)+2*tau*tau*tau*tau/std::pow(z,6);
 	return std::max(1.0/(z-tau)-1.0/z, 1.0/z-1.0/(z+tau));

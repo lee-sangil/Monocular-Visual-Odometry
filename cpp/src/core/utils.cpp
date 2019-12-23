@@ -1,6 +1,9 @@
 #include "core/MVO.hpp"
 #include "core/random.hpp"
 
+/*********************
+ *   For debugging   *
+ *********************/
 double MVO::calcReconstructionError(Eigen::Matrix4d& Toc) const {
     std::vector<double> error;
     error.reserve(features_.size());
