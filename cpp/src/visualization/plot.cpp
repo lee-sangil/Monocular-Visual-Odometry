@@ -5,7 +5,14 @@
 #define RATIO 0.5
 #define GAP 30
 
-// convert 10-base to 36-base (0, 1, ..., 9, A, ..., Z)
+/**
+ * @brief 숫자의 형식을 바꿈.
+ * @details 10진수를 36진수로 변환한다.
+ * @param num 10진수 값
+ * @return 36진수 문자열 (0, 1, ..., 9, A, ..., Z)
+ * @author Sangil Lee (sangillee724@gmail.com)
+ * @date 29-Dec-2019
+ */
 std::string decimalTo36Base(int num){
 	char rem;
 	std::stack<char> base;
@@ -26,7 +33,13 @@ std::string decimalTo36Base(int num){
 	return ss.str();
 }
 
-// update parameters of viewcam for main.cpp
+/**
+ * @brief 촬영 카메라의 파라미터 변경.
+ * @details main.cpp에서 키 인터럽트를 통해 변경된 촬영 카메라의 앵글 및 거리를 적용한다.
+ * @return 없음
+ * @author Sangil Lee (sangillee724@gmail.com)
+ * @date 29-Dec-2019
+ */
 void MVO::updateView(){
 	Eigen::Matrix3d rotx, rotz;
 	rotx << 1, 0, 0,
@@ -40,6 +53,14 @@ void MVO::updateView(){
 	params_.view.P = (Eigen::Matrix<double,3,4>() << params_.view.K * params_.view.R, params_.view.K * params_.view.t).finished();
 }
 
+/**
+ * @brief 알고리즘의 진행 상황을 나타냄.
+ * @details 카메라에서 취득한 이미지와 키프레임 및 깊이 추정값을 그리고, 3차원 카메라 위치를 나타낸다.
+ * @param depthMap 참값과 추정값의 비교를 위한 깊이 참값. 깊이 참값이 주어지지 않으면, NULL.
+ * @return 없음
+ * @author Sangil Lee (sangillee724@gmail.com)
+ * @date 29-Dec-2019
+ */
 void MVO::plot(const Eigen::MatrixXd * const depthMap) const {
 	/*******************************************
 	 * 		Figure 1: Image seen by camera

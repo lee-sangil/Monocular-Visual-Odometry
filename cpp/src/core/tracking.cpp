@@ -1,11 +1,17 @@
 #include "core/MVO.hpp"
-#include "core/random.hpp"
 #include "core/time.hpp"
 #include "core/DepthFilter.hpp"
 #include "core/numerics.hpp"
 #include <eigen3/unsupported/Eigen/MatrixFunctions>
 #include <exception>
 
+/**
+ * @brief 특징점을 추출하는 프로세스
+ * @details 기존 특징점의 위치를 업데이트하고, 추적이 실패한 특징점은 제거하며, 부족분을 새로 추출하여 특징점의 개수를 유지한다.
+ * @return 에러가 발생하지 않으면, true
+ * @author Sangil Lee (sangillee724@gmail.com)
+ * @date 29-Dec-2019
+ */
 bool MVO::extractFeatures(){
     // Update features using KLT tracker
     if( updateFeatures() ){
@@ -34,6 +40,13 @@ bool MVO::extractFeatures(){
         return false;
 }
 
+/**
+ * @brief 특징점의 위치를 갱신
+ * @details KLT를 이용하여 특징점을 추적한다.
+ * @return 에러가 발생하지 않으면, true
+ * @author Sangil Lee (sangillee724@gmail.com)
+ * @date 29-Dec-2019
+ */
 bool MVO::updateFeatures(){
 
     if( num_feature_ ){
@@ -144,6 +157,13 @@ bool MVO::updateFeatures(){
     }
 }
 
+/**
+ * @brief 키프레임 삭제
+ * @details 현재 이미지 프레임과 키프레임 사이의 시차가 작은 경우, 현재 키프레임을 삭제하고 이전 키프레임을 현재 키프레임으로 변경한다.
+ * @return 없음
+ * @author Sangil Lee (sangillee724@gmail.com)
+ * @date 29-Dec-2019
+ */
 void MVO::selectKeyframeNow(){
 
     // Low parallax
@@ -193,6 +213,13 @@ void MVO::selectKeyframeNow(){
     // }
 }
 
+/**
+ * @brief 키프레임 추가
+ * @details 현재 이미지 프레임과 키프레임 사이의 특징점 매칭률이 낮으면, 현재 이미지 프레임을 다음 이터레이션에서의 키프레임으로 추가한다.
+ * @return 없음
+ * @author Sangil Lee (sangillee724@gmail.com)
+ * @date 29-Dec-2019
+ */
 void MVO::selectKeyframeAfter(){
     // Low tracking ratio
     if( !trigger_keystep_decrease_ && !trigger_keystep_decrease_previous_ ){ // only if there is no trigger about low parallax
@@ -214,7 +241,14 @@ void MVO::selectKeyframeAfter(){
     }
 }
 
-// warp uv with imu
+/**
+ * @brief 특징점 위치 예상
+ * @details IMU의 값과 직전 특징점의 위치를 이용하여 현재 이미지 프레임에서 나타날 특징점의 위치를 예상한다.
+ * @param uv 직전 특징점의 uv 위치
+ * @return 특징점의 예상 uv 위치
+ * @author Sangil Lee (sangillee724@gmail.com)
+ * @date 29-Dec-2019
+ */
 cv::Point2f MVO::warpWithIMU(const cv::Point2f& uv) const {
     Eigen::Vector3d pixel, warpedPixel;
     Eigen::Vector3d t = (TocRec_[keystep_].inverse() * TocRec_.back() * TRec_.back()).block(0,3,3,1);
@@ -223,7 +257,14 @@ cv::Point2f MVO::warpWithIMU(const cv::Point2f& uv) const {
     return cv::Point2f(warpedPixel(0)/warpedPixel(2), warpedPixel(1)/warpedPixel(2));
 }
 
-// warp uv with can
+/**
+ * @brief 특징점 위치 예상
+ * @details CAN 차속의 값과 직전 특징점의 위치를 이용하여 현재 이미지 프레임에서 나타날 특징점의 위치를 예상한다.
+ * @param uv 직전 특징점의 uv 위치
+ * @return 특징점의 예상 uv 위치
+ * @author Sangil Lee (sangillee724@gmail.com)
+ * @date 29-Dec-2019
+ */
 cv::Point2f MVO::warpWithCAN(const Eigen::Vector3d& p) const {
     Eigen::Vector3d pixel, warpedPixel;
     Eigen::Vector3d t = (TocRec_[keystep_].inverse() * TocRec_.back() * TRec_.back()).block(0,3,3,1);
@@ -231,7 +272,14 @@ cv::Point2f MVO::warpWithCAN(const Eigen::Vector3d& p) const {
     return cv::Point2f(warpedPixel(0)/warpedPixel(2), warpedPixel(1)/warpedPixel(2));
 }
 
-// warp uv with the previous motion
+/**
+ * @brief 특징점 위치 예상
+ * @details 최근 변환 행렬과 직전 특징점의 위치를 이용하여 현재 이미지 프레임에서 나타날 특징점의 위치를 예상한다.
+ * @param uv 직전 특징점의 uv 위치
+ * @return 특징점의 예상 uv 위치
+ * @author Sangil Lee (sangillee724@gmail.com)
+ * @date 29-Dec-2019
+ */
 cv::Point2f MVO::warpWithPreviousMotion(const Eigen::Vector3d& p) const {
     Eigen::Vector3d warpedPixel;
     Eigen::Matrix3d Rinv = (TocRec_[keystep_].inverse() * TocRec_.back() * TRec_.back()).block(0,0,3,3).transpose();
@@ -241,6 +289,15 @@ cv::Point2f MVO::warpWithPreviousMotion(const Eigen::Vector3d& p) const {
     return cv::Point2f(warpedPixel(0)/warpedPixel(2), warpedPixel(1)/warpedPixel(2));
 }
 
+/**
+ * @brief 특징점 추적
+ * @details 간단한 방법으로 특징점의 위치를 빠르게 추적한다.
+ * @param points 추적된 uv 벡터
+ * @param validity 추적 성공 여부
+ * @return 없음
+ * @author Sangil Lee (sangillee724@gmail.com)
+ * @date 29-Dec-2019
+ */
 void MVO::kltTrackerRough(std::vector<cv::Point2f>& points, std::vector<bool>& validity){
     points.clear();
     points.reserve(num_feature_);
@@ -304,6 +361,15 @@ void MVO::kltTrackerRough(std::vector<cv::Point2f>& points, std::vector<bool>& v
     }
 }
 
+/**
+ * @brief 특징점 추적
+ * @details 정교한 방법으로 특징점의 위치를 정밀하게 추적한다.
+ * @param points 추적된 uv 벡터
+ * @param validity 추적 성공 여부
+ * @return 없음
+ * @author Sangil Lee (sangillee724@gmail.com)
+ * @date 29-Dec-2019
+ */
 void MVO::kltTrackerPrecise(std::vector<cv::Point2f>& points, std::vector<bool>& validity){
     points.clear();
     points.reserve(num_feature_);
@@ -382,7 +448,13 @@ void MVO::kltTrackerPrecise(std::vector<cv::Point2f>& points, std::vector<bool>&
     }
 }
 
-// delete untracked or rejected features
+/**
+ * @brief 특징점 삭제
+ * @details 더 이상 추적하지 않을 특징점을 삭제한다.
+ * @return 없음
+ * @author Sangil Lee (sangillee724@gmail.com)
+ * @date 29-Dec-2019
+ */
 void MVO::deleteDeadFeatures(){
     for( uint32_t i = 0; i < features_.size(); ){
         if( features_[i].is_alive == false ){
@@ -397,6 +469,13 @@ void MVO::deleteDeadFeatures(){
     num_feature_ = features_.size();
 }
 
+/**
+ * @brief 특징점 추가
+ * @details 특정 갯수가 될 때까지, 또는 유의미한 특징점을 더 추출할 수 없을 때까지 특징점을 추가한다.
+ * @return 없음
+ * @author Sangil Lee (sangillee724@gmail.com)
+ * @date 29-Dec-2019
+ */
 void MVO::addFeatures(){
     updateBucket();
     if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "## Update bucket: " << lsi::toc() << std::endl;
@@ -408,7 +487,13 @@ void MVO::addFeatures(){
     if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "! Add features in: " << next_keyframe_.id << std::endl;
 }
 
-// update bucket attribute of feature and refresh buckets
+/**
+ * @brief bucket 업데이트
+ * @details 특징점의 업데이트된 위치를 바탕으로, bucket의 변수들을 업데이트한다.
+ * @return 없음
+ * @author Sangil Lee (sangillee724@gmail.com)
+ * @date 29-Dec-2019
+ */
 void MVO::updateBucket(){
     bucket_.mass.fill(0.0);
     bucket_.saturated.fill(1.0);
@@ -428,6 +513,13 @@ void MVO::updateBucket(){
     }
 }
 
+/**
+ * @brief 특징점 추가
+ * @details 특징점 사이의 최소 거리를 유지하도록 새로운 특징점을 추출 및 추가한다.
+ * @return 없음
+ * @author Sangil Lee (sangillee724@gmail.com)
+ * @date 29-Dec-2019
+ */
 void MVO::addFeature(){
     // Load bucket parameters
     cv::Size bkSize = bucket_.size;
@@ -573,7 +665,13 @@ void MVO::addFeature(){
     }
 }
 
-// haram
+/**
+ * @brief 프레임 사이의 움직임을 계산하는 프로세스
+ * @details 특징점 쌍의 essential matrix를 계산하고, R, t를 추출한다.
+ * @return 에러가 발생하지 않으면, true
+ * @author Sangil Lee (sangillee724@gmail.com) Haram Kim (rlgkfka614@gmail.com)
+ * @date 29-Dec-2019
+ */
 bool MVO::calculateEssential()
 {
     if (step_ == 0){
@@ -701,6 +799,13 @@ bool MVO::calculateEssential()
 }
 
 // add extra feature extracted from the designated roi such as sign or crosswalk
+/**
+ * @brief 특수 특징점 추가 혹은 삭제
+ * @details 요구에 따라 특별히 더 추출하거나 제거하여야 하는 특징점에 대해 업데이트한다.
+ * @return 없음
+ * @author Sangil Lee (sangillee724@gmail.com)
+ * @date 29-Dec-2019
+ */
 void MVO::addExtraFeatures(){
 
     if( features_extra_.size() > 0 ){
@@ -731,6 +836,15 @@ void MVO::addExtraFeatures(){
     }
 }
 
+/**
+ * @brief 특징점 검색
+ * @details ROI 내에 속하는 특징점을 추출 혹은 삭제한다.
+ * @param rois 특징점을 추출 혹은 삭제하고자 하는 ROI
+ * @param num_feature 양수: 해당 개수만큼 특징점 추가, 음수: 영역 내 특징점 모두 삭제
+ * @return 없음
+ * @author Sangil Lee (sangillee724@gmail.com)
+ * @date 29-Dec-2019
+ */
 void MVO::updateRoiFeatures(const std::vector<cv::Rect>& rois, const std::vector<int>& num_feature){
 
     cv::Rect roi;
@@ -795,6 +909,16 @@ void MVO::updateRoiFeatures(const std::vector<cv::Rect>& rois, const std::vector
     }
 }
 
+/**
+ * @brief 특징점 검색
+ * @details ROI 내에 속하는 특징점 하나를 추가한다.
+ * @param rois 특징점 하나를 추가하고자 하는 ROI
+ * @param keypoints ROI 내에서 추출된 특징점들
+ * @param idx_compared ROI 내에서 추가할 특징점과 거리를 비교할 대상들
+ * @return 특징점이 성공적으로 추가되면, true
+ * @author Sangil Lee (sangillee724@gmail.com)
+ * @date 29-Dec-2019
+ */
 bool MVO::updateRoiFeature(const cv::Rect& roi, const std::vector<cv::Point2f>& keypoints, std::vector<uint32_t>& idx_compared){
     
     // Try to find a seperate feature
@@ -872,7 +996,13 @@ bool MVO::updateRoiFeature(const cv::Rect& roi, const std::vector<cv::Point2f>& 
     
 }
 
-// compute rotate prior value from gyro or can
+/**
+ * @brief 영상 모듈 회전 행렬 사전 정보 입력
+ * @details 각속도 데이터로부터 회전 행렬 사전 정보값을 입력한다.
+ * @return 없음
+ * @author Sangil Lee (sangillee724@gmail.com)
+ * @date 29-Dec-2019
+ */
 void MVO::updateRotatePrior(){
     if( is_rotate_provided_ ){
         Eigen::Vector3d radian = Eigen::Vector3d::Zero();

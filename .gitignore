@@ -36,3 +36,7 @@ matlab/logs/*
 cpp/build/*
 cpp/release/*
 .vscode/*
+./.vscode/*
+
+# doxygen
+doc/

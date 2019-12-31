@@ -1,10 +1,15 @@
 #include "core/MVO.hpp"
-#include "core/ransac.hpp"
-#include "core/random.hpp"
 #include "core/numerics.hpp"
 #include "core/time.hpp"
 #include "core/DepthFilter.hpp"
 
+/**
+ * @brief 프레임 사이의 변환 행렬의 스케일을 추정 및 보정하는 프로세스
+ * @details 변환 행렬의 scale을 계산하고, R, t를 출력한다.
+ * @return 에러가 발생하지 않으면, true
+ * @author Sangil Lee (sangillee724@gmail.com)
+ * @date 29-Dec-2019
+ */
 bool MVO::calculateMotion()
 {
     if (!is_start_)
@@ -130,7 +135,17 @@ bool MVO::calculateMotion()
     }
 }
 
-// find reasonable R, t combination by counting positive depths
+/**
+ * @brief 4개의 R, t에서 올바른 값을 선택
+ * @details 4개의 R, t 후보군에서 양의 깊이값들을 가지게 하는 R, t를 선택한다.
+ * @param R_vec 회전 행렬 후보
+ * @param t_vec 변위 벡터 후보
+ * @param R 올바른 회전 행렬
+ * @param t 올바른 변위 벡터
+ * @return 에러가 발생하지 않으면, true
+ * @author Sangil Lee (sangillee724@gmail.com)
+ * @date 29-Dec-2019
+ */
 bool MVO::verifySolutions(const std::vector<Eigen::Matrix3d>& R_vec, const std::vector<Eigen::Vector3d>& t_vec, Eigen::Matrix3d& R, Eigen::Vector3d& t){
     
 	bool success;
@@ -194,7 +209,17 @@ bool MVO::verifySolutions(const std::vector<Eigen::Matrix3d>& R_vec, const std::
 	return success;
 }
 
-// find 6dof pose instantly using PnP method
+/**
+ * @brief PnP 알고리즘
+ * @details 3차원 좌표가 생성된 특징점들에 대해 PnP 알고리즘을 수행하여 자세값을 계산한다.
+ * @param R 회전 행렬
+ * @param t 변위 벡터
+ * @param idx_inlier PnP 인라이어
+ * @param idx_outlier PnP 아웃라이어
+ * @return 성공적으로 자세를 계산하면, true
+ * @author Sangil Lee (sangillee724@gmail.com)
+ * @date 29-Dec-2019
+ */
 bool MVO::findPoseFrom3DPoints(Eigen::Matrix3d &R, Eigen::Vector3d &t, std::vector<int>& idx_inlier, std::vector<int>& idx_outlier){    
     // Seek index of which feature is 3D reconstructed currently,
     // and 3D initialized previously
@@ -326,7 +351,20 @@ bool MVO::findPoseFrom3DPoints(Eigen::Matrix3d &R, Eigen::Vector3d &t, std::vect
     return flag;
 }
 
-// construct depth using the corresponding uv-point pairs and R, t
+/**
+ * @brief 삼각 측량
+ * @details 인접한 프레임에서의 uv 좌표값과 R, t를 이용하여, 삼각 측량 후 포인트를 반환한다.
+ * @param uv_prev 이전 uv 좌표값
+ * @param uv_curr 현재 uv 좌표값
+ * @param R 회전 행렬
+ * @param t 변위 벡터
+ * @param X_prev 이전 프레임에서의 xyz 좌표값
+ * @param X_curr 현재 프레임에서의 xyz 좌표값
+ * @param inlier 양의 깊이 값을 가지는 인라이어
+ * @return 없음
+ * @author Sangil Lee (sangillee724@gmail.com)
+ * @date 29-Dec-2019
+ */
 void MVO::constructDepth(const std::vector<cv::Point2f>& uv_prev, const std::vector<cv::Point2f>& uv_curr, 
                         const Eigen::Matrix3d& R, const Eigen::Vector3d& t, 
                         std::vector<Eigen::Vector3d> &X_prev, std::vector<Eigen::Vector3d> &X_curr, 
@@ -461,7 +499,16 @@ void MVO::constructDepth(const std::vector<cv::Point2f>& uv_prev, const std::vec
     }
 }
 
-// Update 3d point attributes and depth filter of features
+/**
+ * @brief 3차원 좌표 업데이트
+ * @details 각 특징점의 3차원 좌표값을 깊이 필터를 통해 업데이트한다.
+ * @param feature 업데이트하고자 하는 특징점
+ * @param Toc 원점 좌표계 기준 현재 자세 및 위치
+ * @param T 키프레임 좌표계 기준 현재 자세 및 위치
+ * @return 없음
+ * @author Sangil Lee (sangillee724@gmail.com)
+ * @date 29-Dec-2019
+ */
 void MVO::update3DPoint(Feature& feature, const Eigen::Matrix4d& Toc, const Eigen::Matrix4d& T){
     // Use Depthfilter - combination of Gaussian and uniform model
     Eigen::Vector3d point_initframe;
@@ -505,7 +552,20 @@ void MVO::update3DPoint(Feature& feature, const Eigen::Matrix4d& Toc, const Eige
     //     if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "& " << feature.id << " " << z << " " << feature.depthfilter->getMean() << " " << tau << " " << tau_inverse << " " << feature.point_var << " " << feature.depthfilter->getA() << " " << feature.depthfilter->getB() << std::endl;
 }
 
-// update points without PnP
+/**
+ * @brief 3차원 좌표 업데이트
+ * @details 인접한 이미지 사이에서 essential constraint로 계산한 R, t를 이용해 각 특징점의 3차원 좌표값을 업데이트한다.
+ * @param R 회전 행렬
+ * @param t 변위 벡터
+ * @param inlier 3차원 복원 인라이어
+ * @param outlier 3차원 복원 실패 아웃라이어
+ * @param T 직전 이미지 프레임 기준 변환 행렬
+ * @param Toc 첫 이미지 프레임 기준 변환 행렬
+ * @param Poc 첫 이미지 프레임 기준 위치 벡터
+ * @return 없음
+ * @author Sangil Lee (sangillee724@gmail.com)
+ * @date 29-Dec-2019
+ */
 void MVO::update3DPoints(const Eigen::Matrix3d &R, const Eigen::Vector3d &t, 
                         const std::vector<bool> &inlier, const std::vector<bool> &outlier, 
                         Eigen::Matrix4d &T, Eigen::Matrix4d &Toc, Eigen::Vector4d &Poc){
@@ -533,7 +593,23 @@ void MVO::update3DPoints(const Eigen::Matrix3d &R, const Eigen::Vector3d &t,
     }
 }
 	
-// update points with pnp
+/**
+ * @brief 3차원 좌표 업데이트
+ * @details 원점 좌표계의 3차원 좌표와 현재 프레임 사이에서 계산한 PnP의 자세값을 이용해 각 특징점의 3차원 좌표값을 업데이트한다.
+ * @param R PnP로 얻은 회전 행렬
+ * @param t PnP로 얻은 변위 벡터
+ * @param inlier 3차원 복원 인라이어
+ * @param outlier 3차원 복원 실패 아웃라이어
+ * @param R_E 인접한 이미지 사이의 회전 행렬
+ * @param t_E 인접한 이미지 사이의 변위 벡터
+ * @param success_E 인접한 이미지 사이의 R, t 계산 성공 여부
+ * @param T 직전 이미지 프레임 기준 변환 행렬
+ * @param Toc 첫 이미지 프레임 기준 변환 행렬
+ * @param Poc 첫 이미지 프레임 기준 위치 벡터
+ * @return 없음
+ * @author Sangil Lee (sangillee724@gmail.com)
+ * @date 29-Dec-2019
+ */
 void MVO::update3DPoints(const Eigen::Matrix3d &R, const Eigen::Vector3d &t, 
                         const std::vector<bool> &inlier, const std::vector<bool> &outlier, 
                         const Eigen::Matrix3d &R_E, const Eigen::Vector3d &t_E, const bool &success_E, 
@@ -610,18 +686,32 @@ void MVO::update3DPoints(const Eigen::Matrix3d &R, const Eigen::Vector3d &t,
     num_feature_3D_reconstructed_ = num_reconstructed;
 }
 
+/**
+ * @brief 변위 벡터 스케일 업데이트
+ * @details 원점 좌표계의 3차원 좌표값과 현재 프레임에서의 3차원 좌표값을 비교하여 에러를 최소화하는 최적 스케일 값을 계산한다.
+ * @param R 회전 행렬
+ * @param t 변위 벡터
+ * @param inlier 최적 스케일값을 만족하는 인라이어
+ * @param outlier 아웃라이어
+ * @return 최적값이 존재할 경우, true
+ * @author Sangil Lee (sangillee724@gmail.com)
+ * @date 29-Dec-2019
+ */
 bool MVO::scalePropagation(const Eigen::Matrix3d &R, Eigen::Vector3d &t, std::vector<bool> &inlier, std::vector<bool> &outlier){
     inlier.clear();
     outlier.clear();
 
-    // compute and update scale reference from velocity stacks if speed raw data are provided
-    updateScaleReference();
-
-    double scale = 0, scale_from_height = 0;
     bool flag;
 
-    // calculate distance between road and the camera without speed data
-    if( !is_speed_provided_ ){
+    /**
+     * Update scale_reference value
+     */
+    if( is_speed_provided_ ){
+        // compute and update scale reference from velocity stacks if speed raw data are provided
+        updateScaleReference();
+
+    }else{
+        // calculate distance between road and the camera without speed data
         cv::Point2f uv_curr;
         Eigen::Vector4d point_curr;
         std::vector<cv::Point3f> road_candidate;
@@ -649,6 +739,7 @@ bool MVO::scalePropagation(const Eigen::Matrix3d &R, Eigen::Vector3d &t, std::ve
             lsi::ransac<cv::Point3f, std::vector<double>>(road_candidate, params_.ransac_coef_plane, plane, plane_inlier, plane_outlier);
 
             if( std::count(plane_inlier.begin(), plane_inlier.end(), true) > (uint32_t) params_.th_inlier ){
+                double scale_from_height = 0;
                 for( uint32_t i = 0; i < road_idx.size(); i++ ){
                     if( plane_inlier[i] )
                         features_[road_idx[i]].type = Type::Road;
@@ -659,114 +750,111 @@ bool MVO::scalePropagation(const Eigen::Matrix3d &R, Eigen::Vector3d &t, std::ve
                 if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "Plane: " << plane[0] << ',' << plane[1] << ',' << plane[2] << std::endl;
 
                 updateScaleReference(scale_from_height);
+                // std::cout << "scale_from_height: " << scale_from_height << std::endl;
             }
         }
     }
 
+    /**
+     * Update scale value
+     */
     if (is_scale_initialized_)
     {
-        // Seek index of which feature is 3D reconstructed currently,
-        // and 3D initialized previously
-        std::vector<int> idx;
-        for (uint32_t i = 0; i < features_.size(); i++){
-            if( features_[i].is_3D_reconstructed && features_[i].is_3D_init )
-                idx.push_back(i);
-        }
-        uint32_t num_pts = idx.size();
-
+        double scale = 0;
         std::vector<bool> scale_inlier, scale_outlier;
-        if( params_.weight_scale_ref < 0 ){ // Use reference scale directly
-            scale = scale_reference_;
-            if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "@ scale_from_velocity: " << scale_reference_ << std::endl;
-            num_feature_inlier_ = num_feature_3D_reconstructed_;
-        }
-        else if ( num_pts > params_.ransac_coef_scale.min_num_point){ // Use RANSAC to find suitable scale
-            Eigen::Matrix4d tform;
-            tform.setIdentity();
-            tform.block(0,0,3,3) = R;
-            tform.block(0,3,3,1) = t;
-
-            std::vector<std::pair<cv::Point3f,cv::Point3f>> Points;
-            Eigen::Vector4d init_point, expt_point, curr_point;
-            params_.ransac_coef_scale.weight.clear();
-            params_.ransac_coef_scale.th_dist_arr.clear();
-            double std_inv_z, inv_z, std_z;
-            
-            for (uint32_t i = 0; i < num_pts; i++){
-                curr_point = features_[idx[i]].point_curr;
-
-                // Get initialized 3D point
-                init_point = TocRec_[keystep_].inverse() * features_[idx[i]].point_init;
-                
-                // Get expected 3D point by transforming the coordinates of the observed 3d point
-                expt_point = tform.inverse() * curr_point;
-
-                Points.emplace_back(cv::Point3f(expt_point(0),expt_point(1),expt_point(2)),
-                                    cv::Point3f(init_point(0),init_point(1),init_point(2)));
-                
-                // RANSAC weight
-                // the smaller depth is, the larger weight is
-                params_.ransac_coef_scale.weight.push_back( std::atan( -curr_point(2)/5 + 3 ) + M_PI / 2 );
-                // params_.ransac_coef_scale.weight.push_back( std::atan( -features_[i].depthfilter->getVariance() * 1e4 ) + M_PI / 2 );
-                // params_.ransac_coef_scale.weight.push_back( 1.0/features_[i].depthfilter->getVariance() );
-
-                // RANSAC threshold
-                // the larger variance is, the larger threshold is
-                std_inv_z = std::sqrt(features_[i].depthfilter->getVariance());
-                inv_z = features_[i].depthfilter->getMean();
-                std_z = 0.5 * std::min(std::abs(std_inv_z/(inv_z*inv_z+std_inv_z*inv_z)), std::abs(std_inv_z/(inv_z*inv_z-std_inv_z*inv_z)));
-                params_.ransac_coef_scale.th_dist_arr.push_back( std::max(params_.ransac_coef_scale.th_dist, std_z) );
+        if ( params_.weight_scale_ref >= 0 ){ // Use RANSAC to find suitable scale
+            // Seek index of which feature is 3D reconstructed currently,
+            // and 3D initialized previously
+            std::vector<int> idx;
+            for (uint32_t i = 0; i < features_.size(); i++){
+                if( features_[i].is_3D_reconstructed && features_[i].is_3D_init )
+                    idx.push_back(i);
             }
+            uint32_t num_pts = idx.size();
 
-            // do ransac
-            params_.ransac_coef_scale.calculate_func = std::bind(lsi::calculateScale, std::placeholders::_1, std::placeholders::_2, scale_reference_, params_.weight_scale_ref);
-            lsi::ransac<std::pair<cv::Point3f,cv::Point3f>,double>(Points, params_.ransac_coef_scale, scale, scale_inlier, scale_outlier);
-            num_feature_inlier_ = std::count(scale_inlier.begin(), scale_inlier.end(), true);
+            if( num_pts > params_.ransac_coef_scale.min_num_point ){
 
-            if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "num_feature_inlier_: " << num_feature_inlier_ << std::endl;
-        }
+                Eigen::Matrix4d tform;
+                tform.setIdentity();
+                tform.block(0,0,3,3) = R;
+                tform.block(0,3,3,1) = t;
 
-        // Use the previous scale, if the scale cannot be found
-        // But do not use the previous scale when the velocity reference is fetched directly (params_.weight_scale_ref < 0)
-        if( params_.weight_scale_ref < 0 ){
-            // Update scale
-            t = scale * t;
-            flag = true;
-        }else if ( params_.weight_scale_ref >= 0 && (num_pts <= params_.ransac_coef_scale.min_num_point || num_feature_inlier_ < (std::size_t)params_.th_inlier || scale == 0) )
-        {
-            if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "Warning: There are a few scale factor inliers" << std::endl;
+                std::vector<std::pair<cv::Point3f,cv::Point3f>> Points;
+                Eigen::Vector4d init_point, expt_point, curr_point;
+                params_.ransac_coef_scale.weight.clear();
+                params_.ransac_coef_scale.th_dist_arr.clear();
+                double std_inv_z, inv_z, std_z;
+                
+                for (uint32_t i = 0; i < num_pts; i++){
+                    curr_point = features_[idx[i]].point_curr;
 
-            scale = (TRec_.back().block(0,3,3,1)).norm();
+                    // Get initialized 3D point
+                    init_point = TocRec_[keystep_].inverse() * features_[idx[i]].point_init;
+                    
+                    // Get expected 3D point by transforming the coordinates of the observed 3d point
+                    expt_point = tform.inverse() * curr_point;
 
-            // Update scale
-            t = scale * t;
-            flag = false;
+                    Points.emplace_back(cv::Point3f(expt_point(0),expt_point(1),expt_point(2)),
+                                        cv::Point3f(init_point(0),init_point(1),init_point(2)));
+                    
+                    // RANSAC weight
+                    // the smaller depth is, the larger weight is
+                    params_.ransac_coef_scale.weight.push_back( std::atan( -curr_point(2)/5 + 3 ) + M_PI / 2 );
+                    // params_.ransac_coef_scale.weight.push_back( std::atan( -features_[i].depthfilter->getVariance() * 1e4 ) + M_PI / 2 );
+                    // params_.ransac_coef_scale.weight.push_back( 1.0/features_[i].depthfilter->getVariance() );
 
-        }else{
-            if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "@ scale_from_height: " << scale_reference_ << ", " << "scale: " << scale << std::endl;
+                    // RANSAC threshold
+                    // the larger variance is, the larger threshold is
+                    std_inv_z = std::sqrt(features_[i].depthfilter->getVariance());
+                    inv_z = features_[i].depthfilter->getMean();
+                    std_z = 0.5 * std::min(std::abs(std_inv_z/(inv_z*inv_z+std_inv_z*inv_z)), std::abs(std_inv_z/(inv_z*inv_z-std_inv_z*inv_z)));
+                    params_.ransac_coef_scale.th_dist_arr.push_back( std::max(params_.ransac_coef_scale.th_dist, std_z) );
+                }
 
-            for( uint32_t i = 0, j = 0; i < features_.size(), j < idx.size(); i++ ){
-                if( i == idx[j] ){
-                    if( scale_inlier[j] == true )
-                        inlier.push_back(true);
-                    else
+                // do ransac
+                params_.ransac_coef_scale.calculate_func = std::bind(lsi::calculateScale, std::placeholders::_1, std::placeholders::_2, scale_reference_, params_.weight_scale_ref);
+                lsi::ransac<std::pair<cv::Point3f,cv::Point3f>,double>(Points, params_.ransac_coef_scale, scale, scale_inlier, scale_outlier);
+                num_feature_inlier_ = std::count(scale_inlier.begin(), scale_inlier.end(), true);
+
+                if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "num_feature_inlier_: " << num_feature_inlier_ << std::endl;
+            }
+            if( num_pts <= params_.ransac_coef_scale.min_num_point || num_feature_inlier_ < (std::size_t)params_.th_inlier || scale == 0 ){
+                if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "Warning: There are a few scale factor inliers" << std::endl;
+
+                // Use the previous scale, if the scale cannot be found
+                scale = (TRec_.back().block(0,3,3,1)).norm();
+
+                // Update scale
+                t = scale * t;
+                flag = false;
+            }else{
+                if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "@ scale_from_height: " << scale_reference_ << ", " << "scale: " << scale << std::endl;
+
+                for( uint32_t i = 0, j = 0; i < features_.size(), j < idx.size(); i++ ){
+                    if( i == idx[j] ){
+                        if( scale_inlier[j] == true )
+                            inlier.push_back(true);
+                        else
+                            inlier.push_back(false);
+                        j++;
+                    }else
                         inlier.push_back(false);
-                    j++;
-                }else
-                    inlier.push_back(false);
-            }
+                }
 
+                // Update scale
+                t = scale * t;
+                flag = true;
+            }
+        }else{
             // Update scale
-            t = scale * t;
+            t = scale_reference_ * t;
+            num_feature_inlier_ = num_feature_3D_reconstructed_;
             flag = true;
         }
 
     }else{
         // update scale directly
-        if( is_speed_provided_ )
-            t = scale_reference_ * t;
-        else
-            t = scale_from_height * t;
+        t = scale_reference_ * t;
 
         // find inliers
         for( uint32_t i = 0; i < features_.size(); i++ ){
@@ -776,7 +864,11 @@ bool MVO::scalePropagation(const Eigen::Matrix3d &R, Eigen::Vector3d &t, std::ve
                 inlier.push_back(false);
         }
         num_feature_inlier_ = num_feature_3D_reconstructed_;
-        flag = true;
+
+        if( scale_reference_ < 0 )
+            flag = false;
+        else
+            flag = true;
     }
 
     if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "# Propagate scale: " << lsi::toc() << std::endl;
@@ -788,7 +880,14 @@ bool MVO::scalePropagation(const Eigen::Matrix3d &R, Eigen::Vector3d &t, std::ve
         return flag;
 }
 
-// compute scale reference from speed raw data, and update scale value
+/**
+ * @brief scale 참조값 업데이트
+ * @details 지면으로부터의 높이 또는 속력계로부터 scale의 참조값을 업데이트한다.
+ * @param scale 계산한 scale
+ * @return 없음
+ * @author Sangil Lee (sangillee724@gmail.com)
+ * @date 29-Dec-2019
+ */
 void MVO::updateScaleReference(double scale){
     if( is_speed_provided_ ){
         scale = 0;
@@ -797,9 +896,10 @@ void MVO::updateScaleReference(double scale){
             for( uint32_t i = 0; i < stack.size()-1; i++ )
                 scale += (stack[i].second+stack[i+1].second)/2 * (stack[i+1].first-stack[i].first);
         }
+        // std::cout << "scale_from_speed: " << scale << std::endl;
     }
 
-    if( params_.weight_scale_ref < 0 )
+    if( params_.weight_scale_reg < 0 )
         scale_reference_ = scale;
     else{
         if( scale_reference_ < 0 || is_start_ == false )

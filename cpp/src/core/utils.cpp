@@ -1,9 +1,17 @@
 #include "core/MVO.hpp"
-#include "core/random.hpp"
 
 /*********************
  *   For debugging   *
  *********************/
+
+/**
+ * @brief 3차원 복원 에러 계산.
+ * @details 현재 복원된 3차원 좌표와 초기화된 3차원 좌표 사이의 오차를 계산한다.
+ * @param Toc 이미지 프레임 사이의 변환 행렬
+ * @return 오차값
+ * @author Sangil Lee (sangillee724@gmail.com)
+ * @date 28-Dec-2019
+ */
 double MVO::calcReconstructionError(Eigen::Matrix4d& Toc) const {
     std::vector<double> error;
     error.reserve(features_.size());
@@ -14,6 +22,15 @@ double MVO::calcReconstructionError(Eigen::Matrix4d& Toc) const {
     return error[std::floor(error.size()/2)];
 }
 
+/**
+ * @brief 3차원 복원 에러 계산.
+ * @details 현재 복원된 3차원 좌표와 초기화된 3차원 좌표 사이의 오차를 계산한다.
+ * @param R 이미지 프레임 사이의 회전 행렬
+ * @param t 이미지 프레임 사이의 변위 벡터
+ * @return 오차값
+ * @author Sangil Lee (sangillee724@gmail.com)
+ * @date 28-Dec-2019
+ */
 double MVO::calcReconstructionError(Eigen::Matrix3d& R, Eigen::Vector3d& t) const {
     Eigen::Matrix4d Toc;
     Toc.block(0,0,3,3) = R;
@@ -23,6 +40,14 @@ double MVO::calcReconstructionError(Eigen::Matrix3d& R, Eigen::Vector3d& t) cons
     return calcReconstructionError(Toc);
 }
 
+/**
+ * @brief 3차원 복원 에러 계산.
+ * @details 이미지 프레임의 깊이 참값과 3차원 좌표 사이의 거리 오차를 계산한다.
+ * @param depth 깊이값 프레임
+ * @return 없음
+ * @author Sangil Lee (sangillee724@gmail.com)
+ * @date 28-Dec-2019
+ */
 void MVO::calcReconstructionErrorGT(Eigen::MatrixXd& depth) const {
     std::vector<double> idx;
     if( params_.output_filtered_depth ){

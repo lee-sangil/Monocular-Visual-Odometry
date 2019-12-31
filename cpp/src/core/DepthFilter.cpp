@@ -1,5 +1,14 @@
 #include "core/DepthFilter.hpp"
 
+/**
+ * @brief 측정치와 그의 표준 편차를 입력으로 하여 깊이 필터의 가우시안 분포의 파라미터를 업데이트함.
+ * @details 알고리즘에서 meas로 inverse-depth를, tau로 inverse-depth의 표준 편차를 입력으로 한다.
+ * @param meas 깊이 필터에서 추정하고자 하는 값의 측정치
+ * @param tau 측정치의 표준 편차
+ * @return 없음
+ * @author Sangil Lee (sangillee724@gmail.com)
+ * @date 25-Dec-2019
+ */
 void DepthFilter::update(const double meas, const double tau){
 	
 	if( initialize_ ){
@@ -36,9 +45,24 @@ double DepthFilter::getMean() const {return mean_;}
 double DepthFilter::getVariance() const {return sigma_ * sigma_;}
 double DepthFilter::getA() const {return a_;}
 double DepthFilter::getB() const {return b_;}
+
+/**
+ * @brief 깊이 필터 강제 초기화.
+ * @return 없음
+ * @author Sangil Lee (sangillee724@gmail.com)
+ * @date 25-Dec-2019
+ */
 void DepthFilter::reset() {initialize_ = false; sigma_ = 1e9;}
 
-// Compute variance of depth, z
+/**
+ * @brief 측정치의 표준 편차를 계산함.
+ * @details 3차원 좌표의 위치와 변환 행렬을 바탕으로 3차원 깊이의 표준 편차를 계산한다.
+ * @param Toc 3차원 좌표를 복원할 때의 변환 행렬
+ * @param p 3차원 좌표 위치 벡터
+ * @return 3차원 좌표 깊이값의 표준 편차
+ * @author Sangil Lee (sangillee724@gmail.com)
+ * @date 25-Dec-2019
+ */
 double DepthFilter::computeTau(const Eigen::Matrix4d& Toc, const Eigen::Vector3d& p){
 	Eigen::Vector3d t = Toc.block(0,3,3,1);
 	Eigen::Vector3d a = p-t;
@@ -53,7 +77,15 @@ double DepthFilter::computeTau(const Eigen::Matrix4d& Toc, const Eigen::Vector3d
 	return std::abs(z_plus - p(2)); // tau
 }
 
-// Compute the variance of inverse-depth using the variance of depth, z
+/**
+ * @brief 측정치의 역함수의 표준 편차를 계산함.
+ * @details 깊이값 z와 그 표준편차에 따른 inverse-depth의 표준 편차를 계산한다.
+ * @param z 3차원 좌표의 깊이값
+ * @param tau 3차원 좌표 깊이값의 표준 편차
+ * @return 3차원 좌표 깊이 역수의 표준 편차
+ * @author Sangil Lee (sangillee724@gmail.com)
+ * @date 25-Dec-2019
+ */
 double DepthFilter::computeInverseTau(const double z, const double tau){
 	// return tau*tau/std::pow(z,4)+2*tau*tau*tau*tau/std::pow(z,6);
 	return std::max(1.0/(z-tau)-1.0/z, 1.0/z-1.0/(z+tau));

@@ -1,5 +1,4 @@
 #include "core/MVO.hpp"
-#include "core/random.hpp"
 #include "core/time.hpp"
 #include "core/DepthFilter.hpp"
 
@@ -9,6 +8,12 @@ std::ofstream MVO::s_file_logger_;
 std::ofstream MVO::s_point_logger_;
 uint32_t Feature::new_feature_id = 0;
 
+/**
+ * @brief 영상 항법 모듈 생성자.
+ * @details 멤버 변수를 초기화하고, 메모리 공간을 할당한다.
+ * @author Sangil Lee (sangillee724@gmail.com)
+ * @date 29-Dec-2019
+ */
 MVO::MVO(){
     step_ = -1;
     keystep_ = 0;
@@ -48,6 +53,12 @@ MVO::MVO(){
     lsi::seed();
 }
 
+/**
+ * @brief 영상 항법 모듈 생성자.
+ * @details 멤버 변수를 초기화하고, 메모리 공간을 할당하는 것과 더불어, yaml 파일에서 파라미터값들을 불러온다.
+ * @author Sangil Lee (sangillee724@gmail.com)
+ * @date 29-Dec-2019
+ */
 MVO::MVO(std::string yaml):MVO(){
 
     /**************************************************************************
@@ -174,7 +185,6 @@ MVO::MVO(std::string yaml):MVO(){
     // curr_pyramid_template_.reserve(10);
 
     // 3D reconstruction
-    params_.init_scale =                1;
     params_.vehicle_height =            fSettings["Scale.reference_height"]; // in meter
     params_.weight_scale_ref =          fSettings["Scale.reference_weight"];
 	params_.weight_scale_reg =          fSettings["Scale.regularization_weight"];
@@ -269,7 +279,12 @@ MVO::MVO(std::string yaml):MVO(){
 	params_.view.P = (Eigen::Matrix<double,3,4>() << params_.view.K * params_.view.R, params_.view.K * params_.view.t).finished();
 }
 
-// Execute before each iteration
+/**
+ * @brief 영상 항법 모듈 변수 초기화.
+ * @details 각 이터레이션에서 설정된 값들을 초기화한다. 각 프로세스를 통과한 특징점의 수를 초기화하고, 각 bucket에서 추출된 특징점들을 초기화한다.
+ * @author Sangil Lee (sangillee724@gmail.com)
+ * @date 29-Dec-2019
+ */
 void MVO::refresh(){
     num_feature_matched_ = 0;
     num_feature_2D_inliered_ = 0;
@@ -286,6 +301,12 @@ void MVO::refresh(){
     visit_bucket_.assign(visit_bucket_.size(), false);
 }
 
+/**
+ * @brief 영상 항법 모듈 재시작.
+ * @details 전체 멤버 변수를 초기화한다.
+ * @author Sangil Lee (sangillee724@gmail.com)
+ * @date 29-Dec-2019
+ */
 void MVO::restart(){
     step_ = 0;
     keystep_ = 0;
@@ -324,6 +345,15 @@ void MVO::restart(){
     PocRec_.erase(PocRec_.begin(), PocRec_.end()-1);
 }
 
+/**
+ * @brief 이미지 프레임 입력 함수.
+ * @details 이미지 프레임과 타임스탬프를 입력받아, 현재 키프레임 또는 현재 프레임을 설정한다.
+ * @param image 현재 이미지 프레임
+ * @param timestamp 이미지 타임스탬프
+ * @return 없음
+ * @author Sangil Lee (sangillee724@gmail.com)
+ * @date 29-Dec-2019
+ */
 void MVO::setImage(const cv::Mat& image, double timestamp){
     // Update step
     step_++;
@@ -359,7 +389,15 @@ void MVO::setImage(const cv::Mat& image, double timestamp){
     if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "# Grab image: " << lsi::toc() << std::endl;
 }
 
-// run script for main.cpp in Monocular-Visual-Odometry
+/**
+ * @brief 영상 항법 모듈 실행.
+ * @details 입력된 이미지 프레임을 이용하여 알고리즘을 실행한다.
+ * @param image 이미지 프레임
+ * @param timestamp 이미지 타임스탬프
+ * @return 없음
+ * @author Sangil Lee (sangillee724@gmail.com)
+ * @date 29-Dec-2019
+ */
 void MVO::run(const cv::Mat& image, double timestamp){
     
     lsi::tic();
@@ -381,7 +419,14 @@ void MVO::run(const cv::Mat& image, double timestamp){
     // updateRoiFeatures(rois, num_feature); // Extract extra features in rois
 }
 
-// update gyro value for rotate_prior parameter
+/**
+ * @brief 각속도 데이터 입력.
+ * @details 비동기적으로 각속도 데이터를 입력받고, 키프레임의 각속도 데이터 벡터에 삽입한다.
+ * @param timestamp 각속도 타임스탬프
+ * @param gyro 각속도 데이터
+ * @author Sangil Lee (sangillee724@gmail.com)
+ * @date 29-Dec-2019
+ */
 void MVO::updateGyro(const double timestamp, const Eigen::Vector3d& gyro){
     is_rotate_provided_ = true;
 
@@ -392,7 +437,14 @@ void MVO::updateGyro(const double timestamp, const Eigen::Vector3d& gyro){
     }
 }
 
-// update speed reference value
+/**
+ * @brief 속력 데이터 입력.
+ * @details 비동기적으로 속력 데이터를 입력받고, 키프레임의 속력 데이터 벡터에 삽입한다.
+ * @param timestamp 속력 타임스탬프
+ * @param gyro 속력 데이터
+ * @author Sangil Lee (sangillee724@gmail.com)
+ * @date 29-Dec-2019
+ */
 void MVO::updateVelocity(const double timestamp, const double speed){
     is_speed_provided_ = true;
     
@@ -403,10 +455,29 @@ void MVO::updateVelocity(const double timestamp, const double speed){
     }
 }
 
+/**
+ * @brief 특징점 멤버 변수 출력
+ * @return 특징점 멤버 변수
+ * @author Sangil Lee (sangillee724@gmail.com)
+ * @date 29-Dec-2019
+ */
 const std::vector<Feature>& MVO::getFeatures() const {return features_;}
+
+/**
+ * @brief 현재 이미지 프레임과 키프레임 사이의 변환 행렬 멤버 변수 출력
+ * @return 현재 이미지 프레임과 키프레임 사이의 변환 행렬
+ * @author Sangil Lee (sangillee724@gmail.com)
+ * @date 29-Dec-2019
+ */
 const Eigen::Matrix4d& MVO::getCurrentMotion() const {return TRec_.back();}
 
-// return the current uv-point and the current 3D x,y,z-position of features with variance
+/**
+ * @brief 현재 특징점 성분 출력
+ * @details 현재 특징점의 id, uv, xyz, 분산을 tuple 형식으로 출력한다.
+ * @return 현재 특징점의 id, uv, xyz, 분산
+ * @author Sangil Lee (sangillee724@gmail.com)
+ * @date 29-Dec-2019
+ */
 std::vector< std::tuple<uint32_t, cv::Point2f, Eigen::Vector3d, double> > MVO::getPoints() const
 {
     Eigen::Matrix4d Tco = TocRec_.back().inverse();
@@ -431,7 +502,14 @@ std::vector< std::tuple<uint32_t, cv::Point2f, Eigen::Vector3d, double> > MVO::g
     return pts;
 }
 
-// return index which belongs to the roi
+/**
+ * @brief roi 내 인덱스 찾기
+ * @details roi 영역 내에 속하는 특징점의 인덱스를 출력한다.
+ * @param roi 찾고자 하는 영역
+ * @param idx roi 에 속하는 특징점의 인덱스
+ * @author Sangil Lee (sangillee724@gmail.com)
+ * @date 29-Dec-2019
+ */
 void MVO::getPointsInRoi(const cv::Rect& roi, std::vector<uint32_t>& idx) const {
     idx.clear();
     idx.reserve(num_feature_*0.5);
@@ -442,7 +520,13 @@ void MVO::getPointsInRoi(const cv::Rect& roi, std::vector<uint32_t>& idx) const 
     }
 }
 
-// return the previous and the current uv-point of features
+/**
+ * @brief 현재 특징점 성분 출력
+ * @details 현재 특징점의 id, 이전 uv와 현재 uv를 tuple 형식으로 출력한다.
+ * @return 현재 특징점의 id, 이전 uv와 현재 uv
+ * @author Sangil Lee (sangillee724@gmail.com)
+ * @date 29-Dec-2019
+ */
 std::vector< std::tuple<uint32_t, cv::Point2f, cv::Point2f> > MVO::getMotions() const
 {
     std::vector< std::tuple<uint32_t, cv::Point2f, cv::Point2f> > pts;
@@ -462,6 +546,13 @@ std::vector< std::tuple<uint32_t, cv::Point2f, cv::Point2f> > MVO::getMotions() 
     return pts;
 }
 
+/**
+ * @brief 현재 특징점 성분 로그로 출력
+ * @details 현재 특징점의 id, uv 궤적 등을 텍스트 파일로 출력한다.
+ * @return 없음
+ * @author Sangil Lee (sangillee724@gmail.com)
+ * @date 29-Dec-2019
+ */
 void MVO::printFeatures() const {
     if( MVO::s_file_logger_.is_open() ){
         std::stringstream filename;

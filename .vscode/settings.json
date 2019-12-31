@@ -56,7 +56,8 @@
 		"stdvector": "cpp",
 		"*.ipp": "cpp",
 		"string": "cpp",
-		"iterator": "cpp"
+		"iterator": "cpp",
+		"matrixfunctions": "cpp"
 	},
 	"C_Cpp.default.includePath": [
 		"cpp/include"

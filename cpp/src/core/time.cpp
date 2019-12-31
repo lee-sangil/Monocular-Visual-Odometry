@@ -17,6 +17,12 @@
 
 struct timeval ti;
 
+/**
+ * @brief 현재 time을 저장하는 함수
+ * @details usec 단위의 시간을 저장한다.
+ * @author Sangil Lee (sangillee724@gmail.com)
+ * @date 24-Dec-2019
+ */
 unsigned long lsi::tic(){
 
 	gettimeofday(&ti, NULL);
@@ -24,7 +30,12 @@ unsigned long lsi::tic(){
 
 }
 
-// return elapsed time [sec]
+/**
+ * @brief tic 시간 이후의 시간 경과를 저장하는 함수
+ * @details usec 단위의 tic 시간 이후의 시간 경과를 저장한다.
+ * @author Sangil Lee (sangillee724@gmail.com)
+ * @date 24-Dec-2019
+ */
 unsigned long lsi::toc(){
 
 	struct timeval tf;

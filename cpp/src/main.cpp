@@ -1,4 +1,10 @@
-#include "core/common.hpp"
+/**
+ * @mainpage Monocular Visual Odometry 메인 페이지
+ * 단안 카메라를 이용하여 국지적 특징점(랜드마크) 지도를 생성하고, 이를 이용하여 카메라의 위치를 추정한다. \n
+ * 작성자: Sangil Lee (sangillee724@gmail.com), Haram Kim (rlgkfka614@gmail.com), Changhyeon Kim (hyun91015@gmail.com) \n
+ * 작성일: 2019/12/30
+ */
+
 #include "core/parser.hpp"
 #include "core/imageProc.hpp"
 #include "core/MVO.hpp"
@@ -18,6 +24,11 @@ void computeImuRotation( std::vector<std::vector<double> >, std::vector<Eigen::V
 void directoryReader(const char *, std::vector<std::vector<double> >&);
 bool grabActiveKey(std::unique_ptr<MVO>&, char);
 
+/**
+ * @brief 영상 항법 모듈 실행 스크립트
+ * @author Sangil Lee (sangillee724@gmail.com)
+ * @date 29-Dec-2019
+ */
 int main(int argc, char * argv[]){
 
 	Parser::init(argc, argv);
@@ -272,6 +283,15 @@ int main(int argc, char * argv[]){
 	return 0;
 }
 
+/**
+ * @brief 깊이 프레임을 읽음.
+ * @param filename 깊이 프레임 파일 이름
+ * @param rows 깊이 프레임의 세로 크기
+ * @param cols 깊이 프레임의 가로 크기
+ * @return 깊이 프레임
+ * @author Sangil Lee (sangillee724@gmail.com)
+ * @date 28-Dec-2019
+ */
 Eigen::MatrixXd readDepth(const char* filename, const int rows, const int cols){
     Eigen::MatrixXd matrix(rows, cols);
     std::ifstream in(filename, std::ios::in | std::ios::binary);
@@ -282,6 +302,14 @@ Eigen::MatrixXd readDepth(const char* filename, const int rows, const int cols){
     return matrix;
 }
 
+/**
+ * @brief KITTI 데이터셋의 이미지 타임스탬프를 읽음.
+ * @param filePath 이미지 타임스탬프 파일 이름
+ * @param timestamp 이미지 타임스탬프 출력
+ * @return 없음
+ * @author Sangil Lee (sangillee724@gmail.com)
+ * @date 28-Dec-2019
+ */
 void timeReader(const char * filePath, std::vector<double>& timestamp){
 	std::ifstream openFile(filePath);
 	timestamp.clear();
@@ -302,6 +330,14 @@ void timeReader(const char * filePath, std::vector<double>& timestamp){
     }
 }
 
+/**
+ * @brief KITTI 데이터셋의 기타 센서 데이터를 읽음.
+ * @param filePath 센서 데이터 파일 주소
+ * @param txtName 센서 데이터 파일 이름
+ * @return 센서 데이터값 벡터
+ * @author Sangil Lee (sangillee724@gmail.com)
+ * @date 28-Dec-2019
+ */
 std::vector<double> oxtsReader(const char * filePath, const std::string & txtName){
     std::string filename;
     filename.append(filePath);
@@ -329,6 +365,14 @@ std::vector<double> oxtsReader(const char * filePath, const std::string & txtNam
     return Data;
 }
 
+/**
+ * @brief KITTI 데이터셋의 속도 데이터를 읽음.
+ * @param oxtsData 센서 데이터
+ * @param speed 속력 데이터
+ * @return 없음
+ * @author Sangil Lee (sangillee724@gmail.com)
+ * @date 28-Dec-2019
+ */
 void computeVehicleSpeed( std::vector<std::vector<double> > oxtsData, std::vector<double>& speed){
     double temp = 0; 
     for (uint32_t i = 0; i < oxtsData.size(); i++){
@@ -343,6 +387,14 @@ void computeVehicleSpeed( std::vector<std::vector<double> > oxtsData, std::vecto
     }
 }
 
+/**
+ * @brief KITTI 데이터셋의 IMU 데이터를 읽음.
+ * @param oxtsData 센서 데이터
+ * @param data_gyro IMU 데이터
+ * @return 없음
+ * @author Sangil Lee (sangillee724@gmail.com)
+ * @date 28-Dec-2019
+ */
 void computeImuRotation( std::vector<std::vector<double> > oxtsData, std::vector<Eigen::Vector3d>& data_gyro){
     for (uint32_t i = 0; i < oxtsData.size(); i++){
 		if(i == 0){
@@ -354,6 +406,14 @@ void computeImuRotation( std::vector<std::vector<double> > oxtsData, std::vector
 	}
 }
 
+/**
+ * @brief KITTI 데이터셋의 OxTS 데이터를 읽음.
+ * @param filePath 센서 데이터 파일 이름
+ * @param oxtsData 센서 데이터
+ * @return 없음
+ * @author Sangil Lee (sangillee724@gmail.com)
+ * @date 28-Dec-2019
+ */
 void directoryReader(const char * filePath, std::vector<std::vector<double> >& oxtsData){
     std::vector<std::string> txtList;
     DIR *pdir = NULL;
@@ -383,6 +443,14 @@ void directoryReader(const char * filePath, std::vector<std::vector<double> >& o
     }
 }
 
+/**
+ * @brief 키 인터럽트를 해석함.
+ * @param vo 영상 항법 모듈 객체
+ * @param key 키 인터럽트
+ * @return 메인 루프를 멈추려면, true
+ * @author Sangil Lee (sangillee724@gmail.com)
+ * @date 28-Dec-2019
+ */
 bool grabActiveKey(std::unique_ptr<MVO>& vo, char key){
 	bool bRtn = true;
 	switch (key){
@@ -423,6 +491,13 @@ bool grabActiveKey(std::unique_ptr<MVO>& vo, char key){
 	return bRtn;
 }
 
+/**
+ * @brief 현대 데이터셋 센서 데이터를 읽음.
+ * @param filename 데이터 파일 이름
+ * @return 센서 데이터값
+ * @author Sangil Lee (sangillee724@gmail.com)
+ * @date 28-Dec-2019
+ */
 std::vector<std::vector<double> > fileReader(const std::string &filename)
 {
     std::vector<std::vector<double> > Data;
@@ -455,6 +530,16 @@ std::vector<std::vector<double> > fileReader(const std::string &filename)
     return Data;
 }
 
+/**
+ * @brief 현대 데이터셋 센서 데이터에서 속력과 각속도를 읽음.
+ * @param filePath 데이터 파일 이름
+ * @param timestamp 데이터 타임스탬프
+ * @param speed 속력 데이터
+ * @param angular 각속도 데이터
+ * @return 없음
+ * @author Sangil Lee (sangillee724@gmail.com)
+ * @date 28-Dec-2019
+ */
 void CANReader(const std::string& filePath, std::vector<double>& timestamp, std::vector<double>& speed, std::vector<Eigen::Vector3d>& angular)
 {
     std::vector<std::vector<double> > CAN_data = fileReader(filePath);
