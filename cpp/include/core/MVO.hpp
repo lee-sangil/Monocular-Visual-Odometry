@@ -211,6 +211,7 @@ class MVO{
 	void updateView();
 	void plot(const Eigen::MatrixXd * const depthMap = NULL) const;
 	void printFeatures() const;
+	void printPose(std::ofstream& os) const;
 
 	// Feature operations
 	void kltTrackerRough(std::vector<cv::Point2f>& points, std::vector<bool>& validity);
@@ -300,8 +301,8 @@ class MVO{
 
 	cv::Mat essential_; /**< @brief 두 이미지 사이의 essential 행렬 */
 	Eigen::Matrix3d fundamental_; /**< @brief 두 이미지 사이의 fundamental 행렬 */
-	std::vector<Eigen::Matrix3d> R_vec_; /**< @brief 두 이미지 사이의 회전 행렬 R 후보군 */
-	std::vector<Eigen::Vector3d> t_vec_; /**< @brief 두 이미지 사이의 변위 벡터 t 후보군 */
+	Eigen::Matrix3d R_; /**< @brief 두 이미지 사이의 회전 행렬 R */
+	Eigen::Vector3d t_; /**< @brief 두 이미지 사이의 변위 벡터 t */
 	std::vector<Eigen::Matrix4d> TRec_; /**< @brief 두 이미지 사이의 변환 행렬 */
 	std::vector<Eigen::Matrix4d> TocRec_; /**< @brief 초기 위치로부터의 변환 행렬 */
 	std::vector<Eigen::Vector4d> PocRec_; /**< @brief 초기 위치로부터의 변위 */

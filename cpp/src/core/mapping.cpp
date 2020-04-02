@@ -16,15 +16,6 @@ bool MVO::calculateMotion()
         return true;
 
     /**************************************************
-     * Solve two-fold ambiguity
-     **************************************************/
-    Eigen::Matrix3d R_unique;
-    Eigen::Vector3d t_unique;
-
-    if( !verifySolutions(R_vec_, t_vec_, R_unique, t_unique) ) return false;
-    if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "# Verify unique pose: " << lsi::toc() << std::endl;
-
-    /**************************************************
      * Mapping
      **************************************************/
     Eigen::Matrix3d R;
@@ -39,16 +30,16 @@ bool MVO::calculateMotion()
         num_feature_inlier_ = num_feature_3D_reconstructed_;
 
         /**** mapping without scaling ****/
-        update3DPoints(R_unique, t_unique, inlier, outlier, T, Toc, Poc);
+        update3DPoints(R_, t_, inlier, outlier, T, Toc, Poc);
         if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "# Update 3D Points with Essential: " << lsi::toc() << std::endl;
 
         break;
 
     case 1:
         /**** mapping and scaling with essential 3d reconstruction only ****/
-        if( !scalePropagation(R_unique ,t_unique, inlier, outlier) ) return false;
+        if( !scalePropagation(R_ ,t_, inlier, outlier) ) return false;
 
-        update3DPoints(R_unique, t_unique, inlier, outlier, T, Toc, Poc); // overloading function
+        update3DPoints(R_, t_, inlier, outlier, T, Toc, Poc); // overloading function
         if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "# Update 3D Points with Essential: " << lsi::toc() << std::endl;
 
         break;
@@ -58,12 +49,12 @@ bool MVO::calculateMotion()
         if( is_scale_initialized_ == true ){
             findPoseFrom3DPoints(R, t, idx_inlier, idx_outlier);
         }else{
-            R = R_unique;
-            t = t_unique;
+            R = R_;
+            t = t_;
             num_feature_inlier_ = features_.size();
         }
 
-        update3DPoints(R, t, inlier, outlier, R_unique, t_unique, false, T, Toc, Poc); // overloading function
+        update3DPoints(R, t, inlier, outlier, R_, t_, false, T, Toc, Poc); // overloading function
         break;
 
     case 3:
@@ -72,36 +63,36 @@ bool MVO::calculateMotion()
             if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "# Find pose from PnP: " << lsi::toc() << std::endl;
 
             // Update 3D points
-            bool success = scalePropagation(R_unique, t_unique, inlier, outlier);
+            bool success = scalePropagation(R_, t_, inlier, outlier);
             
             // Update 3D points
-            update3DPoints(R, t, inlier, outlier, R_unique, t_unique, success, T, Toc, Poc); // overloading function
+            update3DPoints(R, t, inlier, outlier, R_, t_, success, T, Toc, Poc); // overloading function
             if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "# Update 3D Points with PnP: " << lsi::toc() << std::endl;
 
         }else{
             if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "# Find pose from PnP: " << lsi::toc() << std::endl;
 
             // Update 3D points
-            if( !scalePropagation(R_unique ,t_unique, inlier, outlier) ) return false;
+            if( !scalePropagation(R_ ,t_, inlier, outlier) ) return false;
 
-            update3DPoints(R_unique, t_unique, inlier, outlier, T, Toc, Poc); // overloading function
+            update3DPoints(R_, t_, inlier, outlier, T, Toc, Poc); // overloading function
             if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "# Update 3D Points with Essential: " << lsi::toc() << std::endl;
         }
         break;
 
     case 4:
         /**** use both PnP and essential 3d reconstruction - modified ****/
-        if( scalePropagation(R_unique, t_unique, inlier, outlier) ){
+        if( scalePropagation(R_, t_, inlier, outlier) ){
             if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "# Find scale from Essential: " << lsi::toc() << std::endl;
 
-            R = R_unique;
-            t = t_unique;
+            R = R_;
+            t = t_;
 
             findPoseFrom3DPoints(R, t, idx_inlier, idx_outlier);
             if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "# Find pose from PnP: " << lsi::toc() << std::endl;
 
             // Update 3D points
-            update3DPoints(R, t, inlier, outlier, R_unique, t_unique, true, T, Toc, Poc);
+            update3DPoints(R, t, inlier, outlier, R_, t_, true, T, Toc, Poc);
         }else{
             if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "# Find scale from Essential: " << lsi::toc() << std::endl;
 
@@ -109,7 +100,7 @@ bool MVO::calculateMotion()
             if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "# Find pose from PnP: " << lsi::toc() << std::endl;
 
             // Update 3D points
-            update3DPoints(R, t, inlier, outlier, R_unique, t_unique, false, T, Toc, Poc);
+            update3DPoints(R, t, inlier, outlier, R_, t_, false, T, Toc, Poc);
         }
         break;
     }
@@ -123,7 +114,7 @@ bool MVO::calculateMotion()
         return false;
     }else{
         if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "Temporal velocity: " << T.block(0,3,3,1).norm() << std::endl;
-        if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "Optimized scale: " << t_unique.norm() << std::endl;
+        if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "Optimized scale: " << t_.norm() << std::endl;
 
         // Save solution
         TRec_.push_back(T);
@@ -133,80 +124,6 @@ bool MVO::calculateMotion()
         is_scale_initialized_ = true;
         return true;
     }
-}
-
-/**
- * @brief 4개의 R, t에서 올바른 값을 선택
- * @details 4개의 R, t 후보군에서 양의 깊이값들을 가지게 하는 R, t를 선택한다.
- * @param R_vec 회전 행렬 후보
- * @param t_vec 변위 벡터 후보
- * @param R 올바른 회전 행렬
- * @param t 올바른 변위 벡터
- * @return 에러가 발생하지 않으면, true
- * @author Sangil Lee (sangillee724@gmail.com)
- * @date 29-Dec-2019
- */
-bool MVO::verifySolutions(const std::vector<Eigen::Matrix3d>& R_vec, const std::vector<Eigen::Vector3d>& t_vec, Eigen::Matrix3d& R, Eigen::Vector3d& t){
-    
-	bool success;
-
-	// Extract homogeneous 2D point which is inliered with essential constraint
-	std::vector<int> idx_2D_inlier;
-	for( int i = 0; i < num_feature_; i++ )
-		if( features_[i].is_2D_inliered && features_[i].life - 1 - (step_ - keystep_) >= 0)
-			idx_2D_inlier.push_back(i);
-
-    int key_idx;
-	std::vector<cv::Point2f> uv_prev, uv_curr;
-    for (uint32_t i = 0; i < idx_2D_inlier.size(); i++){
-        key_idx = features_[idx_2D_inlier[i]].life - 1 - (step_ - keystep_);
-        uv_prev.emplace_back(features_[idx_2D_inlier[i]].uv[key_idx]);
-		uv_curr.emplace_back(features_[idx_2D_inlier[i]].uv.back());
-    }
-
-	// Find reasonable rotation and translational vector
-	int max_num = 0;
-	std::vector<bool> max_inlier;
-	std::vector<Eigen::Vector3d> opt_X_curr;
-	for( uint32_t i = 0; i < R_vec.size(); i++ ){
-		Eigen::Matrix3d R1 = R_vec[i];
-		Eigen::Vector3d t1 = t_vec[i];
-		
-		std::vector<Eigen::Vector3d> X_prev, X_curr;
-		std::vector<bool> inlier;
-		constructDepth(uv_prev, uv_curr, R1, t1, X_prev, X_curr, inlier);
-
-		int num_inlier = 0;
-		for( uint32_t i = 0; i < inlier.size(); i++ )
-			if( inlier[i] )
-				num_inlier++;
-
-		if( num_inlier > max_num ){
-			max_num = num_inlier;
-			max_inlier = inlier;
-            opt_X_curr = X_curr;
-			
-			R = R1;
-			t = t1;
-		}
-	}
-
-	// Store 3D position in features
-	if( max_num < num_feature_2D_inliered_*0.5 ){
-        if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "Warning: There is no verified solution" << std::endl;
-		success = false;
-	}else{
-		for( int i = 0; i < max_num; i++ ){
-			if( max_inlier[i] ){
-				features_[idx_2D_inlier[i]].point_curr = (Eigen::Vector4d() << opt_X_curr[i], 1).finished();
-				features_[idx_2D_inlier[i]].is_3D_reconstructed = true;
-                num_feature_3D_reconstructed_++;
-            }
-		}
-		success = true;
-	}
-
-	return success;
 }
 
 /**

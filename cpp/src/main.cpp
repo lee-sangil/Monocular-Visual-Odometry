@@ -163,6 +163,8 @@ int main(int argc, char * argv[]){
 		MVO::s_file_logger_.open("log.txt");
 	if( Parser::hasOption("-gt") )
 		MVO::s_point_logger_.open("pointcloud.txt");
+	std::ofstream s_traj_logger("CamTrajectory.txt");
+	s_traj_logger << "# tx ty tz qw qx qy qz" << std::endl;
 	
 	std::unique_ptr<MVO> vo(new MVO(fsname));
 
@@ -239,6 +241,7 @@ int main(int argc, char * argv[]){
 				}
 
 				if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "# Plot: " << lsi::toc() << std::endl;
+				if( s_traj_logger.is_open() ) vo->printPose(s_traj_logger);
 
 				it_rgb++;
 

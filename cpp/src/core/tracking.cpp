@@ -775,16 +775,24 @@ bool MVO::calculateEssential()
     Eigen::Matrix3d W;
     W << 0, -1, 0, 1, 0, 0, 0, 0, 1;
 
-    R_vec_.clear();
-    t_vec_.clear();
-    R_vec_.push_back(U * W * V.transpose());
-    R_vec_.push_back(U * W * V.transpose());
-    R_vec_.push_back(U * W.transpose() * V.transpose());
-    R_vec_.push_back(U * W.transpose() * V.transpose());
-    t_vec_.push_back(U.block(0, 2, 3, 1));
-    t_vec_.push_back(-U.block(0, 2, 3, 1));
-    t_vec_.push_back(U.block(0, 2, 3, 1));
-    t_vec_.push_back(-U.block(0, 2, 3, 1));
+    std::vector<Eigen::Matrix3d> R_vec;
+    std::vector<Eigen::Vector3d> t_vec;
+    R_vec.clear();
+    t_vec.clear();
+    R_vec.push_back(U * W * V.transpose());
+    R_vec.push_back(U * W * V.transpose());
+    R_vec.push_back(U * W.transpose() * V.transpose());
+    R_vec.push_back(U * W.transpose() * V.transpose());
+    t_vec.push_back(U.block(0, 2, 3, 1));
+    t_vec.push_back(-U.block(0, 2, 3, 1));
+    t_vec.push_back(U.block(0, 2, 3, 1));
+    t_vec.push_back(-U.block(0, 2, 3, 1));
+
+    /**************************************************
+     * Solve two-fold ambiguity
+     **************************************************/
+    if( !verifySolutions(R_vec, t_vec, R_, t_) ) return false;
+    if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "# Verify unique pose: " << lsi::toc() << std::endl;
 
     if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "# Extract R, t: " << lsi::toc() << std::endl;
     if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "! Extract essential between: " << curr_keyframe_.id << " <--> " << curr_frame_.id << std::endl;
@@ -796,6 +804,80 @@ bool MVO::calculateEssential()
         is_start_ = true;
         return true;
     }
+}
+
+/**
+ * @brief 4개의 R, t에서 올바른 값을 선택
+ * @details 4개의 R, t 후보군에서 양의 깊이값들을 가지게 하는 R, t를 선택한다.
+ * @param R_vec 회전 행렬 후보
+ * @param t_vec 변위 벡터 후보
+ * @param R 올바른 회전 행렬
+ * @param t 올바른 변위 벡터
+ * @return 에러가 발생하지 않으면, true
+ * @author Sangil Lee (sangillee724@gmail.com)
+ * @date 29-Dec-2019
+ */
+bool MVO::verifySolutions(const std::vector<Eigen::Matrix3d>& R_vec, const std::vector<Eigen::Vector3d>& t_vec, Eigen::Matrix3d& R, Eigen::Vector3d& t){
+    
+	bool success;
+
+	// Extract homogeneous 2D point which is inliered with essential constraint
+	std::vector<int> idx_2D_inlier;
+	for( int i = 0; i < num_feature_; i++ )
+		if( features_[i].is_2D_inliered && features_[i].life - 1 - (step_ - keystep_) >= 0)
+			idx_2D_inlier.push_back(i);
+
+    int key_idx;
+	std::vector<cv::Point2f> uv_prev, uv_curr;
+    for (uint32_t i = 0; i < idx_2D_inlier.size(); i++){
+        key_idx = features_[idx_2D_inlier[i]].life - 1 - (step_ - keystep_);
+        uv_prev.emplace_back(features_[idx_2D_inlier[i]].uv[key_idx]);
+		uv_curr.emplace_back(features_[idx_2D_inlier[i]].uv.back());
+    }
+
+	// Find reasonable rotation and translational vector
+	int max_num = 0;
+	std::vector<bool> max_inlier;
+	std::vector<Eigen::Vector3d> opt_X_curr;
+	for( uint32_t i = 0; i < R_vec.size(); i++ ){
+		Eigen::Matrix3d R1 = R_vec[i];
+		Eigen::Vector3d t1 = t_vec[i];
+		
+		std::vector<Eigen::Vector3d> X_prev, X_curr;
+		std::vector<bool> inlier;
+		constructDepth(uv_prev, uv_curr, R1, t1, X_prev, X_curr, inlier);
+
+		int num_inlier = 0;
+		for( uint32_t i = 0; i < inlier.size(); i++ )
+			if( inlier[i] )
+				num_inlier++;
+
+		if( num_inlier > max_num ){
+			max_num = num_inlier;
+			max_inlier = inlier;
+            opt_X_curr = X_curr;
+			
+			R = R1;
+			t = t1;
+		}
+	}
+
+	// Store 3D position in features
+	if( max_num < num_feature_2D_inliered_*0.5 ){
+        if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "Warning: There is no verified solution" << std::endl;
+		success = false;
+	}else{
+		for( int i = 0; i < max_num; i++ ){
+			if( max_inlier[i] ){
+				features_[idx_2D_inlier[i]].point_curr = (Eigen::Vector4d() << opt_X_curr[i], 1).finished();
+				features_[idx_2D_inlier[i]].is_3D_reconstructed = true;
+                num_feature_3D_reconstructed_++;
+            }
+		}
+		success = true;
+	}
+
+	return success;
 }
 
 // add extra feature extracted from the designated roi such as sign or crosswalk

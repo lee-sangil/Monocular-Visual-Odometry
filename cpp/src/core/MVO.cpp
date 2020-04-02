@@ -39,9 +39,6 @@ MVO::MVO(){
     TocRec_.push_back(Eigen::Matrix4d::Identity());
     PocRec_.push_back((Eigen::Vector4d() << 0,0,0,1).finished());
 
-    R_vec_.reserve(4);
-	t_vec_.reserve(4);
-
     // prior information for rejecting outlier in feature tracking
     rotate_prior_ = Eigen::Matrix3d::Identity();
 
@@ -584,4 +581,27 @@ void MVO::printFeatures() const {
             }
         }
     }
+}
+
+/**
+ * @brief 카메라의 자세를 출력
+ * @details 현재 카메라의 자세를 위치와 쿼터니언으로 파일에 출력한다.
+ * @return 없음
+ * @author Sangil Lee (sangillee724@gmail.com)
+ * @date 2-Apr-2020
+ */
+void MVO::printPose(std::ofstream& os) const {
+    Eigen::Matrix4d Toc = TocRec_.back();
+
+    // Eigen::Matrix4d w_skew = Toc.log();
+    // double wx = (w_skew(2,1)-w_skew(1,2))/2;
+    // double wy = (w_skew(0,2)-w_skew(2,0))/2;
+    // double wz = (w_skew(1,0)-w_skew(0,1))/2;
+
+    double qw = 0.5 * std::sqrt(1+Toc(0,0)+Toc(1,1)+Toc(2,2));
+    double qx = 0.25 * (1/qw) * (Toc(2,1)-Toc(1,2));
+    double qy = 0.25 * (1/qw) * (Toc(0,2)-Toc(2,0));
+    double qz = 0.25 * (1/qw) * (Toc(1,0)-Toc(0,1));
+
+    os << std::setprecision(9) << std::fixed << Toc(0,3) << '\t' << Toc(1,3) << '\t' << Toc(2,3) << '\t' << qw << '\t' << qx << '\t' << qy << '\t' << qz << std::endl;
 }
