@@ -191,6 +191,7 @@ class MVO{
 	
 	// Set image
 	void setImage(const cv::Mat& image, double timestamp = -1);
+	void setImage(const cv::Mat& image, const cv::Mat& image_right, double timestamp = -1); // for stereo
 
 	// Get feature
 	std::vector< std::tuple<uint32_t, cv::Point2f, Eigen::Vector3d, double> > getPoints() const;
@@ -206,6 +207,7 @@ class MVO{
 	void restart();
 	void refresh();
 	void run(const cv::Mat& image, double timestamp = -1);
+	void run(const cv::Mat& image, const cv::Mat& image_right, double timestamp = -1); // for stereo
 	void updateGyro(const double timestamp, const Eigen::Vector3d& gyro);
 	void updateVelocity(const double timestamp, const double speed);
 	void updateView();
@@ -227,6 +229,8 @@ class MVO{
 
 	// Calculations
 	bool calculateEssential();
+	bool calculateEssentialStereo();
+	bool calculateEssentialStereoFeature();
 	bool calculateMotion();
 	bool verifySolutions(const std::vector<Eigen::Matrix3d>& R_vec, const std::vector<Eigen::Vector3d>& t_vec,
 						  Eigen::Matrix3d& R, Eigen::Vector3d& t);
@@ -273,7 +277,9 @@ class MVO{
 	MVO::Frame next_keyframe_; /**< @brief 다음 키프레임 */
 	MVO::Frame prev_frame_; /**< @brief 이전 이미지 프레임 */
 	MVO::Frame curr_frame_; /**< @brief 현재 이미지 프레임 */
+	MVO::Frame curr_frame_right_; /**< @brief 현재 스테레오 이미지 프레임 */
 	cv::Mat excludeMask_; /**< @brief 특징점을 추출할 영역 */
+	cv::Mat disparity_; /**< @brief KITTI disparity 프레임 */
 
 	cv::Ptr<cv::CLAHE> cvClahe_; /**< @brief Clahe 객체 */
 	cv::Mat distort_map1_, distort_map2_; /**< @brief 이미지 왜곡 변환 매핑 */

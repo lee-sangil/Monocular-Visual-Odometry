@@ -32,8 +32,8 @@ bool grabActiveKey(std::unique_ptr<MVO>&, char);
 int main(int argc, char * argv[]){
 
 	Parser::init(argc, argv);
-    if(!Parser::hasOption("-i")){
-		std::cout << "Error, invalid arguments.\n\n"
+    if(!Parser::hasOption("-i") || Parser::hasOption("-h")){
+		std::cout << "\n"
 				"\tMandatory -i: Input directory.\n"
 				"\tOptional -kitti: Reading kitti format.\n"
                 "\tOptional -jetson: Reading jetson format.\n"
@@ -43,7 +43,8 @@ int main(int argc, char * argv[]){
 				"\tOptional -fl: length frame (default: eof).\n"
 				"\tOptional -gt: compare with ground-truth if exists (default: false).\n"
 				"\tOptional -db: print log (default: false).\n"
-				"Example: [./divo_dataset -c /path/to/setting.yaml -i /path/to/input_folder/ -o /path/to/output_folder/]" << std::endl;
+				"\tOptional -h: print help.\n"
+				"Example: $ ./stereo -c /path/to/setting.yaml -i /path/to/input_folder/ -c /path/to/camera_settings.yaml" << std::endl;
         return 1;
     }
 
@@ -86,19 +87,22 @@ int main(int argc, char * argv[]){
 	}
 
 	// file name reading
-	std::vector<std::string> rgbNameRaw;
+	std::vector<std::string> image_filename, image_right_filename;
 	std::vector<std::array<double,6>> imuDataRaw;
 	std::vector<double> timestamp_image;
 	
-	std::string input_path, image_path, imu_path;
+	std::string input_path, image_path, image_right_path, imu_path;
 	input_path.append(inputFile);
 	image_path.append(inputFile).append("image.txt");
+	image_right_path.append(inputFile).append("image_right.txt");
 	imu_path.append(inputFile).append("imu.txt");
 
-	chk::getImageFile(image_path.c_str(), timestamp_image, rgbNameRaw, Parser::hasOption("-jetson"));
+	chk::getImageFile(image_path.c_str(), timestamp_image, image_filename, Parser::hasOption("-jetson"));
+	chk::getImageFile(image_right_path.c_str(), timestamp_image, image_right_filename, Parser::hasOption("-jetson"));
 	std::cout << "- Read successfully." << std::endl;
 
-	rgbNameRaw.erase(rgbNameRaw.begin(), rgbNameRaw.begin()+initFrame);
+	image_filename.erase(image_filename.begin(), image_filename.begin()+initFrame);
+	image_right_filename.erase(image_right_filename.begin(), image_right_filename.begin()+initFrame);
 	timestamp_image.erase(timestamp_image.begin(), timestamp_image.begin()+initFrame);
 
 	// Read OxTS data
@@ -135,22 +139,6 @@ int main(int argc, char * argv[]){
 			timestamp_speed.erase(timestamp_speed.begin(), timestamp_speed.begin()+initFrame);
 			timestamp_imu.assign(timestamp_speed.begin(), timestamp_speed.end());
 		}
-	}else if( Parser::hasOption("-jetson") ){
-		if( Parser::hasOption("-v") || Parser::hasOption("-w") ){
-			std::string can_path;
-			can_path.append(inputFile).append("/can.txt");
-			CANReader(can_path, timestamp, data_speed, data_gyro);
-			auto it = std::find_if(timestamp.begin(), timestamp.end(), [&](const double val){return val > timestamp_image[0];});
-
-			if( Parser::hasOption("-v") ){
-				timestamp_speed.assign(it,timestamp.end());
-				data_speed.erase(data_speed.begin(),data_speed.begin()+data_speed.size()-timestamp_speed.size()-1);
-			}
-			if( Parser::hasOption("-w") ){
-				timestamp_imu.assign(it,timestamp.end());
-				data_gyro.erase(data_gyro.begin(),data_gyro.begin()+data_gyro.size()-timestamp_imu.size()-1);
-			}
-		}
 	}
 
 	std::vector<int> sensorID;
@@ -186,8 +174,7 @@ int main(int argc, char * argv[]){
 	"- e: reset to default parameters of view camera" << std::endl << 
 	"- q: quit" << std::endl;
 
-	cv::Mat image;
-	std::string dirRgb;
+	cv::Mat image, image_right;
 
 	int length;
 	if( Parser::hasOption("-fl") ) length = Parser::getIntOption("-fl");
@@ -222,11 +209,10 @@ int main(int argc, char * argv[]){
 				// 	vo->updateVelocity(timestamp_image[it_rgb], data_speed[it_rgb]);
 
 				// Fetch images
-				dirRgb.clear();
-				dirRgb.append(inputFile).append(rgbNameRaw[it_rgb]);
-				chk::getImgTUMdataset(dirRgb, image);
-				
-				vo->run(image, timestamp_image[it_rgb]);
+				chk::getImgTUMdataset(inputFile + image_filename[it_rgb], image);
+				chk::getImgTUMdataset(inputFile + image_right_filename[it_rgb], image_right);
+
+				vo->run(image, image_right, timestamp_image[it_rgb]);
 				std::cout << "Iteration: " << it_rgb << ", Execution time: " << lsi::toc()/1e3 << "ms       " << '\r' << std::flush;
 
 				vo->updateView();

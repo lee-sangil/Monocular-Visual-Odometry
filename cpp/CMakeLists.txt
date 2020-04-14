@@ -25,7 +25,7 @@ LIST(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake_modules/)
 
 # Include libraries
 find_package(Eigen3 REQUIRED)
-find_package(OpenCV 3 REQUIRED)
+find_package(OpenCV 3.4 REQUIRED)
 find_package(Boost 1.55.0 REQUIRED COMPONENTS system filesystem thread)
 
 message(${EIGEN3_INCLUDE_DIR})
@@ -80,7 +80,7 @@ target_link_libraries(${PROJECT_NAME}
   ${Boost_LIBRARIES}
 )
 
-add_executable(main src/main.cpp)
-target_link_libraries(main
-  ${PROJECT_NAME}
-)
+add_executable(mono src/main_mono.cpp)
+target_link_libraries(mono ${PROJECT_NAME})
+add_executable(stereo src/main_stereo.cpp)
+target_link_libraries(stereo ${PROJECT_NAME})

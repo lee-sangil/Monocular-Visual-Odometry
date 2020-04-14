@@ -1,0 +1,149 @@
+%YAML:1.0
+
+Version: 2.5
+
+#--------------------------------------------------------------------------------------------
+# Camera Parameters (fixed).
+#--------------------------------------------------------------------------------------------
+
+# Camera frame rate
+Camera.fps: 15
+
+# Camera image resolution
+Camera.width: 1241
+Camera.height: 376
+
+# Camera intrinsics
+Camera.fx: 7.188560e+02
+Camera.fy: 7.188560e+02
+Camera.cx: 6.071928e+02
+Camera.cy: 1.852157e+02
+
+Camera.k1: 0.0
+Camera.k2: 0.0
+Camera.p1: 0.0
+Camera.p2: 0.0
+Camera.k3: 0.0
+
+# Camera extrinsics [I:IMU,V:Velodyne,C:cam] - do NOT insert TAB
+Camera.T_IV: !!opencv-matrix
+     rows: 4
+     cols: 4
+     dt: d
+     data: [9.999976e-01, 7.553071e-04, -2.035826e-03, -8.086759e-01,
+           -7.854027e-04, 9.998898e-01, -1.482298e-02,  3.195559e-01,
+            2.024406e-03, 1.482454e-02,  9.998881e-01, -7.997231e-01,
+            0,0,0,1]
+
+Camera.T_VC: !!opencv-matrix
+     rows: 4
+     cols: 4
+     dt: d
+     data: [7.967514e-03, -9.999679e-01, -8.462264e-04, -1.377769e-02,
+           -2.771053e-03,  8.241710e-04, -9.999958e-01, -5.542117e-02,
+            9.999644e-01,  7.969825e-03, -2.764397e-03, -2.918589e-01,
+            0,0,0,1]
+
+#--------------------------------------------------------------------------------------------
+# Feature Parameters (tunable).
+#--------------------------------------------------------------------------------------------
+
+# Number of features
+Feature.number: 500
+
+# Number of features matching per image 
+Feature.minimum_num_inlier: 6
+
+# Threshold ratio for keyframe, which is updated when nFeatureMatched < nFeature * ratio
+# if threshold is 1, keyframe effect is disappeared.
+Feature.minimum_matching_ratio: 0.9
+
+# Min. feature distance between for extraction
+Feature.minimum_distance_between: 5
+
+# Min. feature distance between for reconstruction
+Feature.minimum_triangulation_baseline: 5
+
+# Max. distance between the current feature attribute and predicted data
+Feature.maximum_prediction_distance: 20
+
+# Bucket safety region (px)
+Bucket.border_safety: 20
+
+# Bucket size
+Bucket.rows: 8
+Bucket.cols: 16
+
+# Parallax
+Feature.threshold_parallax: 0.002
+Feature.percentile_parallax: 0.75
+
+#--------------------------------------------------------------------------------------------
+# Reconstruction Parameters (tunable).
+#--------------------------------------------------------------------------------------------
+
+# Iteration
+RANSAC.maximum_iteration: 1000
+
+# Inlier ratio
+RANSAC.threshold_inlier_ratio: 0.99
+
+# Min. number of samples
+RANSAC.scale.num_sample: 1
+#RANSAC.plane.num_sample: 3
+
+# Inlier threshold
+RANSAC.scale.threshold_dist_inlier: 0.5
+RANSAC.plane.threshold_dist_inlier: 0.01
+
+# Rejection threshold
+RANSAC.scale.threshold_dist_outlier: 1
+RANSAC.plane.threshold_dist_outlier: 0.5
+
+# Vehicle height (meter)
+Scale.reference_height: 1.65
+
+# For scale-propagation, the weight for scale referenced from a vehicle's fixed height
+# If you choose *negative* value, scale-propagation does not executed. It means that the 
+# algorithm *does not minimize* the difference between initialized 3d points and reconstructed points.
+Scale.reference_weight: 100
+
+# For scale-propagation, regularization weight for scale smoothness
+Scale.regularization_weight: 0.5
+
+# SVD Methods: mid-point(0: recommended), linear least square(1)
+Triangulation.method: 0
+
+# From above, if 1 is chosen: Jacobi(0), BDC(1), OpenCV(2), Eigen(3: recommended)
+Triangulation.SVD: 3
+
+# Reconstruction method: LM(0), Iterative(1), AP3P Ransac(2), EPNP Ransac(3), DLS Ransac(4), UPNP Ransac(5)
+PnP.method: 2
+
+# Min. Reprojection error
+PnP.reprojection_error: 0.2
+
+# Depth filter
+DepthFilter.minimum_depth: 0.1
+DepthFilter.pixel_noise: 2
+DepthFilter.maximum_variance: 0.001
+
+#--------------------------------------------------------------------------------------------
+# Display Parameters (tunable).
+#--------------------------------------------------------------------------------------------
+
+# viewCam settings
+viewCam.height: 20
+
+# viewCam settings in degree
+viewCam.roll: 0
+viewCam.pitch: -45
+
+# Initialized 3D points are updated(1) for each frame or not(0)
+Debug.update_init_points: 1
+
+# Display output of depth filter(1) or depth reconstructed instantly(0)
+Debug.output_filtered_depths: 1
+
+# Mapping option: no scaling(0), only essential constraint(1), only PnP(2), both essential and pnp(3), both essential and pnp modified(4)
+Debug.mapping_options: 0

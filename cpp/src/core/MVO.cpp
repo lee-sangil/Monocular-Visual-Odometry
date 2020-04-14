@@ -387,6 +387,57 @@ void MVO::setImage(const cv::Mat& image, double timestamp){
 }
 
 /**
+ * @brief 스테레오 이미지 프레임 입력 함수.
+ * @details 이미지 프레임쌍과 타임스탬프를 입력받아, 현재 키프레임(왼쪽) 또는 현재 프레임(왼쪽, 오른쪽)을 설정한다.
+ * @param image 현재 이미지 프레임
+ * @param image_right 현재 스테레오 이미지 프레임
+ * @param timestamp 이미지 타임스탬프
+ * @return 없음
+ * @author Sangil Lee (sangillee724@gmail.com)
+ * @date 2-Apr-2020
+ */
+void MVO::setImage(const cv::Mat& image, const cv::Mat& image_right, double timestamp){
+    // Update step
+    step_++;
+    keystep_ = keystep_array_.back();
+    
+    // if there is a new keystep, update the keyframe
+    if( trigger_keystep_increase_ )
+        curr_keyframe_.assign(next_keyframe_);
+
+    // reset keystep trigger
+    trigger_keystep_decrease_previous_ = trigger_keystep_decrease_;
+    trigger_keystep_decrease_ = false;
+    trigger_keystep_increase_ = false;
+
+    if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "============ Iteration: " << step_ << " (keystep: " << keystep_ << ')' << " ============" << std::endl;
+    if( MVO::s_point_logger_.is_open() ) MVO::s_point_logger_ << "============ Iteration: " << step_ << " (keystep: " << keystep_ << ')' << " ============" << std::endl;
+
+    prev_frame_.assign(curr_frame_);
+
+    // undistort the current image
+    cv::remap(image, image, distort_map1_, distort_map2_, CV_INTER_LINEAR);
+    cv::remap(image_right, image_right, distort_map1_, distort_map2_, CV_INTER_LINEAR);
+    
+    // implemented, but not used now
+    if( params_.apply_clahe ){
+        cvClahe_->apply(image, curr_frame_.image);
+        cvClahe_->apply(image_right, curr_frame_right_.image);
+    }else{
+        curr_frame_.image = image.clone();
+        curr_frame_right_.image = image_right.clone();
+    }
+
+    // construct the current Frame object
+    curr_frame_.id = step_;
+    curr_frame_.timestamp = timestamp;
+    curr_frame_right_.id = step_;
+    curr_frame_right_.timestamp = timestamp;
+
+    if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "# Grab image: " << lsi::toc() << std::endl;
+}
+
+/**
  * @brief 영상 항법 모듈 실행.
  * @details 입력된 이미지 프레임을 이용하여 알고리즘을 실행한다.
  * @param image 이미지 프레임
@@ -414,6 +465,28 @@ void MVO::run(const cv::Mat& image, double timestamp){
     // num_feature.push_back(10);
     // num_feature.push_back(-1);
     // updateRoiFeatures(rois, num_feature); // Extract extra features in rois
+}
+
+/**
+ * @brief 스테레오 영상 항법 모듈 실행.
+ * @details 입력된 이미지 프레임쌍을 이용하여 알고리즘을 실행한다.
+ * @param image 이미지 프레임
+ * @param image_right 스테레오 이미지 프레임
+ * @param timestamp 이미지 타임스탬프
+ * @return 없음
+ * @author Sangil Lee (sangillee724@gmail.com)
+ * @date 2-Apr-2020
+ */
+void MVO::run(const cv::Mat& image, const cv::Mat& image_right, double timestamp){
+    
+    lsi::tic();
+    setImage(image, image_right, timestamp);
+    refresh();
+
+    if( !extractFeatures() ) { restart(); return; }
+    if( !calculateEssentialStereoFeature() ) { restart(); return; }
+    if( !calculateMotion() ) { restart(); return; }
+
 }
 
 /**

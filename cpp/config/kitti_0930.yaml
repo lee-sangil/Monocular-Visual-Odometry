@@ -10,14 +10,14 @@ Version: 2.5
 Camera.fps: 15
 
 # Camera image resolution
-Camera.width: 1241
-Camera.height: 376
+Camera.width: 1226
+Camera.height: 370
 
 # Camera intrinsics
-Camera.fx: 7.188560e+02
-Camera.fy: 7.188560e+02
-Camera.cx: 6.071928e+02
-Camera.cy: 1.852157e+02
+Camera.fx: 7.070912e+02
+Camera.fy: 7.070912e+02
+Camera.cx: 6.018873e+02
+Camera.cy: 1.831104e+02
 
 Camera.k1: 0.0
 Camera.k2: 0.0
@@ -39,9 +39,9 @@ Camera.T_VC: !!opencv-matrix
      rows: 4
      cols: 4
      dt: d
-     data: [7.967514e-03, -9.999679e-01, -8.462264e-04, -1.377769e-02,
-           -2.771053e-03,  8.241710e-04, -9.999958e-01, -5.542117e-02,
-            9.999644e-01,  7.969825e-03, -2.764397e-03, -2.918589e-01,
+     data: [7.027555e-03, -9.999753e-01,  2.599616e-05, -7.137748e-03, 
+           -2.254837e-03, -4.184312e-05, -9.999975e-01, -7.482656e-02, 
+            9.999728e-01,  7.027479e-03, -2.255075e-03, -3.336324e-01,
             0,0,0,1]
 
 #--------------------------------------------------------------------------------------------
@@ -49,14 +49,14 @@ Camera.T_VC: !!opencv-matrix
 #--------------------------------------------------------------------------------------------
 
 # Number of features
-Feature.number: 500
+Feature.number: 600
 
 # Number of features matching per image 
 Feature.minimum_num_inlier: 6
 
 # Threshold ratio for keyframe, which is updated when nFeatureMatched < nFeature * ratio
 # if threshold is 1, keyframe effect is disappeared.
-Feature.minimum_matching_ratio: 0.9
+Feature.minimum_matching_ratio: 0.8
 
 # Min. feature distance between for extraction
 Feature.minimum_distance_between: 5
@@ -146,4 +146,4 @@ Debug.update_init_points: 1
 Debug.output_filtered_depths: 1
 
 # Mapping option: no scaling(0), only essential constraint(1), only PnP(2), both essential and pnp(3), both essential and pnp modified(4)
-Debug.mapping_options: 1
+Debug.mapping_options: 0
