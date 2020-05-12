@@ -232,8 +232,9 @@ class MVO{
 	bool calculateEssentialStereo();
 	bool calculateEssentialStereoFeature();
 	bool calculateMotion();
+	bool calculateMotionStereo();
 	bool verifySolutions(const std::vector<Eigen::Matrix3d>& R_vec, const std::vector<Eigen::Vector3d>& t_vec,
-						  Eigen::Matrix3d& R, Eigen::Vector3d& t);
+						  Eigen::Matrix3d& R, Eigen::Vector3d& t, std::vector<bool>& max_inlier, std::vector<Eigen::Vector3d>& opt_X_curr);
 	bool scalePropagation(const Eigen::Matrix3d& R, Eigen::Vector3d& t,
 						   std::vector<bool>& inlier, std::vector<bool>& outlier);
 	bool findPoseFrom3DPoints(Eigen::Matrix3d &R, Eigen::Vector3d &t, std::vector<int>& inlier, std::vector<int>& outlier);
@@ -247,6 +248,9 @@ class MVO{
 	void update3DPoints(const Eigen::Matrix3d& R, const Eigen::Vector3d& t,
 						const std::vector<bool>& inlier, const std::vector<bool>& outlier,
 						const Eigen::Matrix3d& R_E, const Eigen::Vector3d& t_E, const bool& success_E,
+						Eigen::Matrix4d& T, Eigen::Matrix4d& Toc, Eigen::Vector4d& Poc);
+	void update3DPointsStereo(const Eigen::Matrix3d& R, const Eigen::Vector3d& t,
+						const std::vector<bool>& inlier, const std::vector<bool>& outlier,
 						Eigen::Matrix4d& T, Eigen::Matrix4d& Toc, Eigen::Vector4d& Poc);
 	void update3DPoint(Feature& feature, const Eigen::Matrix4d& Toc, const Eigen::Matrix4d& T);
 	void updateScaleReference(double scale = -1);

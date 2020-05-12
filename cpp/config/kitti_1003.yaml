@@ -49,7 +49,7 @@ Camera.T_VC: !!opencv-matrix
 #--------------------------------------------------------------------------------------------
 
 # Number of features
-Feature.number: 500
+Feature.number: 600
 
 # Number of features matching per image 
 Feature.minimum_num_inlier: 6
@@ -146,4 +146,4 @@ Debug.update_init_points: 1
 Debug.output_filtered_depths: 1
 
 # Mapping option: no scaling(0), only essential constraint(1), only PnP(2), both essential and pnp(3), both essential and pnp modified(4)
-Debug.mapping_options: 0
+Debug.mapping_options: 1

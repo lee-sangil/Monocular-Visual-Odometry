@@ -188,7 +188,7 @@ void MVO::plot(const Eigen::MatrixXd * const depthMap) const {
 		// Points
 		Eigen::Vector3d uv;
 		for( uint32_t i = 0; i < features_dead_.size(); i++ ){
-			if( features_dead_[i].is_3D_init && features_dead_[i].depthfilter->getVariance() < params_.max_point_var ){
+			if( features_dead_[i].is_3D_init && features_dead_[i].depthfilter->getVariance() < params_.max_point_var && features_dead_[i].life > 2 ){
 				point = Tco * features_dead_[i].point_init;
 				uv = params_.view.P * point;
 				if( uv(2) > 1 ){
@@ -207,7 +207,8 @@ void MVO::plot(const Eigen::MatrixXd * const depthMap) const {
 			}
 		}
 		for( uint32_t i = 0; i < features_.size(); i++ ){
-			if( features_[i].is_3D_init ){
+			// std::cout << features_[i].depthfilter->getVariance() << ' ';
+			if( features_[i].is_3D_init && features_[i].depthfilter->getVariance() < params_.max_point_var && features_[i].life > 2 ){
 				point = Tco * features_[i].point_init;
 				uv = params_.view.P * point;
 				if( uv(2) > 1 ){
@@ -232,6 +233,7 @@ void MVO::plot(const Eigen::MatrixXd * const depthMap) const {
 				}
 			}
 		}
+		std::cout << std::endl;
 
 		// Camera
 		Eigen::Vector3d uv0, uv1, uv2, uv3, uv4;

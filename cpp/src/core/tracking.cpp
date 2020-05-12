@@ -3,8 +3,8 @@
 #include "core/DepthFilter.hpp"
 #include "core/numerics.hpp"
 #include <eigen3/unsupported/Eigen/MatrixFunctions>
-#include <opencv2/stereo.hpp>
-#include <opencv2/ximgproc.hpp>
+// #include <opencv2/stereo.hpp>
+// #include <opencv2/ximgproc.hpp>
 #include <exception>
 
 // void insertDepth32f(cv::Mat& depth)
@@ -816,9 +816,12 @@ bool MVO::calculateEssential()
     // check inliers
     uint32_t inlier_cnt = 0;
     bool* inlier = inlier_mat.ptr<bool>(0);
+    std::vector<uint32_t> idx_2d_inlier;
     for (int i = 0; i < inlier_mat.rows; i++){
         if (inlier[i]){
             features_[idx_static[i]].is_2D_inliered = true;
+
+            idx_2d_inlier.push_back(idx_static[i]);
             inlier_cnt++;
         // }else if( essential_error[i] > 1e-4 ){
         // }else{
@@ -882,8 +885,18 @@ bool MVO::calculateEssential()
     /**************************************************
      * Solve two-fold ambiguity
      **************************************************/
-    if( !verifySolutions(R_vec, t_vec, R_, t_) ) return false;
+    std::vector<bool> max_inlier;
+    std::vector<Eigen::Vector3d> X_curr;
+    if( !verifySolutions(R_vec, t_vec, R_, t_, max_inlier, X_curr) ) return false;
     if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "# Verify unique pose: " << lsi::toc() << std::endl;
+
+    for( int i = 0; i < max_inlier.size(); i++ ){
+        if( max_inlier[i] ){
+            features_[idx_2d_inlier[i]].point_curr = (Eigen::Vector4d() << X_curr[i], 1).finished();
+            features_[idx_2d_inlier[i]].is_3D_reconstructed = true;
+            num_feature_3D_reconstructed_++;
+        }
+    }
 
     if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "# Extract R, t: " << lsi::toc() << std::endl;
     if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "! Extract essential between: " << curr_keyframe_.id << " <--> " << curr_frame_.id << std::endl;
@@ -897,207 +910,207 @@ bool MVO::calculateEssential()
     }
 }
 
-/**
- * @brief 프레임 사이의 움직임을 계산하는 프로세스
- * @details 3D 특징점 쌍 사이의 R, t를 추출한다.
- * @return 에러가 발생하지 않으면, true
- * @author Sangil Lee (sangillee724@gmail.com)
- * @date 2-Apr-2020
- */
-bool MVO::calculateEssentialStereo()
-{
-    if (step_ == 0){
-        return true;
-    }
+// /**
+//  * @brief 프레임 사이의 움직임을 계산하는 프로세스
+//  * @details 3D 특징점 쌍 사이의 R, t를 추출한다.
+//  * @return 에러가 발생하지 않으면, true
+//  * @author Sangil Lee (sangillee724@gmail.com)
+//  * @date 2-Apr-2020
+//  */
+// bool MVO::calculateEssentialStereo()
+// {
+//     if (step_ == 0){
+//         return true;
+//     }
 
-    std::vector<cv::Point2f> points1;
-    std::vector<cv::Point2f> points2;
-    points1.reserve(num_feature_);
-    points2.reserve(num_feature_);
+//     std::vector<cv::Point2f> points1;
+//     std::vector<cv::Point2f> points2;
+//     points1.reserve(num_feature_);
+//     points2.reserve(num_feature_);
 
-    std::vector<uint32_t> idx_static;
-    int num_wide_feature = 0;
-    int key_idx;
-    for( int i = 0; i < num_feature_; i++ ){
-        key_idx = features_[i].life - 1 - (step_ - keystep_);
-        if( key_idx >= 0 && features_[i].type != Type::Dynamic ){
-            points1.push_back(features_[i].uv[key_idx]); // uv of keyframe
-            points2.push_back(features_[i].uv.back());   // latest uv
-            idx_static.push_back(i);
-            if( cv::norm(features_[i].uv[key_idx] - features_[i].uv.back()) > params_.th_px_wide ){
-                features_[i].is_wide = true;
-                num_wide_feature++;
-            }else{
-                features_[i].is_wide = false;
-            }
-        }
-    }
+//     std::vector<uint32_t> idx_static;
+//     int num_wide_feature = 0;
+//     int key_idx;
+//     for( int i = 0; i < num_feature_; i++ ){
+//         key_idx = features_[i].life - 1 - (step_ - keystep_);
+//         if( key_idx >= 0 && features_[i].type != Type::Dynamic ){
+//             points1.push_back(features_[i].uv[key_idx]); // uv of keyframe
+//             points2.push_back(features_[i].uv.back());   // latest uv
+//             idx_static.push_back(i);
+//             if( cv::norm(features_[i].uv[key_idx] - features_[i].uv.back()) > params_.th_px_wide ){
+//                 features_[i].is_wide = true;
+//                 num_wide_feature++;
+//             }else{
+//                 features_[i].is_wide = false;
+//             }
+//         }
+//     }
 
-    if( (int) points1.size() < params_.th_inlier ){
-        if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "Warning: There are a few stable features" << std::endl;
-        return false;
-    }
+//     if( (int) points1.size() < params_.th_inlier ){
+//         if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "Warning: There are a few stable features" << std::endl;
+//         return false;
+//     }
 
-    // calculate disparity
-    int numDisparities = 112;
-    cv::Ptr<cv::StereoSGBM> left_matcher = cv::StereoSGBM::create(0,numDisparities,9);
-    cv::Ptr<cv::ximgproc::DisparityWLSFilter> wls_filter = cv::ximgproc::createDisparityWLSFilter(left_matcher);
-    cv::Ptr<cv::StereoMatcher> right_matcher = cv::ximgproc::createRightMatcher(left_matcher);
+//     // calculate disparity
+//     int numDisparities = 112;
+//     cv::Ptr<cv::StereoSGBM> left_matcher = cv::StereoSGBM::create(0,numDisparities,9);
+//     cv::Ptr<cv::ximgproc::DisparityWLSFilter> wls_filter = cv::ximgproc::createDisparityWLSFilter(left_matcher);
+//     cv::Ptr<cv::StereoMatcher> right_matcher = cv::ximgproc::createRightMatcher(left_matcher);
 
-    cv::Mat left_disparity, right_disparity, filtered_disparity;
-    left_matcher->compute(curr_frame_.image, curr_frame_right_.image, left_disparity);
-    right_matcher->compute(curr_frame_right_.image, curr_frame_.image, right_disparity);
-    wls_filter->setLambda(4000);
-    wls_filter->setSigmaColor(1.5);
-    wls_filter->filter(left_disparity, curr_frame_.image, filtered_disparity, right_disparity);
-    filtered_disparity.convertTo(disparity_, CV_32F, 0.0625);
+//     cv::Mat left_disparity, right_disparity, filtered_disparity;
+//     left_matcher->compute(curr_frame_.image, curr_frame_right_.image, left_disparity);
+//     right_matcher->compute(curr_frame_right_.image, curr_frame_.image, right_disparity);
+//     wls_filter->setLambda(4000);
+//     wls_filter->setSigmaColor(1.5);
+//     wls_filter->filter(left_disparity, curr_frame_.image, filtered_disparity, right_disparity);
+//     filtered_disparity.convertTo(disparity_, CV_32F, 0.0625);
 
-    // cv::Mat filtered_disparity_vis;
-    // cv::ximgproc::getDisparityVis(filtered_disparity, filtered_disparity_vis);
-    // cv::circle(filtered_disparity_vis, cv::Point(800,370), 5, cv::Scalar(255,0,255),3);
-    // cv::circle(filtered_disparity_vis, cv::Point(800,120), 5, cv::Scalar(255,0,0),3);
-    // cv::imshow("Filtered disparity", filtered_disparity_vis);
+//     // cv::Mat filtered_disparity_vis;
+//     // cv::ximgproc::getDisparityVis(filtered_disparity, filtered_disparity_vis);
+//     // cv::circle(filtered_disparity_vis, cv::Point(800,370), 5, cv::Scalar(255,0,255),3);
+//     // cv::circle(filtered_disparity_vis, cv::Point(800,120), 5, cv::Scalar(255,0,0),3);
+//     // cv::imshow("Filtered disparity", filtered_disparity_vis);
 
-    // std::cout << "test" << std::endl;
-    // std::cout << 0.537*979.9200/disparity_.at<float>(370,800) << std::endl;
-    // std::cout << 0.537*979.9200/disparity_.at<float>(120,800) << std::endl;
+//     // std::cout << "test" << std::endl;
+//     // std::cout << 0.537*979.9200/disparity_.at<float>(370,800) << std::endl;
+//     // std::cout << 0.537*979.9200/disparity_.at<float>(120,800) << std::endl;
 
-    // /* Another method */
-    // int numDisparities = 112;
-    // cv::Ptr<cv::StereoSGBM> left_matcher = cv::StereoSGBM::create(0,numDisparities,9);
-    // cv::Mat disparity, disparity8;
-    // left_matcher->compute(curr_frame_.image, curr_frame_right_.image, disparity);
-    // disparity.convertTo(disparity_, CV_32F, 1/16.0f);
-    // insertDepth32f(disparity_);
-    // disparity_.convertTo(disparity8, CV_8U, 255./numDisparities);
-    // cv::circle(disparity8, cv::Point(800,370), 5, cv::Scalar(255,0,255),3);
-    // cv::circle(disparity8, cv::Point(800,120), 5, cv::Scalar(255,0,0),3);
-    // cv::imshow("disparity", disparity8);
+//     // /* Another method */
+//     // int numDisparities = 112;
+//     // cv::Ptr<cv::StereoSGBM> left_matcher = cv::StereoSGBM::create(0,numDisparities,9);
+//     // cv::Mat disparity, disparity8;
+//     // left_matcher->compute(curr_frame_.image, curr_frame_right_.image, disparity);
+//     // disparity.convertTo(disparity_, CV_32F, 1/16.0f);
+//     // insertDepth32f(disparity_);
+//     // disparity_.convertTo(disparity8, CV_8U, 255./numDisparities);
+//     // cv::circle(disparity8, cv::Point(800,370), 5, cv::Scalar(255,0,255),3);
+//     // cv::circle(disparity8, cv::Point(800,120), 5, cv::Scalar(255,0,0),3);
+//     // cv::imshow("disparity", disparity8);
 
-    // std::cout << "test" << std::endl;
-    // std::cout << 0.537*979.9200/disparity_.at<float>(370,800) << std::endl;
-    // std::cout << 0.537*979.9200/disparity_.at<float>(120,800) << std::endl;
+//     // std::cout << "test" << std::endl;
+//     // std::cout << 0.537*979.9200/disparity_.at<float>(370,800) << std::endl;
+//     // std::cout << 0.537*979.9200/disparity_.at<float>(120,800) << std::endl;
 
-    // calculate essential matrix with ransac to reject outliers
-    cv::Mat inlier_mat;
-    essential_ = cv::findEssentialMat(points1, points2, params_.Kcv, CV_RANSAC, 0.999, 1.5, inlier_mat);
-    if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "# Calculate essential: " << lsi::toc() << std::endl;
+//     // calculate essential matrix with ransac to reject outliers
+//     cv::Mat inlier_mat;
+//     essential_ = cv::findEssentialMat(points1, points2, params_.Kcv, CV_RANSAC, 0.999, 1.5, inlier_mat);
+//     if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "# Calculate essential: " << lsi::toc() << std::endl;
     
-    Eigen::Matrix3d E_;
-    cv::cv2eigen(essential_, E_);
-    fundamental_ = params_.Kinv.transpose() * E_ * params_.Kinv;
+//     Eigen::Matrix3d E_;
+//     cv::cv2eigen(essential_, E_);
+//     fundamental_ = params_.Kinv.transpose() * E_ * params_.Kinv;
 
-    // check inliers
-    int len;
-    std::vector<cv::Point2f> uv_prev, uv_curr;
-    uint32_t inlier_cnt = 0;
-    bool* inlier = inlier_mat.ptr<bool>(0);
-    for (int i = 0; i < inlier_mat.rows; i++){
-        if (inlier[i]){
-            len = features_[idx_static[i]].life;
-            features_[idx_static[i]].is_2D_inliered = true;
-            uv_prev.emplace_back(features_[idx_static[i]].uv[len-2]);
-            uv_curr.emplace_back(features_[idx_static[i]].uv.back());
-            inlier_cnt++;
-        }
-    }
-    num_feature_2D_inliered_ = inlier_cnt;
-    if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "num_feature_2D_inliered_: " << (double) num_feature_2D_inliered_ / num_feature_ * 100 << '%' << std::endl;
+//     // check inliers
+//     int len;
+//     std::vector<cv::Point2f> uv_prev, uv_curr;
+//     uint32_t inlier_cnt = 0;
+//     bool* inlier = inlier_mat.ptr<bool>(0);
+//     for (int i = 0; i < inlier_mat.rows; i++){
+//         if (inlier[i]){
+//             len = features_[idx_static[i]].life;
+//             features_[idx_static[i]].is_2D_inliered = true;
+//             uv_prev.emplace_back(features_[idx_static[i]].uv[len-2]);
+//             uv_curr.emplace_back(features_[idx_static[i]].uv.back());
+//             inlier_cnt++;
+//         }
+//     }
+//     num_feature_2D_inliered_ = inlier_cnt;
+//     if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "num_feature_2D_inliered_: " << (double) num_feature_2D_inliered_ / num_feature_ * 100 << '%' << std::endl;
 
-    // extract R, t
-    Eigen::Matrix3d U,V;
-    switch( params_.svd_method){
-        case MVO::SVD::JACOBI:{
-            Eigen::JacobiSVD<Eigen::MatrixXd> svd(E_, Eigen::ComputeThinU | Eigen::ComputeThinV);
-            U = svd.matrixU();
-            V = svd.matrixV();
-            break;
-        }
-        case MVO::SVD::OpenCV:{
-            cv::Mat Vt, U_, W;
-            cv::SVD::compute(essential_, W, U_, Vt);
+//     // extract R, t
+//     Eigen::Matrix3d U,V;
+//     switch( params_.svd_method){
+//         case MVO::SVD::JACOBI:{
+//             Eigen::JacobiSVD<Eigen::MatrixXd> svd(E_, Eigen::ComputeThinU | Eigen::ComputeThinV);
+//             U = svd.matrixU();
+//             V = svd.matrixV();
+//             break;
+//         }
+//         case MVO::SVD::OpenCV:{
+//             cv::Mat Vt, U_, W;
+//             cv::SVD::compute(essential_, W, U_, Vt);
 
-            Eigen::MatrixXd Vt_;
-            cv::cv2eigen(Vt, Vt_);
-            V = Vt_.transpose();
-            cv::cv2eigen(U_, U);
-            break;
-        }
-        case MVO::SVD::BDC:
-        default:{
-            Eigen::Matrix3d E_;
-            cv::cv2eigen(essential_, E_);
-            Eigen::BDCSVD<Eigen::MatrixXd> svd(E_, Eigen::ComputeThinU | Eigen::ComputeThinV);
-            U = svd.matrixU();
-            V = svd.matrixV();
-            break;
-        }
-    }
+//             Eigen::MatrixXd Vt_;
+//             cv::cv2eigen(Vt, Vt_);
+//             V = Vt_.transpose();
+//             cv::cv2eigen(U_, U);
+//             break;
+//         }
+//         case MVO::SVD::BDC:
+//         default:{
+//             Eigen::Matrix3d E_;
+//             cv::cv2eigen(essential_, E_);
+//             Eigen::BDCSVD<Eigen::MatrixXd> svd(E_, Eigen::ComputeThinU | Eigen::ComputeThinV);
+//             U = svd.matrixU();
+//             V = svd.matrixV();
+//             break;
+//         }
+//     }
 
-    if (U.determinant() < 0)
-        U.block(0, 2, 3, 1) = -U.block(0, 2, 3, 1);
-    if (V.determinant() < 0)
-        V.block(0, 2, 3, 1) = -V.block(0, 2, 3, 1);
+//     if (U.determinant() < 0)
+//         U.block(0, 2, 3, 1) = -U.block(0, 2, 3, 1);
+//     if (V.determinant() < 0)
+//         V.block(0, 2, 3, 1) = -V.block(0, 2, 3, 1);
 
-    Eigen::Matrix3d W;
-    W << 0, -1, 0, 1, 0, 0, 0, 0, 1;
+//     Eigen::Matrix3d W;
+//     W << 0, -1, 0, 1, 0, 0, 0, 0, 1;
 
-    std::vector<Eigen::Matrix3d> R_vec;
-    std::vector<Eigen::Vector3d> t_vec;
-    R_vec.clear();
-    t_vec.clear();
-    R_vec.push_back(U * W * V.transpose());
-    R_vec.push_back(U * W * V.transpose());
-    R_vec.push_back(U * W.transpose() * V.transpose());
-    R_vec.push_back(U * W.transpose() * V.transpose());
-    t_vec.push_back(U.block(0, 2, 3, 1));
-    t_vec.push_back(-U.block(0, 2, 3, 1));
-    t_vec.push_back(U.block(0, 2, 3, 1));
-    t_vec.push_back(-U.block(0, 2, 3, 1));
+//     std::vector<Eigen::Matrix3d> R_vec;
+//     std::vector<Eigen::Vector3d> t_vec;
+//     R_vec.clear();
+//     t_vec.clear();
+//     R_vec.push_back(U * W * V.transpose());
+//     R_vec.push_back(U * W * V.transpose());
+//     R_vec.push_back(U * W.transpose() * V.transpose());
+//     R_vec.push_back(U * W.transpose() * V.transpose());
+//     t_vec.push_back(U.block(0, 2, 3, 1));
+//     t_vec.push_back(-U.block(0, 2, 3, 1));
+//     t_vec.push_back(U.block(0, 2, 3, 1));
+//     t_vec.push_back(-U.block(0, 2, 3, 1));
 
-    if( !verifySolutions(R_vec, t_vec, R_, t_) ) return false;
-    if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "# Verify unique pose: " << lsi::toc() << std::endl;
+//     if( !verifySolutions(R_vec, t_vec, R_, t_) ) return false;
+//     if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "# Verify unique pose: " << lsi::toc() << std::endl;
 
-    /**************************************************
-     * Find proper scale from disparity map
-     **************************************************/
-    std::vector<Eigen::Vector3d> X_prev, X_curr;
-    std::vector<bool> depth_inlier;
-    constructDepth(uv_prev, uv_curr, R_, t_, X_prev, X_curr, depth_inlier);
+//     /**************************************************
+//      * Find proper scale from disparity map
+//      **************************************************/
+//     std::vector<Eigen::Vector3d> X_prev, X_curr;
+//     std::vector<bool> depth_inlier;
+//     constructDepth(uv_prev, uv_curr, R_, t_, X_prev, X_curr, depth_inlier);
 
-    double scale = 0;
-    std::vector<std::pair<cv::Point3f,cv::Point3f>> Points;
-    float x, y, z;
-    for( int i = 0; i < depth_inlier.size(); i++ ){
-        if( depth_inlier[i] ){
-            // Get 3D point with disparity
-            z = 0.537*params_.fx/disparity_.at<float>(std::round(uv_curr[i].y),std::round(uv_curr[i].x));
-            x = (uv_curr[i].x - params_.cx) / params_.fx * z;
-            y = (uv_curr[i].y - params_.cy) / params_.fx * z;
+//     double scale = 0;
+//     std::vector<std::pair<cv::Point3f,cv::Point3f>> Points;
+//     float x, y, z;
+//     for( int i = 0; i < depth_inlier.size(); i++ ){
+//         if( depth_inlier[i] ){
+//             // Get 3D point with disparity
+//             z = 0.537*params_.fx/disparity_.at<float>(std::round(uv_curr[i].y),std::round(uv_curr[i].x));
+//             x = (uv_curr[i].x - params_.cx) / params_.fx * z;
+//             y = (uv_curr[i].y - params_.cy) / params_.fx * z;
             
-            // Set expected 3D point as a result of triangulation
-            Points.emplace_back(cv::Point3f(X_curr[i](0),X_curr[i](1),X_curr[i](2)),cv::Point3f(x,y,z));
-        }
-    }
-    params_.ransac_coef_scale.th_dist = 1;
-    params_.ransac_coef_scale.calculate_func = std::bind(lsi::calculateScale, std::placeholders::_1, std::placeholders::_2, scale_reference_, params_.weight_scale_ref);
+//             // Set expected 3D point as a result of triangulation
+//             Points.emplace_back(cv::Point3f(X_curr[i](0),X_curr[i](1),X_curr[i](2)),cv::Point3f(x,y,z));
+//         }
+//     }
+//     params_.ransac_coef_scale.th_dist = 1;
+//     params_.ransac_coef_scale.calculate_func = std::bind(lsi::calculateScale, std::placeholders::_1, std::placeholders::_2, scale_reference_, params_.weight_scale_ref);
 
-    std::vector<bool> scale_inlier, scale_outlier;
-    lsi::ransac<std::pair<cv::Point3f,cv::Point3f>,double>(Points, params_.ransac_coef_scale, scale, scale_inlier, scale_outlier);
+//     std::vector<bool> scale_inlier, scale_outlier;
+//     lsi::ransac<std::pair<cv::Point3f,cv::Point3f>,double>(Points, params_.ransac_coef_scale, scale, scale_inlier, scale_outlier);
 
-    t_ *= scale;
+//     t_ *= scale;
 
-    if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "# Extract R, t: " << lsi::toc() << std::endl;
-    if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "! Extract essential between: " << curr_keyframe_.id << " <--> " << curr_frame_.id << std::endl;
+//     if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "# Extract R, t: " << lsi::toc() << std::endl;
+//     if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "! Extract essential between: " << curr_keyframe_.id << " <--> " << curr_frame_.id << std::endl;
 
-    if (num_feature_2D_inliered_ < params_.th_inlier){
-        if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "Warning: There are a few inliers matching features in 2D" << std::endl;
-        return false;
-    }else{
-        is_start_ = true;
-        return true;
-    }
-}
+//     if (num_feature_2D_inliered_ < params_.th_inlier){
+//         if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "Warning: There are a few inliers matching features in 2D" << std::endl;
+//         return false;
+//     }else{
+//         is_start_ = true;
+//         return true;
+//     }
+// }
 
 /**
  * @brief 프레임 사이의 움직임을 계산하는 프로세스
@@ -1174,12 +1187,15 @@ bool MVO::calculateEssentialStereoFeature()
     std::vector<cv::Point2f> uv_prev, uv_curr;
     uint32_t inlier_cnt = 0;
     bool* inlier = inlier_mat.ptr<bool>(0);
+    std::vector<uint32_t> idx_2d_inlier;
     for (int i = 0; i < inlier_mat.rows; i++){
         if (inlier[i]){
             len = features_[idx_static[i]].life;
             features_[idx_static[i]].is_2D_inliered = true;
             uv_prev.emplace_back(features_[idx_static[i]].uv[len-2]);
             uv_curr.emplace_back(features_[idx_static[i]].uv.back());
+
+            idx_2d_inlier.push_back(idx_static[i]);
             inlier_cnt++;
         }
     }
@@ -1237,30 +1253,32 @@ bool MVO::calculateEssentialStereoFeature()
     t_vec.push_back(U.block(0, 2, 3, 1));
     t_vec.push_back(-U.block(0, 2, 3, 1));
 
-    if( !verifySolutions(R_vec, t_vec, R_, t_) ) return false;
+    std::vector<bool> depth_inlier;
+    std::vector<Eigen::Vector3d> X_curr;
+    if( !verifySolutions(R_vec, t_vec, R_, t_, depth_inlier, X_curr) ) return false;
     if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "# Verify unique pose: " << lsi::toc() << std::endl;
 
     /**************************************************
      * Find proper scale from disparity map
      **************************************************/
-    std::vector<Eigen::Vector3d> X_prev, X_curr;
-    std::vector<bool> depth_inlier;
-    constructDepth(uv_prev, uv_curr, R_, t_, X_prev, X_curr, depth_inlier);
-
     double scale = 0;
     std::vector<std::pair<cv::Point3f,cv::Point3f>> Points;
     float x, y, z;
     for( int i = 0; i < depth_inlier.size(); i++ ){
-        if( depth_inlier[i] && validity[i] ){
+        if( depth_inlier[i] && validity[idx_2d_inlier[i]] ){
             // Get 3D point with disparity
-            z = 0.537*params_.fx/(points2[i].x - fwd_pts[i].x);
+            z = 0.537*params_.fx/(points2[idx_2d_inlier[i]].x - fwd_pts[idx_2d_inlier[i]].x);
             x = (uv_curr[i].x - params_.cx) / params_.fx * z;
             y = (uv_curr[i].y - params_.cy) / params_.fx * z;
             
             // Set expected 3D point as a result of triangulation
             Points.emplace_back(cv::Point3f(X_curr[i](0),X_curr[i](1),X_curr[i](2)),cv::Point3f(x,y,z));
+            features_[idx_2d_inlier[i]].point_curr = (Eigen::Vector4d() << x,y,z,1).finished();
+            features_[idx_2d_inlier[i]].is_3D_reconstructed = true;
+            num_feature_3D_reconstructed_++;
         }
     }
+
     params_.ransac_coef_scale.th_dist = 1;
     params_.ransac_coef_scale.calculate_func = std::bind(lsi::calculateScale, std::placeholders::_1, std::placeholders::_2, scale_reference_, params_.weight_scale_ref);
 
@@ -1292,14 +1310,14 @@ bool MVO::calculateEssentialStereoFeature()
  * @author Sangil Lee (sangillee724@gmail.com)
  * @date 29-Dec-2019
  */
-bool MVO::verifySolutions(const std::vector<Eigen::Matrix3d>& R_vec, const std::vector<Eigen::Vector3d>& t_vec, Eigen::Matrix3d& R, Eigen::Vector3d& t){
+bool MVO::verifySolutions(const std::vector<Eigen::Matrix3d>& R_vec, const std::vector<Eigen::Vector3d>& t_vec, Eigen::Matrix3d& R, Eigen::Vector3d& t, std::vector<bool>& max_inlier, std::vector<Eigen::Vector3d>& opt_X_curr){
     
 	bool success;
 
 	// Extract homogeneous 2D point which is inliered with essential constraint
 	std::vector<int> idx_2D_inlier;
 	for( int i = 0; i < num_feature_; i++ )
-		if( features_[i].is_2D_inliered && features_[i].life - 1 - (step_ - keystep_) >= 0)
+		if( features_[i].is_2D_inliered )
 			idx_2D_inlier.push_back(i);
 
     int key_idx;
@@ -1312,8 +1330,6 @@ bool MVO::verifySolutions(const std::vector<Eigen::Matrix3d>& R_vec, const std::
 
 	// Find reasonable rotation and translational vector
 	int max_num = 0;
-	std::vector<bool> max_inlier;
-	std::vector<Eigen::Vector3d> opt_X_curr;
 	for( uint32_t i = 0; i < R_vec.size(); i++ ){
 		Eigen::Matrix3d R1 = R_vec[i];
 		Eigen::Vector3d t1 = t_vec[i];
@@ -1342,13 +1358,6 @@ bool MVO::verifySolutions(const std::vector<Eigen::Matrix3d>& R_vec, const std::
         if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "Warning: There is no verified solution" << std::endl;
 		success = false;
 	}else{
-		for( int i = 0; i < max_num; i++ ){
-			if( max_inlier[i] ){
-				features_[idx_2D_inlier[i]].point_curr = (Eigen::Vector4d() << opt_X_curr[i], 1).finished();
-				features_[idx_2D_inlier[i]].is_3D_reconstructed = true;
-                num_feature_3D_reconstructed_++;
-            }
-		}
 		success = true;
 	}
 

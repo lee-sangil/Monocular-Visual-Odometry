@@ -127,6 +127,69 @@ bool MVO::calculateMotion()
 }
 
 /**
+ * @brief 프레임 사이의 변환 행렬의 스케일을 추정 및 보정하는 프로세스
+ * @details 변환 행렬의 scale을 계산하고, R, t를 출력한다.
+ * @return 에러가 발생하지 않으면, true
+ * @author Sangil Lee (sangillee724@gmail.com)
+ * @date 8-May-2020
+ */
+bool MVO::calculateMotionStereo()
+{
+    if (!is_start_)
+        return true;
+
+    /**************************************************
+     * Mapping
+     **************************************************/
+    Eigen::Matrix3d R;
+    Eigen::Vector3d t;
+    Eigen::Matrix4d T, Toc;
+    Eigen::Vector4d Poc;
+    std::vector<bool> inlier, outlier;
+	std::vector<int> idx_inlier, idx_outlier;
+    
+    switch (params_.mapping_option) {
+    case 0:
+        num_feature_inlier_ = num_feature_3D_reconstructed_;
+
+        /**** mapping without scaling ****/
+        update3DPointsStereo(R_, t_, inlier, outlier, T, Toc, Poc);
+        if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "# Update 3D Points with Essential: " << lsi::toc() << std::endl;
+
+        break;
+
+    case 1:
+        /**** mapping and scaling with essential 3d reconstruction only ****/
+        if( !scalePropagation(R_ ,t_, inlier, outlier) ) return false;
+
+        update3DPointsStereo(R_, t_, inlier, outlier, T, Toc, Poc); // overloading function
+        if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "# Update 3D Points with Essential: " << lsi::toc() << std::endl;
+
+        break;
+    }
+    if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "percentage_feature_3D_reconstructed_: " << (double) num_feature_3D_reconstructed_ / num_feature_ * 100 << '%' << std::endl;
+    if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "percentage_feature_3D_inliered: " << (double) num_feature_inlier_ / num_feature_ * 100 << '%' << std::endl;
+    if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "num_feature_inlier_: " << num_feature_inlier_ << " " << std::endl;
+
+    /**** return success or failure ****/
+    if (num_feature_inlier_ < params_.th_inlier){
+        if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "Warning: There are few inliers reconstructed and accorded in 3D" << std::endl;
+        return false;
+    }else{
+        if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "Temporal velocity: " << T.block(0,3,3,1).norm() << std::endl;
+        if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "Optimized scale: " << t_.norm() << std::endl;
+
+        // Save solution
+        TRec_.push_back(T);
+        TocRec_.push_back(Toc);
+        PocRec_.push_back(Poc);
+
+        is_scale_initialized_ = true;
+        return true;
+    }
+}
+
+/**
  * @brief PnP 알고리즘
  * @details 3차원 좌표가 생성된 특징점들에 대해 PnP 알고리즘을 수행하여 자세값을 계산한다.
  * @param R 회전 행렬
@@ -505,6 +568,43 @@ void MVO::update3DPoints(const Eigen::Matrix3d &R, const Eigen::Vector3d &t,
     for( uint32_t i = 0; i < features_.size(); i++ ){
         if( features_[i].is_3D_reconstructed ){
             features_[i].point_curr.block(0,0,3,1) *= scale;
+            update3DPoint(features_[i], Toc, tform);
+        }
+    }
+}
+
+/**
+ * @brief 3차원 좌표 업데이트
+ * @details 인접한 이미지 사이에서 essential constraint로 계산한 R, t를 이용해 각 특징점의 3차원 좌표값을 업데이트한다.
+ * @param R 회전 행렬
+ * @param t 변위 벡터
+ * @param inlier 3차원 복원 인라이어
+ * @param outlier 3차원 복원 실패 아웃라이어
+ * @param T 직전 이미지 프레임 기준 변환 행렬
+ * @param Toc 첫 이미지 프레임 기준 변환 행렬
+ * @param Poc 첫 이미지 프레임 기준 위치 벡터
+ * @return 없음
+ * @author Sangil Lee (sangillee724@gmail.com)
+ * @date 8-May-2020
+ */
+void MVO::update3DPointsStereo(const Eigen::Matrix3d &R, const Eigen::Vector3d &t, 
+                        const std::vector<bool> &inlier, const std::vector<bool> &outlier, 
+                        Eigen::Matrix4d &T, Eigen::Matrix4d &Toc, Eigen::Vector4d &Poc){
+    // Seek index of which feature is 3D reconstructed currently
+    // and 3D initialized previously
+
+    /* Find pose by accumulating transform, T */
+    Eigen::Matrix4d tform;
+    tform.setIdentity();
+    tform.block(0,0,3,3) = R.transpose();
+    tform.block(0,3,3,1) = -R.transpose()*t;
+    Toc = TocRec_[keystep_] * tform;
+    Poc = Toc.block(0,3,4,1);
+    T = TocRec_.back().inverse() * Toc;
+    
+    /* Update point */
+    for( uint32_t i = 0; i < features_.size(); i++ ){
+        if( features_[i].is_3D_reconstructed ){
             update3DPoint(features_[i], Toc, tform);
         }
     }

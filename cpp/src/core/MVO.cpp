@@ -485,7 +485,7 @@ void MVO::run(const cv::Mat& image, const cv::Mat& image_right, double timestamp
 
     if( !extractFeatures() ) { restart(); return; }
     if( !calculateEssentialStereoFeature() ) { restart(); return; }
-    if( !calculateMotion() ) { restart(); return; }
+    if( !calculateMotionStereo() ) { restart(); return; }
 
 }
 
