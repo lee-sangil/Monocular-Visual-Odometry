@@ -16,6 +16,7 @@
 
 #include "core/common.hpp"
 #include "core/ransac.hpp"
+#include "core/g2o.hpp"
 
 /**
  * @brief 영상 항법 모듈 클래스.
@@ -128,6 +129,7 @@ class MVO{
 		cv::Mat image; /**< 이미지 */
 		double timestamp = 0; /**< 타임스탬프 */
 		int id = -1; /**< ID */
+		std::vector<uint32_t> features; /**< 프레임에서 보이는 feature의 ID */
 
 		std::vector<std::pair<double,double>> linear_velocity_since_; /**< 이미지 프레임 이후 입력된 선속도 데이터 */
 		std::vector<std::pair<double,Eigen::Vector3d>> angular_velocity_since_; /**< 이미지 프레임 이후 입력된 각속도 데이터 */
@@ -279,6 +281,8 @@ class MVO{
 	MVO::Frame prev_keyframe_; /**< @brief 이전 키프레임 */
 	MVO::Frame curr_keyframe_; /**< @brief 현재 키프레임 */
 	MVO::Frame next_keyframe_; /**< @brief 다음 키프레임 */
+	std::vector<MVO::Frame> keyframes_; /**< @brief 키프레임들 */
+
 	MVO::Frame prev_frame_; /**< @brief 이전 이미지 프레임 */
 	MVO::Frame curr_frame_; /**< @brief 현재 이미지 프레임 */
 	MVO::Frame curr_frame_right_; /**< @brief 현재 스테레오 이미지 프레임 */
@@ -320,6 +324,12 @@ class MVO{
 	// std::vector<cv::Mat> prev_pyramid_template_, curr_pyramid_template_;
 	Eigen::MatrixXd map_matrix_template_; /**< @brief 빠른 SVD 계산을 위한 임시 메모리 공간 할당 */
 	std::shared_ptr< Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> > eigen_solver_; /**< @brief eigen 벡터 계산기 객체 */
+
+	g2o::BlockSolverX::LinearSolverType * linear_solver_ = new g2o::LinearSolverDense<g2o::BlockSolverX::PoseMatrixType>();
+    g2o::BlockSolverX * block_solver_ = new g2o::BlockSolverX(linear_solver_);
+    g2o::OptimizationAlgorithm * algorithm_ = new g2o::OptimizationAlgorithmLevenberg(block_solver_);
+    g2o::SparseOptimizer * optimizer_ = new g2o::SparseOptimizer;
+	g2o::CameraParameters * cam_params_;
 };
 
 #endif //__MVO_HPP__

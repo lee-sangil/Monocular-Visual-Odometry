@@ -21,19 +21,23 @@ message(STATUS "Using flag -std=c++11.")
 #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")
 
 # Include our cmake files
-LIST(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake_modules/)
+LIST(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake_modules)
 
 # Include libraries
+find_package(G2O REQUIRED)
 find_package(Eigen3 REQUIRED)
 find_package(OpenCV 3.4 REQUIRED)
 find_package(Boost 1.55.0 REQUIRED COMPONENTS system filesystem thread)
 
-message(${EIGEN3_INCLUDE_DIR})
+message(STATUS "G2O_INCLUDE: " ${G2O_INCLUDE_DIR})
+message(STATUS "Eigen3_INCLUDE: " ${EIGEN3_INCLUDE_DIR})
+message(STATUS "OpenCV_LIBS: " ${OpenCV_LIBS})
 
 # Include directory for headers
 include_directories(
   include
-  ${EIGEN3_INCLUDE_DIRS}
+  ${G2O_INCLUDE_DIR}
+  ${EIGEN3_INCLUDE_DIR}
   ${OpenCV_INCLUDE_DIRS}
   ${Boost_INCLUDE_DIRS}
 )
@@ -78,6 +82,7 @@ target_link_libraries(${PROJECT_NAME}
   ${EIGEN3_LIBS}
   ${OpenCV_LIBS}
   ${Boost_LIBRARIES}
+  g2o_core g2o_types_slam3d g2o_solver_dense g2o_solver_csparse g2o_stuff g2o_csparse_extension g2o_types_sba
 )
 
 add_executable(mono src/main_mono.cpp)
