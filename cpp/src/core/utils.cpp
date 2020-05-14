@@ -16,7 +16,8 @@ double MVO::calcReconstructionError(Eigen::Matrix4d& Toc) const {
     std::vector<double> error;
     error.reserve(features_.size());
     for( const auto & feature : features_ )
-        error.push_back((Toc * feature.point_curr - feature.point_init).norm());
+        if( feature.landmark )
+            error.push_back((Toc * feature.point_curr - feature.landmark->point_init).norm());
 
     std::sort(error.begin(), error.end());
     return error[std::floor(error.size()/2)];
@@ -52,7 +53,7 @@ void MVO::calcReconstructionErrorGT(Eigen::MatrixXd& depth) const {
     std::vector<double> idx;
     if( params_.output_filtered_depth ){
         for( uint32_t i = 0; i < features_.size(); i++ )
-            if( depth(features_[i].uv.back().y, features_[i].uv.back().x) > 0 && features_[i].is_3D_init == true && features_[i].uv.back().y > params_.im_size.height / 2.0 && features_[i].life > 1 )
+            if( depth(features_[i].uv.back().y, features_[i].uv.back().x) > 0 && features_[i].landmark != NULL && features_[i].uv.back().y > params_.im_size.height / 2.0 && features_[i].life > 1 )
                 idx.push_back(i);
     }else{
         for( uint32_t i = 0; i < features_.size(); i++ )
@@ -69,7 +70,7 @@ void MVO::calcReconstructionErrorGT(Eigen::MatrixXd& depth) const {
         if( MVO::s_point_logger_.is_open() ) MVO::s_point_logger_ << "* Reconstruction:";
         for( const auto & i : idx ){
             if( params_.output_filtered_depth ){
-                point = Tco.block(0,0,3,4) * features_[i].point_init;
+                point = Tco.block(0,0,3,4) * features_[i].landmark->point_init;
                 if( MVO::s_point_logger_.is_open() ) MVO::s_point_logger_ << ' ' << point(0) << ' ' << point(1) << ' ' << point(2);
             }else{
                 if( MVO::s_point_logger_.is_open() ) MVO::s_point_logger_ << ' ' << features_[i].point_curr(0) << ' ' << features_[i].point_curr(1) << ' ' << features_[i].point_curr(2);
@@ -85,7 +86,7 @@ void MVO::calcReconstructionErrorGT(Eigen::MatrixXd& depth) const {
         for( const auto & i : idx){
             double gt_depth = depth(features_[i].uv.back().y, features_[i].uv.back().x);
             if( params_.output_filtered_depth ){
-                point = Tco.block(0,0,3,4) * features_[i].point_init;
+                point = Tco.block(0,0,3,4) * features_[i].landmark->point_init;
                 relative_error.push_back(std::abs(point(2)-gt_depth)/gt_depth);
             }else{
                 relative_error.push_back(std::abs(features_[i].point_curr(2)-gt_depth)/gt_depth);

@@ -151,8 +151,8 @@ void MVO::plot(const Eigen::MatrixXd * const depthMap) const {
 	int r, g, b, depth;
 	for( uint32_t i = 0; i < features_.size(); i++ ){
 		if( params_.output_filtered_depth ){
-			if( features_[i].is_3D_init && features_[i].type != Type::Dynamic){
-				point = Tco * features_[i].point_init;
+			if( features_[i].landmark && features_[i].type != Type::Dynamic){
+				point = Tco * features_[i].landmark->point_init;
 				depth = (int) point(2) - 5;
 
 				r = std::exp(-depth/150) * std::min(depth*18, 255);
@@ -187,29 +187,16 @@ void MVO::plot(const Eigen::MatrixXd * const depthMap) const {
 
 		// Points
 		Eigen::Vector3d uv;
-		for( uint32_t i = 0; i < features_dead_.size(); i++ ){
-			if( features_dead_[i].is_3D_init && features_dead_[i].depthfilter->getVariance() < params_.max_point_var && features_dead_[i].life > 2 ){
-				point = Tco * features_dead_[i].point_init;
-				uv = params_.view.P * point;
-				if( uv(2) > 1 ){
-					switch (features_dead_[i].type){
-					case Type::Unknown:
-						cv::circle(traj, cv::Point(uv(0)/uv(2), uv(1)/uv(2)), 1, cv::Scalar(128,128,128), CV_FILLED);
-						break;
-					case Type::Road:
-						cv::circle(traj, cv::Point(uv(0)/uv(2), uv(1)/uv(2)), 1, cv::Scalar(128,128,200), CV_FILLED);
-						break;
-					case Type::Dynamic:
-						cv::circle(traj, cv::Point(uv(0)/uv(2), uv(1)/uv(2)), 1, cv::Scalar(100,50,50), CV_FILLED);
-						break;
-					}
-				}
-			}
+		for( const auto & landmark : landmark_ ){
+			point = Tco * landmark.second->point_init;
+			uv = params_.view.P * point;
+			if( uv(2) > 1 ) cv::circle(traj, cv::Point(uv(0)/uv(2), uv(1)/uv(2)), 1, cv::Scalar(128,128,128), CV_FILLED);
 		}
+
 		for( uint32_t i = 0; i < features_.size(); i++ ){
 			// std::cout << features_[i].depthfilter->getVariance() << ' ';
-			if( features_[i].is_3D_init && features_[i].depthfilter->getVariance() < params_.max_point_var && features_[i].life > 2 ){
-				point = Tco * features_[i].point_init;
+			if( features_[i].landmark && features_[i].depthfilter->getVariance() < params_.max_point_var && features_[i].life > 2 ){
+				point = Tco * features_[i].landmark->point_init;
 				uv = params_.view.P * point;
 				if( uv(2) > 1 ){
 					switch (features_[i].type){
@@ -224,7 +211,7 @@ void MVO::plot(const Eigen::MatrixXd * const depthMap) const {
 						break;
 					}
 					if( params_.output_filtered_depth ){
-						if( features_[i].is_3D_init && features_[i].frame_3d_init < step_ && features_[i].type != Type::Dynamic )
+						if( features_[i].landmark && features_[i].frame_3d_init < step_ && features_[i].type != Type::Dynamic )
 							cv::circle(traj, cv::Point(uv(0)/uv(2), uv(1)/uv(2)), 1, cv::Scalar(0,255,0), CV_FILLED);
 					}else{
 						if( features_[i].is_3D_reconstructed && features_[i].frame_3d_init < step_ && features_[i].type != Type::Dynamic )

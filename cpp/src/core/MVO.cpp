@@ -7,6 +7,7 @@ double DepthFilter::s_meas_max_;
 std::ofstream MVO::s_file_logger_;
 std::ofstream MVO::s_point_logger_;
 uint32_t Feature::new_feature_id = 0;
+uint32_t Landmark::new_landmark_id = 0;
 
 /**
  * @brief 영상 항법 모듈 생성자.
@@ -332,7 +333,7 @@ void MVO::restart(){
     for( uint32_t i = 0; i < features_.size(); i++ ){
         features_[i].life = 1;
         features_[i].frame_2d_init = 0;
-        if( features_[i].is_3D_init )
+        if( features_[i].landmark )
             features_[i].frame_3d_init = 0;
         features_[i].uv.erase(features_[i].uv.begin(), features_[i].uv.end()-1);
         // features_[i].depthfilter->reset();
@@ -462,8 +463,11 @@ void MVO::run(const cv::Mat& image, double timestamp){
     refresh();
 
     if( !extractFeatures() ) { restart(); return; }
-    if( !calculateEssential() ) { restart(); return; }
-    if( !calculateMotion() ) { restart(); return; }
+
+    Eigen::Matrix3d R;
+    Eigen::Vector3d t;
+    if( !calculateEssential(R, t) ) { restart(); return; }
+    if( !calculateMotion(R, t) ) { restart(); return; }
     
     // std::vector<cv::Rect> rois;
     // std::vector<int> num_feature;
@@ -493,8 +497,11 @@ void MVO::run(const cv::Mat& image, const cv::Mat& image_right, double timestamp
     refresh();
 
     if( !extractFeatures() ) { restart(); return; }
-    if( !calculateEssentialStereoFeature() ) { restart(); return; }
-    if( !calculateMotionStereo() ) { restart(); return; }
+
+    Eigen::Matrix3d R;
+    Eigen::Vector3d t;
+    if( !calculateEssentialStereo(R, t) ) { restart(); return; }
+    if( !calculateMotionStereo(R, t) ) { restart(); return; }
 
 }
 
@@ -567,8 +574,8 @@ std::vector< std::tuple<uint32_t, cv::Point2f, Eigen::Vector3d, double> > MVO::g
         for( uint32_t i = 0; i < features_.size(); i++ ){
             uv_curr = features_[i].uv.back();
             
-            if( features_[i].is_3D_init && features_[i].life > 1 )
-                pts.push_back( std::make_tuple(features_[i].id, uv_curr, Tco.block(0,0,3,4) * features_[i].point_init, features_[i].depthfilter->getVariance() ) );
+            if( features_[i].landmark && features_[i].life > 1 )
+                pts.push_back( std::make_tuple(features_[i].id, uv_curr, Tco.block(0,0,3,4) * features_[i].landmark->point_init, features_[i].depthfilter->getVariance() ) );
         }
     }else{
         for( uint32_t i = 0; i < features_.size(); i++ ){

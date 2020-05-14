@@ -129,7 +129,9 @@ class MVO{
 		cv::Mat image; /**< 이미지 */
 		double timestamp = 0; /**< 타임스탬프 */
 		int id = -1; /**< ID */
-		std::vector<uint32_t> features; /**< 프레임에서 보이는 feature의 ID */
+		std::vector<uint32_t> landmarks; /**< 프레임에서 보이는 landmark의 Key */
+
+		bool is_keyframe;
 
 		std::vector<std::pair<double,double>> linear_velocity_since_; /**< 이미지 프레임 이후 입력된 선속도 데이터 */
 		std::vector<std::pair<double,Eigen::Vector3d>> angular_velocity_since_; /**< 이미지 프레임 이후 입력된 각속도 데이터 */
@@ -230,11 +232,11 @@ class MVO{
 	void addFeature();
 
 	// Calculations
-	bool calculateEssential();
-	bool calculateEssentialStereo();
-	bool calculateEssentialStereoFeature();
-	bool calculateMotion();
-	bool calculateMotionStereo();
+	bool calculateEssential(Eigen::Matrix3d & R, Eigen::Vector3d & t);
+	bool calculateEssentialStereo(Eigen::Matrix3d & R, Eigen::Vector3d & t);
+	bool calculateMotion(const Eigen::Matrix3d & R, Eigen::Vector3d & t);
+	bool calculateMotionStereo(const Eigen::Matrix3d & R, Eigen::Vector3d & t);
+
 	bool verifySolutions(const std::vector<Eigen::Matrix3d>& R_vec, const std::vector<Eigen::Vector3d>& t_vec,
 						  Eigen::Matrix3d& R, Eigen::Vector3d& t, std::vector<bool>& max_inlier, std::vector<Eigen::Vector3d>& opt_X_curr);
 	bool scalePropagation(const Eigen::Matrix3d& R, Eigen::Vector3d& t,
@@ -298,6 +300,7 @@ class MVO{
 	std::vector<std::vector<cv::Point2f>> keypoints_of_bucket_; /**< @brief bucket에서 추출된 특징점 벡터 */
 	std::vector<Feature> features_; /**< @brief 현재 사용중인 특징점 */
 	std::vector<Feature> features_dead_; /**< @brief 사라진 특징점(디버깅용), 3차원 초기화된 특징점만 누적됨. */
+	std::unordered_map<uint32_t, std::shared_ptr<Landmark>> landmark_; /**< @brief 랜드마크 */
 
 	bool is_start_; /**< @brief 카메라가 움직이기 시작하면, true */
 	bool is_scale_initialized_; /**< @brief 3차원 스케일이 초기화되면, true */
@@ -313,10 +316,6 @@ class MVO{
 	int num_feature_3D_reconstructed_; /**< @brief 3차원 복원된 특징점의 개수 */
 	int num_feature_inlier_; /**< @brief 스케일이 정상적으로 복원된 특징점의 개수 */
 
-	cv::Mat essential_; /**< @brief 두 이미지 사이의 essential 행렬 */
-	Eigen::Matrix3d fundamental_; /**< @brief 두 이미지 사이의 fundamental 행렬 */
-	Eigen::Matrix3d R_; /**< @brief 두 이미지 사이의 회전 행렬 R */
-	Eigen::Vector3d t_; /**< @brief 두 이미지 사이의 변위 벡터 t */
 	std::vector<Eigen::Matrix4d> TRec_; /**< @brief 두 이미지 사이의 변환 행렬 */
 	std::vector<Eigen::Matrix4d> TocRec_; /**< @brief 초기 위치로부터의 변환 행렬 */
 	std::vector<Eigen::Vector4d> PocRec_; /**< @brief 초기 위치로부터의 변위 */

@@ -21,13 +21,26 @@ enum Type{Unknown,Dynamic,Road,};
 class DepthFilter;
 
 /**
+ * @brief 랜드마크 클래스.
+ * @details 랜드마크를 BA에 활용하기 위해 만들어진 클래스이다.
+ * @author Sangil Lee (sangillee724@gmail.com)
+ * @date 13-May-2020
+ */
+typedef struct Landmark{
+	Eigen::Vector4d point_init; /**< @brief 월드 좌표계에서 특징점 객체의 3차원 좌표 */
+	double std;
+
+	static uint32_t getNewID() {return new_landmark_id++;}; /**< @brief 랜드마크가 생성되는 순에 따라 부여되는 id */
+	static uint32_t new_landmark_id; /**< @brief 특징점이 생성되는 순에 따라 부여되는 id */
+}Landmark;
+
+/**
  * @brief 특징점 클래스.
  * @details 특징점이 독립적으로 추출 및 추적되고, 2차원, 3차원 모션 계산에 사용되도록 만들어진 클래스이다.
  * @author Sangil Lee (sangillee724@gmail.com)
  * @date 24-Dec-2019
  */
 typedef struct Feature{
-	static uint32_t new_feature_id; /**< @brief 특징점이 생성되는 순에 따라 부여되는 id */
 	uint32_t id; /**< @brief 특징점 객체가 부여받은 id */
 	uint32_t life; /**< @brief 특징점 객체가 나타나는 프레임 횟수 */
 	int frame_2d_init; /**< @brief 특징점 객체가 처음 추적되기 시작한 step */
@@ -38,15 +51,49 @@ typedef struct Feature{
 	cv::Point2f uv_pred; /**< @brief 지난 uv를 이용하여 예측한 현재 프레임에서의 uv 위치 */
 	cv::Point bucket; /**< @brief 특징점이 속해있는 bucket의 위치 */
 	Eigen::Vector4d point_curr; /**< @brief 현재 프레임에서 특징점 객체의 3차원 좌표 */
-	Eigen::Vector4d point_init; /**< @brief 월드 좌표계에서 특징점 객체의 3차원 좌표 */
 	bool is_alive; /**< @brief 다음 회차에서 삭제할지 */
-	bool is_matched; /**< @brief 인접한 프레임에서 추적되었는지 */
 	bool is_wide; /**< @brief 시차가 충분이 커졌는지 */
+	bool is_matched; /**< @brief 인접한 프레임에서 추적되었는지 */
 	bool is_2D_inliered; /**< @brief essential constraint를 만족하는지 */
 	bool is_3D_reconstructed; /**< @brief 3차원 좌표가 복원되었는지 */
-	bool is_3D_init; /**< @brief 유효한 3차원 좌표가 생성되었는지 */
 	Type type; /**< @brief 특징점의 타입 */
 	std::shared_ptr<DepthFilter> depthfilter; /**< @brief 깊이 필터 클래스 */
+	std::shared_ptr<Landmark> landmark; /**< @brief 유효한 3차원 좌표가 생성되었는지 */
+
+	static uint32_t getNewID() {return new_feature_id++;}; /**< @brief 특징점이 생성되는 순에 따라 부여되는 id */
+	static uint32_t new_feature_id; /**< @brief 특징점이 생성되는 순에 따라 부여되는 id */
 }Feature;
+
+namespace std{
+	template<class _InputIterator, class T>
+	std::vector<_InputIterator>
+	find_all(_InputIterator begin, _InputIterator end, const T& val)
+	{
+		std::vector<_InputIterator> matches;
+		while(begin != end)
+		{
+			if((*begin) == val)
+				matches.push_back(begin);
+			++begin;
+		}
+		
+		return matches;
+	}
+
+	template<class _InputIterator, class _Predicate>
+	std::vector<_InputIterator>
+	find_all_if(_InputIterator begin, _InputIterator end, _Predicate pred)
+	{
+		std::vector<_InputIterator> matches;
+		while(begin != end)
+		{
+			if(pred(*begin))
+				matches.push_back(begin);
+			++begin;
+		}
+		
+		return matches;
+	}
+}
 
 #endif //__COMMON_HPP__

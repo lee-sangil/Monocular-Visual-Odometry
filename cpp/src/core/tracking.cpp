@@ -117,7 +117,7 @@ bool MVO::updateFeatures(){
                 
                 // // Reject unpredicted motion using the previous uv or point and prior knowledge
                 // if( is_rotate_provided_  && !is_speed_provided_){
-                //     Eigen::Vector3d epiLine = fundamental_ * (Eigen::Vector3d() << uv_prev.x, uv_prev.y, 1).finished();
+                //     Eigen::Vector3d epiLine = fundamental * (Eigen::Vector3d() << uv_prev.x, uv_prev.y, 1).finished();
                 //     double dist_from_epiline = std::abs(epiLine(0)*features_[i].uv_pred.x + epiLine(1)*features_[i].uv_pred.y + epiLine(2)) / epiLine.topRows(2).norm();
                 //     if( is_start_){
                 //         if( dist_from_epiline > params_.max_dist ){
@@ -458,7 +458,7 @@ void MVO::kltTrackerPrecise(std::vector<cv::Point2f>& points, std::vector<bool>&
 void MVO::deleteDeadFeatures(){
     for( uint32_t i = 0; i < features_.size(); ){
         if( features_[i].is_alive == false ){
-            if( features_[i].life > 2 && MVO::s_file_logger_.is_open() ){ // add features_dead for plotting if debugging mode
+            if( features_[i].landmark && MVO::s_file_logger_.is_open() ){ // add features_dead for plotting if debugging mode
                 features_dead_.push_back(features_[i]);
             }
             features_.erase(features_.begin()+i);
@@ -466,6 +466,7 @@ void MVO::deleteDeadFeatures(){
             i++;
         }
     }
+    // features_.erase(std::remove_if(features_.begin(), features_.end(), [](const auto & f){return f.life > 2 && MVO::s_file_logger_.is_open();}),features_.end());
     num_feature_ = features_.size();
 }
 
@@ -622,7 +623,7 @@ void MVO::addFeature(){
         // Add new feature to VO object
         Feature newFeature;
 
-        newFeature.id = Feature::new_feature_id; // unique id of the feature
+        newFeature.id = Feature::getNewID(); // unique id of the feature
         newFeature.frame_2d_init = -1; // frame step when the 2d point is tracked
         newFeature.frame_3d_init = -1; // frame step when the 3d point is initialized
         newFeature.parallax = 0; // parallax between associated features
@@ -636,15 +637,12 @@ void MVO::addFeature(){
         newFeature.is_wide = false; // verify whether features btw the initial and current are wide enough
         newFeature.is_2D_inliered = false; // belong to major (or meaningful) movement
         newFeature.is_3D_reconstructed = false; // triangulation completion
-        newFeature.is_3D_init = false; // scale-compensated
-        newFeature.point_init << 0,0,0,1; // scale-compensated 3-dim homogeneous point in the global coordinates
+        newFeature.landmark = NULL; // landmark point in world coordinates
         newFeature.type = Type::Unknown; // type of feature
-        newFeature.depthfilter = std::shared_ptr<DepthFilter>(new DepthFilter()); // depth filter
+        newFeature.depthfilter = std::make_shared<DepthFilter>(); // depth filter
 
         features_.push_back(newFeature);
         num_feature_++;
-    
-        Feature::new_feature_id++;
 
         // Update bucket
         bucket_.mass(row, col)++;
@@ -672,7 +670,7 @@ void MVO::addFeature(){
  * @author Sangil Lee (sangillee724@gmail.com) Haram Kim (rlgkfka614@gmail.com)
  * @date 29-Dec-2019
  */
-bool MVO::calculateEssential()
+bool MVO::calculateEssential(Eigen::Matrix3d & R, Eigen::Vector3d & t)
 {
     if (step_ == 0){
         return true;
@@ -707,13 +705,13 @@ bool MVO::calculateEssential()
     }
 
     // calculate essential matrix with ransac
-    cv::Mat inlier_mat;
-    essential_ = cv::findEssentialMat(points1, points2, params_.Kcv, CV_RANSAC, 0.999, 1.5, inlier_mat);
+    cv::Mat inlier_mat, essential;
+    essential = cv::findEssentialMat(points1, points2, params_.Kcv, CV_RANSAC, 0.999, 1.5, inlier_mat);
     if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "# Calculate essential: " << lsi::toc() << std::endl;
     
-    Eigen::Matrix3d E_;
-    cv::cv2eigen(essential_, E_);
-    fundamental_ = params_.Kinv.transpose() * E_ * params_.Kinv;
+    Eigen::Matrix3d E_, fundamental;
+    cv::cv2eigen(essential, E_);
+    fundamental = params_.Kinv.transpose() * E_ * params_.Kinv;
 
     // double error;
     // std::vector<double> essential_error;
@@ -751,7 +749,7 @@ bool MVO::calculateEssential()
         }
         case MVO::SVD::OpenCV:{
             cv::Mat Vt, U_, W;
-            cv::SVD::compute(essential_, W, U_, Vt);
+            cv::SVD::compute(essential, W, U_, Vt);
 
             Eigen::MatrixXd Vt_;
             cv::cv2eigen(Vt, Vt_);
@@ -762,7 +760,7 @@ bool MVO::calculateEssential()
         case MVO::SVD::BDC:
         default:{
             Eigen::Matrix3d E_;
-            cv::cv2eigen(essential_, E_);
+            cv::cv2eigen(essential, E_);
             Eigen::BDCSVD<Eigen::MatrixXd> svd(E_, Eigen::ComputeThinU | Eigen::ComputeThinV);
             U = svd.matrixU();
             V = svd.matrixV();
@@ -796,7 +794,7 @@ bool MVO::calculateEssential()
      **************************************************/
     std::vector<bool> max_inlier;
     std::vector<Eigen::Vector3d> X_curr;
-    if( !verifySolutions(R_vec, t_vec, R_, t_, max_inlier, X_curr) ) return false;
+    if( !verifySolutions(R_vec, t_vec, R, t, max_inlier, X_curr) ) return false;
     if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "# Verify unique pose: " << lsi::toc() << std::endl;
 
     for( int i = 0; i < max_inlier.size(); i++ ){
@@ -826,7 +824,7 @@ bool MVO::calculateEssential()
  * @author Sangil Lee (sangillee724@gmail.com)
  * @date 14-Apr-2020
  */
-bool MVO::calculateEssentialStereoFeature()
+bool MVO::calculateEssentialStereo(Eigen::Matrix3d & R, Eigen::Vector3d & t)
 {
     if (step_ == 0){
         return true;
@@ -881,13 +879,13 @@ bool MVO::calculateEssentialStereoFeature()
     }
 
     // calculate essential matrix with ransac to reject outliers
-    cv::Mat inlier_mat;
-    essential_ = cv::findEssentialMat(points1, points2, params_.Kcv, CV_RANSAC, 0.999, 1.5, inlier_mat);
+    cv::Mat inlier_mat, essential;
+    essential = cv::findEssentialMat(points1, points2, params_.Kcv, CV_RANSAC, 0.999, 1.5, inlier_mat);
     if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "# Calculate essential: " << lsi::toc() << std::endl;
     
-    Eigen::Matrix3d E_;
-    cv::cv2eigen(essential_, E_);
-    fundamental_ = params_.Kinv.transpose() * E_ * params_.Kinv;
+    Eigen::Matrix3d E_, fundamental;
+    cv::cv2eigen(essential, E_);
+    fundamental = params_.Kinv.transpose() * E_ * params_.Kinv;
 
     // check inliers
     int len;
@@ -920,7 +918,7 @@ bool MVO::calculateEssentialStereoFeature()
         }
         case MVO::SVD::OpenCV:{
             cv::Mat Vt, U_, W;
-            cv::SVD::compute(essential_, W, U_, Vt);
+            cv::SVD::compute(essential, W, U_, Vt);
 
             Eigen::MatrixXd Vt_;
             cv::cv2eigen(Vt, Vt_);
@@ -931,7 +929,7 @@ bool MVO::calculateEssentialStereoFeature()
         case MVO::SVD::BDC:
         default:{
             Eigen::Matrix3d E_;
-            cv::cv2eigen(essential_, E_);
+            cv::cv2eigen(essential, E_);
             Eigen::BDCSVD<Eigen::MatrixXd> svd(E_, Eigen::ComputeThinU | Eigen::ComputeThinV);
             U = svd.matrixU();
             V = svd.matrixV();
@@ -962,7 +960,7 @@ bool MVO::calculateEssentialStereoFeature()
 
     std::vector<bool> depth_inlier;
     std::vector<Eigen::Vector3d> X_curr;
-    if( !verifySolutions(R_vec, t_vec, R_, t_, depth_inlier, X_curr) ) return false;
+    if( !verifySolutions(R_vec, t_vec, R, t, depth_inlier, X_curr) ) return false;
     if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "# Verify unique pose: " << lsi::toc() << std::endl;
 
     /**************************************************
@@ -992,7 +990,7 @@ bool MVO::calculateEssentialStereoFeature()
     std::vector<bool> scale_inlier, scale_outlier;
     lsi::ransac<std::pair<cv::Point3f,cv::Point3f>,double>(Points, params_.ransac_coef_scale, scale, scale_inlier, scale_outlier);
 
-    t_ *= scale;
+    t *= scale;
 
     if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "# Extract R, t: " << lsi::toc() << std::endl;
     if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "! Extract essential between: " << curr_keyframe_.id << " <--> " << curr_frame_.id << std::endl;
@@ -1083,11 +1081,9 @@ void MVO::addExtraFeatures(){
 
     if( features_extra_.size() > 0 ){
         for( uint32_t i = 0; i < features_extra_.size(); i++ ){
-            features_extra_[i].id = Feature::new_feature_id;
+            features_extra_[i].id = Feature::getNewID();
             features_.push_back(features_extra_[i]);
             num_feature_++;
-        
-            Feature::new_feature_id++;
 
             // Update bucket
             if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "@@@@@ extra uv: " << features_extra_[i].uv.back().x << ", " << features_extra_[i].uv.back().y << ", bucket: " << features_extra_[i].bucket.x << ", " << features_extra_[i].bucket.y << std::endl;
@@ -1135,7 +1131,7 @@ void MVO::updateRoiFeatures(const std::vector<cv::Rect>& rois, const std::vector
         
         if( num_feature[i] < 0 ){ // remove all features within the roi
             for( uint32_t j = 0; j < idx_belong_to_roi.size(); j++ ){
-                if( features_.at(idx_belong_to_roi[j]-j).life > 2 && MVO::s_file_logger_.is_open() ){
+                if( features_.at(idx_belong_to_roi[j]-j).landmark && MVO::s_file_logger_.is_open() ){
                     features_dead_.push_back(features_.at(idx_belong_to_roi[j]-j));
                 }
                 features_.erase(features_.begin()+idx_belong_to_roi[j]-j);
@@ -1255,8 +1251,7 @@ bool MVO::updateRoiFeature(const cv::Rect& roi, const std::vector<cv::Point2f>& 
         newFeature.is_wide = false; // verify whether features btw the initial and current are wide enough
         newFeature.is_2D_inliered = false; // belong to major (or meaningful) movement
         newFeature.is_3D_reconstructed = false; // triangulation completion
-        newFeature.is_3D_init = false; // scale-compensated
-        newFeature.point_init << 0,0,0,1; // scale-compensated 3-dim homogeneous point in the global coordinates
+        newFeature.landmark = NULL; // landmark point in world coordinates
         newFeature.type = Type::Unknown;
         newFeature.depthfilter = std::shared_ptr<DepthFilter>(new DepthFilter());
 
