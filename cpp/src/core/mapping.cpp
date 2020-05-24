@@ -509,6 +509,7 @@ void MVO::update3DPoint(Feature& feature, const Eigen::Matrix4d& Toc, const Eige
         if( params_.update_init_point ){
             // apply the depth of depth filter; point_initframe/z is a homogeneous form of the current 3d position
             feature.depthfilter->update(1/z, tau_inverse);
+            if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << feature.id << '\t' << tau_inverse << '\t' << 1/z << '\t' << feature.depthfilter->getMean() << std::endl;
             feature.landmark->point_init = TocRec_[feature.frame_3d_init] * (Eigen::Vector4d() << point_initframe / z / feature.depthfilter->getMean(), 1).finished();
         }
 
@@ -821,9 +822,9 @@ bool MVO::scalePropagation(const Eigen::Matrix3d &R, Eigen::Vector3d &t, std::ve
                     
                     // RANSAC weight
                     // the smaller depth is, the larger weight is
-                    params_.ransac_coef_scale.weight.push_back( std::atan( -curr_point(2)/5 + 3 ) + M_PI / 2 );
+                    // params_.ransac_coef_scale.weight.push_back( std::atan( -curr_point(2)/5 + 3 ) + M_PI / 2 );
                     // params_.ransac_coef_scale.weight.push_back( std::atan( -features_[i].depthfilter->getVariance() * 1e4 ) + M_PI / 2 );
-                    // params_.ransac_coef_scale.weight.push_back( 1.0/features_[i].depthfilter->getVariance() );
+                    params_.ransac_coef_scale.weight.push_back( 1.0/features_[i].depthfilter->getVariance() );
 
                     // RANSAC threshold
                     // the larger variance is, the larger threshold is

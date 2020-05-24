@@ -6,6 +6,8 @@
 #include <string>
 
 #include <eigen3/Eigen/Dense>
+#include <eigen3/Eigen/StdVector>
+
 #include <opencv2/core/eigen.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/opencv.hpp>
@@ -316,9 +318,9 @@ class MVO{
 	int num_feature_3D_reconstructed_; /**< @brief 3차원 복원된 특징점의 개수 */
 	int num_feature_inlier_; /**< @brief 스케일이 정상적으로 복원된 특징점의 개수 */
 
-	std::vector<Eigen::Matrix4d> TRec_; /**< @brief 두 이미지 사이의 변환 행렬 */
-	std::vector<Eigen::Matrix4d> TocRec_; /**< @brief 초기 위치로부터의 변환 행렬 */
-	std::vector<Eigen::Vector4d> PocRec_; /**< @brief 초기 위치로부터의 변위 */
+	std::vector<Eigen::Matrix4d, Eigen::aligned_allocator<Eigen::Matrix4d>> TRec_; /**< @brief 두 이미지 사이의 변환 행렬 */
+	std::vector<Eigen::Matrix4d, Eigen::aligned_allocator<Eigen::Matrix4d>> TocRec_; /**< @brief 초기 위치로부터의 변환 행렬 */
+	std::vector<Eigen::Vector4d, Eigen::aligned_allocator<Eigen::Vector4d>> PocRec_; /**< @brief 초기 위치로부터의 변위 */
 
 	// std::vector<cv::Mat> prev_pyramid_template_, curr_pyramid_template_;
 	Eigen::MatrixXd map_matrix_template_; /**< @brief 빠른 SVD 계산을 위한 임시 메모리 공간 할당 */

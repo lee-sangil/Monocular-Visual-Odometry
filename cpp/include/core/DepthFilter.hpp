@@ -17,7 +17,7 @@ class DepthFilter{ // inverse-depth estimator
 	double mean_; /**< @brief 가우시안 평균값 */
 	double sigma_ = 1e9; /**< @brief 가우시안 표준 편차 */
 	double a_ = 10; /**< @brief 가우시안 분포의 비중 */
-	double b_ = 10; /**< @brief 유니폼 분포의 비중 */
+	double b_ = 1; /**< @brief 유니폼 분포의 비중 */
 	
 	public:
 

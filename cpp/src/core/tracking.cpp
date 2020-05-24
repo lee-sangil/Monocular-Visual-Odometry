@@ -329,17 +329,16 @@ void MVO::kltTrackerRough(std::vector<cv::Point2f>& points, std::vector<bool>& v
     if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "### Calculate optical flows roughly: " << lsi::toc() << std::endl;
 
     // Validate parallax and matched number
-    std::vector<bool> border_valid;
-    border_valid.reserve(pts.size());
+    std::vector<bool> border_valid(pts.size(), false);
     for( uint32_t i = 0; i < pts.size(); i++ )
-        border_valid.emplace_back((fwd_pts[i].x > 0) && (fwd_pts[i].x < params_.im_size.width) && (fwd_pts[i].y > 0) && (fwd_pts[i].y < params_.im_size.height));
+        border_valid[i] = (fwd_pts[i].x > 0) && (fwd_pts[i].x < params_.im_size.width) && (fwd_pts[i].y > 0) && (fwd_pts[i].y < params_.im_size.height);
 
     // check validity
     cv::Point2f uv_keystep;
     uint32_t j = 0;
     for( uint32_t i = 0; i < num_feature_; i++ ){
         if( i == idx_track[j] && j < pts.size() ){
-            if( status.at<uchar>(j) && border_valid[j] && features_[i].is_alive ){
+            if( *(status.data+j) && border_valid[j] && features_[i].is_alive ){
                 points.push_back(fwd_pts[j]);
                 validity.push_back(true);
                 
@@ -1131,8 +1130,8 @@ void MVO::updateRoiFeatures(const std::vector<cv::Rect>& rois, const std::vector
         
         if( num_feature[i] < 0 ){ // remove all features within the roi
             for( uint32_t j = 0; j < idx_belong_to_roi.size(); j++ ){
-                if( features_.at(idx_belong_to_roi[j]-j).landmark && MVO::s_file_logger_.is_open() ){
-                    features_dead_.push_back(features_.at(idx_belong_to_roi[j]-j));
+                if( features_[idx_belong_to_roi[j]-j].landmark && MVO::s_file_logger_.is_open() ){
+                    features_dead_.push_back(features_[idx_belong_to_roi[j]-j]);
                 }
                 features_.erase(features_.begin()+idx_belong_to_roi[j]-j);
             }
@@ -1198,8 +1197,8 @@ bool MVO::updateRoiFeature(const cv::Rect& roi, const std::vector<cv::Point2f>& 
         success = true;
         min_dist = 1e9; // enough-large number
         for( const auto & idx : idx_compared ){
-            if( features_.at(idx).uv.size() > 0 ){
-                dist = cv::norm(keypoint - features_.at(idx).uv.back());
+            if( features_[idx].uv.size() > 0 ){
+                dist = cv::norm(keypoint - features_[idx].uv.back());
                 
                 if( dist < min_dist )
                     min_dist = dist;

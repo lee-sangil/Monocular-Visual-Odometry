@@ -211,8 +211,9 @@ void MVO::plot(const Eigen::MatrixXd * const depthMap) const {
 						break;
 					}
 					if( params_.output_filtered_depth ){
-						if( features_[i].landmark && features_[i].frame_3d_init < step_ && features_[i].type != Type::Dynamic )
-							cv::circle(traj, cv::Point(uv(0)/uv(2), uv(1)/uv(2)), 1, cv::Scalar(0,255,0), CV_FILLED);
+						if( features_[i].landmark && features_[i].frame_3d_init < step_ && features_[i].type != Type::Dynamic ){
+							cv::circle(traj, cv::Point(uv(0)/uv(2), uv(1)/uv(2)), 1, cv::Scalar(1e8*features_[i].depthfilter->getVariance(),255,0), CV_FILLED);
+						}
 					}else{
 						if( features_[i].is_3D_reconstructed && features_[i].frame_3d_init < step_ && features_[i].type != Type::Dynamic )
 							cv::circle(traj, cv::Point(uv(0)/uv(2), uv(1)/uv(2)), 1, cv::Scalar(0,255,0), CV_FILLED);

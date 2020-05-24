@@ -41,6 +41,7 @@ typedef struct Landmark{
  * @date 24-Dec-2019
  */
 typedef struct Feature{
+	EIGEN_MAKE_ALIGNED_OPERATOR_NEW;
 	uint32_t id; /**< @brief 특징점 객체가 부여받은 id */
 	uint32_t life; /**< @brief 특징점 객체가 나타나는 프레임 횟수 */
 	int frame_2d_init; /**< @brief 특징점 객체가 처음 추적되기 시작한 step */

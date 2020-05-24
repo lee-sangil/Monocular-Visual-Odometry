@@ -180,7 +180,7 @@ MVO::MVO(std::string yaml):MVO(){
     bucket_.saturated.setZero(bucket_.grid.height, bucket_.grid.width);
 
     keypoints_of_bucket_.resize(bucket_grid_rows*bucket_grid_cols);
-    visit_bucket_ = std::vector<bool>(bucket_grid_rows*bucket_grid_cols, false);
+    visit_bucket_.resize(bucket_grid_rows*bucket_grid_cols, false);
     features_.reserve(bucket_.max_features);
     // prev_pyramid_template_.reserve(10);
     // curr_pyramid_template_.reserve(10);
