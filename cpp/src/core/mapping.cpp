@@ -117,9 +117,9 @@ bool MVO::calculateMotion(const Eigen::Matrix3d & R_e, Eigen::Vector3d & t_e)
         if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "Optimized scale: " << t_e.norm() << std::endl;
 
         // Save solution
-        TRec_.push_back(T);
-        TocRec_.push_back(Toc);
-        PocRec_.push_back(Poc);
+        TRec_.emplace_back(T);
+        TocRec_.emplace_back(Toc);
+        PocRec_.emplace_back(Poc);
 
         is_scale_initialized_ = true;
         return true;
@@ -180,9 +180,9 @@ bool MVO::calculateMotionStereo(const Eigen::Matrix3d & R_e, Eigen::Vector3d & t
         if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "Optimized scale: " << t_e.norm() << std::endl;
 
         // Save solution
-        TRec_.push_back(T);
-        TocRec_.push_back(Toc);
-        PocRec_.push_back(Poc);
+        TRec_.emplace_back(T);
+        TocRec_.emplace_back(Toc);
+        PocRec_.emplace_back(Poc);
 
         is_scale_initialized_ = true;
         return true;
@@ -209,20 +209,20 @@ bool MVO::findPoseFrom3DPoints(Eigen::Matrix3d &R, Eigen::Vector3d &t, std::vect
     std::vector<int> idx;
     for (int i = 0; i < num_feature_; i++)
         if (features_[i].landmark)
-            idx.push_back(i);
+            idx.emplace_back(i);
     
     const uint32_t num_pts = idx.size();
 
     // Use RANSAC to find suitable scale
     if (num_pts > (uint32_t)params_.th_inlier){
-        std::vector<cv::Point3f> object_pts;
-        std::vector<cv::Point2f> image_pts;
+        std::vector<cv::Point3f> object_pts(num_pts);
+        std::vector<cv::Point2f> image_pts(num_pts);
         for (uint32_t i = 0; i < num_pts; i++)
         {
-            object_pts.emplace_back(features_[idx[i]].landmark->point_init(0), 
-                                    features_[idx[i]].landmark->point_init(1), 
-                                    features_[idx[i]].landmark->point_init(2));
-            image_pts.push_back(features_[idx[i]].uv.back()); // return last element of uv
+            object_pts[i] = cv::Point3f(features_[idx[i]].landmark->point_init(0),
+                                        features_[idx[i]].landmark->point_init(1),
+                                        features_[idx[i]].landmark->point_init(2));
+            image_pts[i] = features_[idx[i]].uv.back(); // return last element of uv
         }
 
         // r_vec = cv::Mat::zeros(3,1,CV_32F);
@@ -309,15 +309,16 @@ bool MVO::findPoseFrom3DPoints(Eigen::Matrix3d &R, Eigen::Vector3d &t, std::vect
         else{
             idx_outlier.clear();
             if( idx_inlier.empty() ){
+                idx_outlier.resize(num_pts);
                 for (int i = 0; i < (int)num_pts; i++)
-                    idx_outlier.push_back(i);
+                    idx_outlier[i] = i;
             }else{
                 int num_inlier = 0;
                 for (int i = 0; i < (int)num_pts; i++){
                     if (idx_inlier[num_inlier] == i)
                         num_inlier++;
                     else
-                        idx_outlier.push_back(i);
+                        idx_outlier.emplace_back(i);
                 }
                 num_feature_inlier_ = num_inlier;
             }
@@ -378,6 +379,9 @@ void MVO::constructDepth(const std::vector<cv::Point2f>& uv_prev, const std::vec
             // c0 = Eigen::Vector3d::Zero();
             c1 = -R.inverse() * t;
 
+            X_prev.resize(num_pts);
+            X_curr.resize(num_pts);
+            inlier.resize(num_pts);
             for( uint32_t i = 0; i < num_pts; i++ ){
                 u0 = M0 * (Eigen::Vector3d() << uv_prev[i].x, uv_prev[i].y, 1).finished();
                 u1 = M1 * (Eigen::Vector3d() << uv_curr[i].x, uv_curr[i].y, 1).finished();
@@ -389,9 +393,9 @@ void MVO::constructDepth(const std::vector<cv::Point2f>& uv_prev, const std::vec
                 A = A0 + A1;
                 b = A1 * c1; // A0 * c0 + A1 * c1 = A1 * c1, because c0 = 0
 
-                X_prev.push_back(A.inverse() * b);
-                X_curr.push_back(R * X_prev.back() + t);
-                inlier.push_back(X_prev.back()(2) > 0 && X_curr.back()(2) > 0);
+                X_prev[i] = A.inverse() * b;
+                X_curr[i] = R * X_prev[i] + t;
+                inlier[i] = X_prev[i](2) > 0 && X_curr[i](2) > 0;
 
                 // Our version
                 // u0_norm = (u0.cwiseProduct(u0)).sum();
@@ -410,10 +414,10 @@ void MVO::constructDepth(const std::vector<cv::Point2f>& uv_prev, const std::vec
         }
 
         case MVO::TRIANGULATION::LLS : {
-            std::vector<Eigen::Vector3d> x_prev, x_curr;
+            std::vector<Eigen::Vector3d> x_prev(uv_prev.size()), x_curr(uv_prev.size());
             for( uint32_t i = 0; i < uv_prev.size(); i++ ){
-                x_prev.emplace_back((uv_prev[i].x - params_.cx)/params_.fx, (uv_prev[i].y - params_.cy)/params_.fy, 1);
-                x_curr.emplace_back((uv_curr[i].x - params_.cx)/params_.fx, (uv_curr[i].y - params_.cy)/params_.fy, 1);
+                x_prev[i] = (Eigen::Vector3d() << (uv_prev[i].x - params_.cx)/params_.fx, (uv_prev[i].y - params_.cy)/params_.fy, 1).finished();
+                x_curr[i] = (Eigen::Vector3d() << (uv_curr[i].x - params_.cx)/params_.fx, (uv_curr[i].y - params_.cy)/params_.fy, 1).finished();
             }
 
             Eigen::MatrixXd& M_matrix = map_matrix_template_;
@@ -472,10 +476,13 @@ void MVO::constructDepth(const std::vector<cv::Point2f>& uv_prev, const std::vec
             }
             if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "## Compute eigenvector: " << lsi::toc() << std::endl;
 
+            X_prev.resize(num_pts);
+            X_curr.resize(num_pts);
+            inlier.resize(num_pts);
             for (uint32_t i = 0; i < num_pts; i++){
-                X_prev.push_back( V(i,idx_minimum_eigenval) / V(num_pts,idx_minimum_eigenval) * x_prev[i] );
-                X_curr.push_back( R*X_prev.back() + t );
-                inlier.push_back( X_prev.back()(2) > 0 && X_curr.back()(2) > 0 );
+                X_prev[i] = V(i,idx_minimum_eigenval) / V(num_pts,idx_minimum_eigenval) * x_prev[i];
+                X_curr[i] = R*X_prev[i] + t;
+                inlier[i] = X_prev[i](2) > 0 && X_curr[i](2) > 0;
             }
         }
     }
@@ -674,16 +681,16 @@ void MVO::update3DPoints(const Eigen::Matrix3d &R, const Eigen::Vector3d &t,
         std::vector<int> idx_2D;
         for (uint32_t i = 0; i < features_.size(); i++){
             if (features_[i].is_2D_inliered)
-                idx_2D.push_back(i);
+                idx_2D.emplace_back(i);
         }
         
         const uint32_t num_pts = idx_2D.size();
         int len;
-        std::vector<cv::Point2f> uv_prev, uv_curr;
+        std::vector<cv::Point2f> uv_prev(num_pts), uv_curr(num_pts);
         for (uint32_t i = 0; i < num_pts; i++){
             len = features_[idx_2D[i]].life;
-            uv_prev.emplace_back(features_[idx_2D[i]].uv[len-2]);
-            uv_curr.emplace_back(features_[idx_2D[i]].uv.back());
+            uv_prev[i] = features_[idx_2D[i]].uv[len-2];
+            uv_curr[i] = features_[idx_2D[i]].uv.back();
         }
         
         std::vector<Eigen::Vector3d> X_prev, X_curr;
@@ -750,7 +757,7 @@ bool MVO::scalePropagation(const Eigen::Matrix3d &R, Eigen::Vector3d &t, std::ve
                 && uv_curr.y > params_.im_size.height + 0.7 * (uv_curr.x - params_.im_size.width)){
                     point_curr = features_[i].point_curr;
                     road_candidate.emplace_back(point_curr(0),point_curr(1),point_curr(2));
-                    road_idx.push_back(i);
+                    road_idx.emplace_back(i);
                 }
             }
         }
@@ -791,7 +798,7 @@ bool MVO::scalePropagation(const Eigen::Matrix3d &R, Eigen::Vector3d &t, std::ve
             std::vector<int> idx;
             for (uint32_t i = 0; i < features_.size(); i++){
                 if( features_[i].is_3D_reconstructed && features_[i].landmark )
-                    idx.push_back(i);
+                    idx.emplace_back(i);
             }
             uint32_t num_pts = idx.size();
 
@@ -822,16 +829,16 @@ bool MVO::scalePropagation(const Eigen::Matrix3d &R, Eigen::Vector3d &t, std::ve
                     
                     // RANSAC weight
                     // the smaller depth is, the larger weight is
-                    // params_.ransac_coef_scale.weight.push_back( std::atan( -curr_point(2)/5 + 3 ) + M_PI / 2 );
-                    // params_.ransac_coef_scale.weight.push_back( std::atan( -features_[i].depthfilter->getVariance() * 1e4 ) + M_PI / 2 );
-                    params_.ransac_coef_scale.weight.push_back( 1.0/features_[i].depthfilter->getVariance() );
+                    // params_.ransac_coef_scale.weight.emplace_back( std::atan( -curr_point(2)/5 + 3 ) + M_PI / 2 );
+                    // params_.ransac_coef_scale.weight.emplace_back( std::atan( -features_[i].depthfilter->getVariance() * 1e4 ) + M_PI / 2 );
+                    params_.ransac_coef_scale.weight.emplace_back( 1.0/features_[i].depthfilter->getVariance() );
 
                     // RANSAC threshold
                     // the larger variance is, the larger threshold is
                     std_inv_z = std::sqrt(features_[i].depthfilter->getVariance());
                     inv_z = features_[i].depthfilter->getMean();
                     std_z = 0.5 * std::min(std::abs(std_inv_z/(inv_z*inv_z+std_inv_z*inv_z)), std::abs(std_inv_z/(inv_z*inv_z-std_inv_z*inv_z)));
-                    params_.ransac_coef_scale.th_dist_arr.push_back( std::max(params_.ransac_coef_scale.th_dist, std_z) );
+                    params_.ransac_coef_scale.th_dist_arr.emplace_back( std::max(params_.ransac_coef_scale.th_dist, std_z) );
                 }
 
                 // do ransac
@@ -853,15 +860,21 @@ bool MVO::scalePropagation(const Eigen::Matrix3d &R, Eigen::Vector3d &t, std::ve
             }else{
                 if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "@ scale_from_height: " << scale_reference_ << ", " << "scale: " << scale << std::endl;
 
+                inlier.resize(features_.size());
                 for( uint32_t i = 0, j = 0; i < features_.size(), j < idx.size(); i++ ){
                     if( i == idx[j] ){
                         if( scale_inlier[j] == true )
-                            inlier.push_back(true);
+                            inlier[i] = true;
                         else
-                            inlier.push_back(false);
+                            inlier[i] = false;
+                            // inlier.emplace_back(false);
                         j++;
-                    }else
-                        inlier.push_back(false);
+                    }else{
+                        inlier[i] = false;
+                    }
+                    // else{
+                    //     inlier.emplace_back(false);
+                    // }
                 }
 
                 // Update scale
@@ -880,11 +893,16 @@ bool MVO::scalePropagation(const Eigen::Matrix3d &R, Eigen::Vector3d &t, std::ve
         t = scale_reference_ * t;
 
         // find inliers
+        inlier.resize(features_.size());
         for( uint32_t i = 0; i < features_.size(); i++ ){
             if( features_[i].is_3D_reconstructed )
-                inlier.push_back(true);
+                inlier[i] = true;
             else
-                inlier.push_back(false);
+                inlier[i] = false;
+            
+            // else{
+            //     inlier.emplace_back(false);
+            // }
         }
         num_feature_inlier_ = num_feature_3D_reconstructed_;
 
