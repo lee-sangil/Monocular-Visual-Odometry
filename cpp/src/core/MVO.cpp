@@ -177,7 +177,8 @@ MVO::MVO(std::string yaml):MVO(){
 	bucket_.mass.setZero(bucket_.grid.height, bucket_.grid.width);
 	bucket_.prob.resize(bucket_.grid.height, bucket_.grid.width);
     bucket_.prob.fill(1.0);
-    bucket_.saturated.setZero(bucket_.grid.height, bucket_.grid.width);
+    bucket_.saturated = new bool[bucket_.grid.height * bucket_.grid.width];
+    // bucket_.saturated.setZero(bucket_.grid.height, bucket_.grid.width);
 
     keypoints_of_bucket_.resize(bucket_grid_rows*bucket_grid_cols);
     visit_bucket_.resize(bucket_grid_rows*bucket_grid_cols, false);

@@ -63,7 +63,7 @@ class MVO{
 		cv::Mat cv_prob; /**< @brief Bucket의 특징점 추출 시 선택 확률 */
 		Eigen::MatrixXd mass;  /**< @brief Bucket의 특징점 추출 시 가중치 */
 		Eigen::MatrixXd prob;  /**< @brief Bucket의 특징점 추출 시 선택 확률 */
-		Eigen::MatrixXd saturated; /**< @brief 유효한 특징점이 더이상 추출되지 않는 Bucket 표시 */
+		bool * saturated; /**< @brief 유효한 특징점이 더이상 추출되지 않는 Bucket 표시 */
 	};
 
 	/** @brief 시각화를 위한 촬영 카메라의 파라미터 */

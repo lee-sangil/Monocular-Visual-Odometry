@@ -59,7 +59,7 @@ Feature.minimum_num_inlier: 6
 Feature.minimum_matching_ratio: 0.9
 
 # Min. feature distance between for extraction
-Feature.minimum_distance_between: 5
+Feature.minimum_distance_between: 10
 
 # Min. feature distance between for reconstruction
 Feature.minimum_triangulation_baseline: 5

@@ -35,4 +35,25 @@ inline Eigen::Vector3d vec(const Eigen::Matrix3d& M)
     return v;
 }
 
+inline bool any(bool * vec, int size){
+    for( int i = 0; i < size; i++ )
+        if( vec[i] ) return true;
+    
+    return false;
+}
+
+inline bool all(bool * vec, int size){
+    for( int i = 0; i < size; i++ )
+        if( !vec[i] ) return false;
+    
+    return true;
+}
+
+inline bool reset(bool * vec, int size){
+    for( int i = 0; i < size; i++ )
+        vec[i] = false;
+    
+    return true;
+}
+
 #endif //__NUMERICS__HPP__

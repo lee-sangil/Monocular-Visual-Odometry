@@ -233,6 +233,10 @@ void MVO::selectKeyframeAfter(){
 
             // Extract features in the current iteration, but curr_frame will be chosen as the current keyframe in the next iteration
             next_keyframe_.assign(curr_frame_);
+            if( curr_keyframe_.linear_velocity_since_.size() > 0 )
+                next_keyframe_.linear_velocity_since_.push_back(curr_keyframe_.linear_velocity_since_.back());
+            if(curr_keyframe_.angular_velocity_since_.size() > 0 )
+                next_keyframe_.angular_velocity_since_.push_back(curr_keyframe_.angular_velocity_since_.back());
 
             trigger_keystep_increase_ = true;
             
@@ -322,7 +326,7 @@ void MVO::kltTrackerRough(std::vector<cv::Point2f>& points, std::vector<bool>& v
     }
     
     cv::Mat status, err;
-    cv::calcOpticalFlowPyrLK(curr_keyframe_.image, curr_frame_.image, pts, fwd_pts, status, err, cv::Size(5,5), 3);
+    cv::calcOpticalFlowPyrLK(curr_keyframe_.image, curr_frame_.image, pts, fwd_pts, status, err, cv::Size(7,7), 3);
     if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "### Calculate optical flows roughly: " << lsi::toc() << std::endl;
 
     // Validate parallax and matched number
@@ -407,8 +411,8 @@ void MVO::kltTrackerPrecise(std::vector<cv::Point2f>& points, std::vector<bool>&
     // if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "### Build pyramids: " << lsi::toc() << std::endl;
 
     cv::Mat status, err;
-    cv::calcOpticalFlowPyrLK(curr_keyframe_.image, curr_frame_.image, pts, fwd_pts, status, err, cv::Size(9,9), 3);
-    cv::calcOpticalFlowPyrLK(curr_frame_.image, curr_keyframe_.image, fwd_pts, bwd_pts, status, err, cv::Size(9,9), 3);
+    cv::calcOpticalFlowPyrLK(curr_keyframe_.image, curr_frame_.image, pts, fwd_pts, status, err, cv::Size(11,11), 4);
+    cv::calcOpticalFlowPyrLK(curr_frame_.image, curr_keyframe_.image, fwd_pts, bwd_pts, status, err, cv::Size(11,11), 4);
     if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "### Calculate optical flows: " << lsi::toc() << std::endl;
 
     std::vector<bool> border_valid(pts.size(),false), error_valid(pts.size(),false);
@@ -487,11 +491,26 @@ void MVO::addFeatures(){
     updateBucket();
     if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "## Update bucket: " << lsi::toc() << std::endl;
 
+    // std::vector<cv::Point2f> keypoints;
+    // cv::goodFeaturesToTrack(next_keyframe_.image, keypoints, bucket_.max_features*0.25, 0.01, params_.min_px_dist, excludeMask_, 3, false);
+
+    // if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "## Find new features: " << lsi::toc() << std::endl;
+
+    // int row, col;
+    // for( int i = 0; i < keypoints.size(); i++ ){
+    //     row = std::floor(keypoints[i].y / params_.im_size.height * bucket_.grid.height);
+    //     col = std::floor(keypoints[i].x / params_.im_size.width * bucket_.grid.width);
+    //     keypoints_of_bucket_[row + bucket_.grid.height * col].emplace_back(keypoints[i]);
+    //     visit_bucket_[row + bucket_.grid.height * col] = true;
+    // }
+
+    // if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "## Add proper buckets: " << lsi::toc() << std::endl;
+
     int num = num_feature_;
     int numTry = 0;
 
     // add feature until the number of feature reaches the desired value or all buckets are fail to extract separable feature
-    while( num_feature_ < bucket_.max_features && bucket_.saturated.any() == true ){
+    while( num_feature_ < bucket_.max_features && all(bucket_.saturated, bucket_.grid.height * bucket_.grid.width) == false ){
         addFeature();
         numTry++;
     }
@@ -510,7 +529,7 @@ void MVO::addFeatures(){
  */
 void MVO::updateBucket(){
     bucket_.mass.fill(0.0);
-    bucket_.saturated.fill(1.0);
+    reset(bucket_.saturated, bucket_.grid.height * bucket_.grid.width);
 
     uint32_t row_bucket, col_bucket;
     for( int i = 0; i < num_feature_; i++ ){
@@ -577,9 +596,9 @@ void MVO::addFeature(){
         keypoints_of_bucket_[row + bucket_.grid.height * col] = keypoints;
         visit_bucket_[row + bucket_.grid.height * col] = true;
     }
-    
+
     if( keypoints.size() == 0 ){
-        bucket_.saturated(row,col) = 0.0;
+        bucket_.saturated[row + bucket_.grid.height * col] = true;
         return;
     }else{
         // compensate the location of the extracted keypoints
@@ -629,62 +648,102 @@ void MVO::addFeature(){
             }
         }
         if( success ){
-            if( min_dist > max_min_dist){
-                max_min_dist = min_dist;
-                best_keypoint = keypoints[l];
-                keypoints_of_bucket_[row + bucket_.grid.height * col].erase(keypoints_of_bucket_[row + bucket_.grid.height * col].begin()+l);
-                if( keypoints_of_bucket_[row + bucket_.grid.height * col].size() == 0 )
-                    visit_bucket_[row + bucket_.grid.height * col] = false;
+            // // Add only ONE feature
+            // if( min_dist > max_min_dist){
+            //     max_min_dist = min_dist;
+            //     best_keypoint = keypoints[l];
+            //     keypoints_of_bucket_[row + bucket_.grid.height * col].erase(keypoints_of_bucket_[row + bucket_.grid.height * col].begin()+l);
+            //     if( keypoints_of_bucket_[row + bucket_.grid.height * col].size() == 0 )
+            //         visit_bucket_[row + bucket_.grid.height * col] = false;
+            // }
+
+            // Add ALL feature which satisfy condition
+            Feature newFeature;
+
+            newFeature.id = Feature::getNewID(); // unique id of the feature
+            newFeature.frame_2d_init = -1; // frame step when the 2d point is tracked
+            newFeature.frame_3d_init = -1; // frame step when the 3d point is initialized
+            newFeature.parallax = 0; // parallax between associated features
+            newFeature.uv.emplace_back(keypoints[l]); // uv point in pixel coordinates
+            newFeature.uv_pred = cv::Point2f(-1,-1); // uv point predicted before
+            newFeature.life = 1; // the number of frames in where the feature is observed
+            newFeature.bucket = cv::Point(col, row); // the location of bucket where the feature belong to
+            newFeature.point_curr << 0,0,0,1; // 3-dim homogeneous point in the local coordinates
+            newFeature.is_alive = true; // if false, the feature is deleted
+            newFeature.is_matched = false; // matched between both frame
+            newFeature.is_wide = false; // verify whether features btw the initial and current are wide enough
+            newFeature.is_2D_inliered = false; // belong to major (or meaningful) movement
+            newFeature.is_3D_reconstructed = false; // triangulation completion
+            newFeature.landmark = NULL; // landmark point in world coordinates
+            newFeature.type = Type::Unknown; // type of feature
+            newFeature.depthfilter = std::make_shared<DepthFilter>(); // depth filter
+
+            features_.push_back(newFeature);
+            num_feature_++;
+
+            // Update bucket
+            bucket_.mass(row, col)++;
+
+            cv::eigen2cv(bucket_.mass, bucket_.cv_mass);
+            cv::GaussianBlur(bucket_.cv_mass, bucket_.cv_prob, cv::Size(21,21), 3.0);
+            cv::cv2eigen(bucket_.cv_prob, bucket_.prob);
+
+            bucket_.prob.array() += 0.05;
+            bucket_.prob = bucket_.prob.cwiseInverse();
+
+            // Assign high weight for ground
+            for( int i = 0; i < bucket_.prob.rows(); i++ ){
+                bucket_.prob.block(i,0,1,bucket_.prob.cols()) *= i+1;
             }
+
+            bucket_.saturated[row + bucket_.grid.height * col] = false;
+
+            if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "### Add best features: " << lsi::toc() << std::endl;
         }
     }
     
-    if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "### Find best features: " << lsi::toc() << std::endl;
+    // if( success ){
+    //     // Add new feature to VO object
+    //     Feature newFeature;
 
-    if( success ){
-        // Add new feature to VO object
-        Feature newFeature;
+    //     newFeature.id = Feature::getNewID(); // unique id of the feature
+    //     newFeature.frame_2d_init = -1; // frame step when the 2d point is tracked
+    //     newFeature.frame_3d_init = -1; // frame step when the 3d point is initialized
+    //     newFeature.parallax = 0; // parallax between associated features
+    //     newFeature.uv.emplace_back(best_keypoint); // uv point in pixel coordinates
+    //     newFeature.uv_pred = cv::Point2f(-1,-1); // uv point predicted before
+    //     newFeature.life = 1; // the number of frames in where the feature is observed
+    //     newFeature.bucket = cv::Point(col, row); // the location of bucket where the feature belong to
+    //     newFeature.point_curr << 0,0,0,1; // 3-dim homogeneous point in the local coordinates
+    //     newFeature.is_alive = true; // if false, the feature is deleted
+    //     newFeature.is_matched = false; // matched between both frame
+    //     newFeature.is_wide = false; // verify whether features btw the initial and current are wide enough
+    //     newFeature.is_2D_inliered = false; // belong to major (or meaningful) movement
+    //     newFeature.is_3D_reconstructed = false; // triangulation completion
+    //     newFeature.landmark = NULL; // landmark point in world coordinates
+    //     newFeature.type = Type::Unknown; // type of feature
+    //     newFeature.depthfilter = std::make_shared<DepthFilter>(); // depth filter
 
-        newFeature.id = Feature::getNewID(); // unique id of the feature
-        newFeature.frame_2d_init = -1; // frame step when the 2d point is tracked
-        newFeature.frame_3d_init = -1; // frame step when the 3d point is initialized
-        newFeature.parallax = 0; // parallax between associated features
-        newFeature.uv.emplace_back(best_keypoint); // uv point in pixel coordinates
-        newFeature.uv_pred = cv::Point2f(-1,-1); // uv point predicted before
-        newFeature.life = 1; // the number of frames in where the feature is observed
-        newFeature.bucket = cv::Point(col, row); // the location of bucket where the feature belong to
-        newFeature.point_curr << 0,0,0,1; // 3-dim homogeneous point in the local coordinates
-        newFeature.is_alive = true; // if false, the feature is deleted
-        newFeature.is_matched = false; // matched between both frame
-        newFeature.is_wide = false; // verify whether features btw the initial and current are wide enough
-        newFeature.is_2D_inliered = false; // belong to major (or meaningful) movement
-        newFeature.is_3D_reconstructed = false; // triangulation completion
-        newFeature.landmark = NULL; // landmark point in world coordinates
-        newFeature.type = Type::Unknown; // type of feature
-        newFeature.depthfilter = std::make_shared<DepthFilter>(); // depth filter
+    //     features_.push_back(newFeature);
+    //     num_feature_++;
 
-        features_.push_back(newFeature);
-        num_feature_++;
+    //     // Update bucket
+    //     bucket_.mass(row, col)++;
 
-        // Update bucket
-        bucket_.mass(row, col)++;
+    //     cv::eigen2cv(bucket_.mass, bucket_.cv_mass);
+    //     cv::GaussianBlur(bucket_.cv_mass, bucket_.cv_prob, cv::Size(21,21), 3.0);
+    //     cv::cv2eigen(bucket_.cv_prob, bucket_.prob);
 
-        cv::eigen2cv(bucket_.mass, bucket_.cv_mass);
-        cv::GaussianBlur(bucket_.cv_mass, bucket_.cv_prob, cv::Size(21,21), 3.0);
-        cv::cv2eigen(bucket_.cv_prob, bucket_.prob);
+    //     bucket_.prob.array() += 0.05;
+    //     bucket_.prob = bucket_.prob.cwiseInverse();
 
-        bucket_.prob.array() += 0.05;
-        bucket_.prob = bucket_.prob.cwiseInverse();
-
-        // Assign high weight for ground
-        for( int i = 0; i < bucket_.prob.rows(); i++ ){
-            bucket_.prob.block(i,0,1,bucket_.prob.cols()) *= i+1;
-        }
-    }else{
-        bucket_.saturated(row,col) = 0.0;
-    }
-
-    if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "### Add best features: " << lsi::toc() << std::endl;
+    //     // Assign high weight for ground
+    //     for( int i = 0; i < bucket_.prob.rows(); i++ ){
+    //         bucket_.prob.block(i,0,1,bucket_.prob.cols()) *= i+1;
+    //     }
+    // }else{
+    //     bucket_.saturated[row + bucket_.grid.height * col] = true;
+    // }
 }
 
 /**

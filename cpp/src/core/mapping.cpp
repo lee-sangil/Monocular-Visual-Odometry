@@ -516,8 +516,9 @@ void MVO::update3DPoint(Feature& feature, const Eigen::Matrix4d& Toc, const Eige
         if( params_.update_init_point ){
             // apply the depth of depth filter; point_initframe/z is a homogeneous form of the current 3d position
             feature.depthfilter->update(1/z, tau_inverse);
+            feature.landmark->point_init = TocRec_[feature.frame_3d_init] * (Eigen::Vector4d() << point_initframe / (z * feature.depthfilter->getMean()), 1).finished();
+            
             if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << feature.id << '\t' << tau_inverse << '\t' << 1/z << '\t' << feature.depthfilter->getMean() << std::endl;
-            feature.landmark->point_init = TocRec_[feature.frame_3d_init] * (Eigen::Vector4d() << point_initframe / z / feature.depthfilter->getMean(), 1).finished();
         }
 
     }else{ // if( feature.is_wide ){
@@ -535,7 +536,7 @@ void MVO::update3DPoint(Feature& feature, const Eigen::Matrix4d& Toc, const Eige
             feature.is_alive = false;
         else{
             feature.landmark = std::make_shared<Landmark>();
-            feature.landmark->point_init = Toc * T.inverse() * (Eigen::Vector4d() << point_initframe / z / feature.depthfilter->getMean(), 1).finished();
+            feature.landmark->point_init = Toc * T.inverse() * (Eigen::Vector4d() << point_initframe / (z * feature.depthfilter->getMean()), 1).finished();
             feature.frame_3d_init = keystep_; // reference frame to update depth filter
             landmark_.insert((std::make_pair(Landmark::getNewID(), feature.landmark)));
         }
@@ -939,6 +940,8 @@ void MVO::updateScaleReference(double scale){
         }
         // std::cout << "scale_from_speed: " << scale << std::endl;
     }
+    if( scale == 0 )
+        scale = 1;
 
     if( params_.weight_scale_reg < 0 )
         scale_reference_ = scale;

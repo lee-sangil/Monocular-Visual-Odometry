@@ -39,11 +39,15 @@ double lsi::randn(){return std::sqrt(-2.0 * std::log(lsi::rand())) * std::cos(2*
  * @author Sangil Lee (sangillee724@gmail.com)
  * @date 24-Dec-2019
  */
-void lsi::idx_randselect(Eigen::MatrixXd weight, Eigen::MatrixXd& mask, int& idx_row, int& idx_col){
+void lsi::idx_randselect(Eigen::MatrixXd weight, bool * mask, int& idx_row, int& idx_col){
 
     // Calculate weight
 	Eigen::VectorXd weightVec(Eigen::Map<Eigen::VectorXd>(weight.data(), weight.rows()*weight.cols()));
-	Eigen::VectorXd maskVec(Eigen::Map<Eigen::VectorXd>(mask.data(), mask.rows()*mask.cols()));
+	Eigen::VectorXd maskVec;
+    maskVec.resize(weight.rows()*weight.cols());
+
+    for( int i = 0; i < weight.rows()*weight.cols(); i++ )
+        maskVec[i] = (mask[i]? 0.0 : 1.0);
 
 	// Invalidate unmasked elements
 	weightVec = weightVec.cwiseProduct(maskVec);
@@ -52,12 +56,13 @@ void lsi::idx_randselect(Eigen::MatrixXd weight, Eigen::MatrixXd& mask, int& idx
 	weightVec /= weightVec.sum();
 
     // Select index
+    double invRow = 1. / weight.rows();
 	double rand = lsi::rand();
 	double cumsum = 0.0;
 	for( int i = 0; i < weightVec.size(); i++ ){
 		cumsum += weightVec(i);
 		if( rand < cumsum ){
-			idx_col = std::floor((double) i / weight.rows());
+			idx_col = std::floor((double) i * invRow);
     		idx_row = i % weight.rows();
 			return;
 		}
