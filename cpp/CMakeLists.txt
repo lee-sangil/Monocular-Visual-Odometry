@@ -13,9 +13,9 @@ ELSE()
 ENDIF()
 MESSAGE(STATUS "Build type: " ${CMAKE_BUILD_TYPE})
 
-# Check C++11 or C++0x support
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
-message(STATUS "Using flag -std=c++11.")
+# Check C++14 or C++0x support
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++14")
+message(STATUS "Using flag -std=c++14.")
 
 # Enable compile optimizations
 #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall")
@@ -76,7 +76,6 @@ add_library(${PROJECT_NAME} SHARED
   src/core/time.cpp
   src/core/random.cpp
   src/core/DepthFilter.cpp
-  src/visualization/plot.cpp
 )
 target_link_libraries(${PROJECT_NAME}
   ${EIGEN3_LIBS}
@@ -87,5 +86,5 @@ target_link_libraries(${PROJECT_NAME}
 
 add_executable(mono src/main_mono.cpp)
 target_link_libraries(mono ${PROJECT_NAME})
-add_executable(stereo src/main_stereo.cpp)
-target_link_libraries(stereo ${PROJECT_NAME})
+# add_executable(stereo src/main_stereo.cpp)
+# target_link_libraries(stereo ${PROJECT_NAME})

@@ -5,6 +5,7 @@
 double DepthFilter::s_px_error_angle_;
 double DepthFilter::s_meas_max_;
 std::ofstream MVO::s_file_logger_;
+std::ofstream MVO::s_traj_logger_;
 std::ofstream MVO::s_point_logger_;
 uint32_t Feature::new_feature_id = 0;
 uint32_t Landmark::new_landmark_id = 0;
@@ -253,32 +254,6 @@ MVO::MVO(std::string yaml):MVO(){
     double px_noise =               fSettings["DepthFilter.pixel_noise"];
     DepthFilter::s_meas_max_ = 1.0/depth_min;
     DepthFilter::s_px_error_angle_ = std::atan(px_noise/(params_.fx+params_.fy))*2.0; // law of chord (sehnensatz)
-
-    params_.view.height_default =   fSettings["viewCam.height"]; // in world coordinate
-    params_.view.roll_default =     (double) fSettings["viewCam.roll"] * M_PI/180; // radian
-    params_.view.pitch_default =    (double) fSettings["viewCam.pitch"] * M_PI/180; // radian
-    params_.view.height =          params_.view.height_default;
-    params_.view.roll =            params_.view.roll_default;
-    params_.view.pitch =           params_.view.pitch_default;
-    params_.view.im_size = cv::Size(600,600);
-    params_.view.K <<  300,   0, 300,
-						      0, 300, 300,
-						      0,   0,   1;
-    params_.view.upper_left =   cv::Point3d(-1,-.5, 1);
-    params_.view.upper_right =  cv::Point3d( 1,-.5, 1);
-    params_.view.lower_left =   cv::Point3d(-1, .5, 1);
-    params_.view.lower_right =  cv::Point3d( 1, .5, 1);
-
-    Eigen::Matrix3d rotx, rotz;
-	rotx << 1, 0, 0,
-			0, std::cos(params_.view.pitch), -std::sin(params_.view.pitch),
-			0, std::sin(params_.view.pitch), std::cos(params_.view.pitch);
-	rotz << std::cos(params_.view.roll), -std::sin(params_.view.roll), 0,
-			std::sin(params_.view.roll), std::cos(params_.view.roll), 0,
-			0, 0, 1;
-	params_.view.R = (rotz * rotx).transpose();
-	params_.view.t = -(Eigen::Vector3d() << 0,0,-params_.view.height).finished();
-	params_.view.P = (Eigen::Matrix<double,3,4>() << params_.view.K * params_.view.R, params_.view.K * params_.view.t).finished();
 
     cam_params_ = new g2o::CameraParameters((params_.fx+params_.fy)/2.,g2o::Vector2D(params_.cx,params_.cy),0);
     cam_params_->setId(0); // Optimizer의 Parameter에 ID가 0인 카메라 파라미터를 추가한다.
@@ -548,7 +523,15 @@ void MVO::updateVelocity(const double timestamp, const double speed){
  * @author Sangil Lee (sangillee724@gmail.com)
  * @date 29-Dec-2019
  */
-const std::vector<Feature>& MVO::getFeatures() const {return features_;}
+std::vector<Feature>& MVO::getFeatures() {return features_;}
+
+/**
+ * @brief 버켓 멤버 변수 출력
+ * @return 버켓 멤버 변수
+ * @author Sangil Lee (sangillee724@gmail.com)
+ * @date 27-May-2020
+ */
+MVO::Bucket MVO::getBuckets() const {return bucket_;}
 
 /**
  * @brief 현재 이미지 프레임과 키프레임 사이의 변환 행렬 멤버 변수 출력
@@ -556,7 +539,39 @@ const std::vector<Feature>& MVO::getFeatures() const {return features_;}
  * @author Sangil Lee (sangillee724@gmail.com)
  * @date 29-Dec-2019
  */
-const Eigen::Matrix4d& MVO::getCurrentMotion() const {return TRec_.back();}
+Eigen::Matrix4d MVO::getCurrentMotion() const {return TRec_.back();}
+
+/**
+ * @brief 현재 이미지 프레임 출력
+ * @return 현재 이미지 프레임
+ * @author Sangil Lee (sangillee724@gmail.com)
+ * @date 27-May-2020
+ */
+MVO::Frame MVO::getCurrFrame() const {return curr_frame_;}
+
+/**
+ * @brief 현재 이미지 키프레임 출력
+ * @return 현재 이미지 키프레임
+ * @author Sangil Lee (sangillee724@gmail.com)
+ * @date 27-May-2020
+ */
+MVO::Frame MVO::getCurrKeyFrame() const {return curr_keyframe_;}
+
+/**
+ * @brief 현재 랜드마크 출력
+ * @return 현재 랜드마크
+ * @author Sangil Lee (sangillee724@gmail.com)
+ * @date 27-May-2020
+ */
+std::unordered_map<uint32_t, std::shared_ptr<Landmark>>& MVO::getLandmark() {return landmark_;}
+
+/**
+ * @brief 현재 이미지 프레임과 키프레임 사이의 변환 행렬 멤버 변수 출력
+ * @return 현재 이미지 프레임과 키프레임 사이의 변환 행렬
+ * @author Sangil Lee (sangillee724@gmail.com)
+ * @date 27-May-2020
+ */
+std::vector<Eigen::Matrix4d, Eigen::aligned_allocator<Eigen::Matrix4d>>& MVO::getTocRec() {return TocRec_;}
 
 /**
  * @brief 현재 특징점 성분 출력
@@ -680,7 +695,7 @@ void MVO::printFeatures() const {
  * @author Sangil Lee (sangillee724@gmail.com)
  * @date 2-Apr-2020
  */
-void MVO::printPose(std::ofstream& os) const {
+void MVO::printPose() const {
     Eigen::Matrix4d Toc = TocRec_.back();
 
     // Eigen::Matrix4d w_skew = Toc.log();
@@ -693,5 +708,5 @@ void MVO::printPose(std::ofstream& os) const {
     double qy = 0.25 * (1/qw) * (Toc(0,2)-Toc(2,0));
     double qz = 0.25 * (1/qw) * (Toc(1,0)-Toc(0,1));
 
-    os << std::setprecision(9) << std::fixed << Toc(0,3) << '\t' << Toc(1,3) << '\t' << Toc(2,3) << '\t' << qw << '\t' << qx << '\t' << qy << '\t' << qz << std::endl;
+    MVO::s_traj_logger_ << std::setprecision(9) << std::fixed << Toc(0,3) << '\t' << Toc(1,3) << '\t' << Toc(2,3) << '\t' << qw << '\t' << qx << '\t' << qy << '\t' << qz << std::endl;
 }

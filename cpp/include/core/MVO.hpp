@@ -66,22 +66,6 @@ class MVO{
 		bool * saturated; /**< @brief 유효한 특징점이 더이상 추출되지 않는 Bucket 표시 */
 	};
 
-	/** @brief 시각화를 위한 촬영 카메라의 파라미터 */
-	struct ViewCam{
-		double height; /**< @brief 촬영 카메라의 지면으로부터 높이 */
-		double roll; /**< @brief 촬영 카메라의 roll 방향 기울기 */
-		double pitch; /**< @brief 촬영 카메라의 pitch 방향 기울기 */
-		double height_default = 20; /**< @brief 촬영 카메라의 지면으로부터 초기 높이 */
-		double roll_default = -M_PI/2; /**< @brief 촬영 카메라의 roll 방향 초기 기울기 */
-		double pitch_default = 0; /**< @brief 촬영 카메라의 pitch 방향 초기 기울기 */
-		Eigen::Matrix3d R = Eigen::Matrix3d::Identity(); /**< @brief 원점 좌표계 기준 촬영 카메라의 회전 행렬 */
-		Eigen::Vector3d t = Eigen::Vector3d::Zero(); /**< @brief 원점 좌표계 기준 촬영 카메라의 변위 벡터 */
-		Eigen::Matrix3d K; /**< @brief 촬영 카메라의 내부 파라미터 */
-		Eigen::Matrix<double,3,4> P; /**< @brief 촬영 카메라의 투영 파라미터 */
-		cv::Size im_size; /**< @brief 촬영 카메라의 해상도 */
-		cv::Point3d upper_left, upper_right, lower_left, lower_right; /**< @brief 촬영 카메라 프레임의 절두체 크기 */
-	};
-
 	/** @brief 영상 항법 모듈 파라미터 */
 	struct Parameter{
 		double fx, fy, cx, cy; /**< @brief 카메라 내부 파라미터 */
@@ -122,8 +106,6 @@ class MVO{
 		int output_filtered_depth; /**< @brief 표시할 3차원 좌표 선택 */
 		int mapping_option; /**< @brief 스케일 보원 및 자세 추정 방법 선택 */
 
-		// drawing
-		MVO::ViewCam view; /**< @brief 촬영 카메라 파라미터 */
 	};
 
 	/** @brief 이미지 프레임 파라미터 */
@@ -186,6 +168,7 @@ class MVO{
 	Parameter params_; /**< @brief 영상 항법 모듈 파라미터 */
 	static std::ofstream s_point_logger_; /**< @brief 포인트 클라우드 텍스트 파일 출력 */
 	static std::ofstream s_file_logger_; /**< @brief 알고리즘 로그 출력 */
+	static std::ofstream s_traj_logger_; /**< @brief 알고리즘 결과 출력 */
 	
 	public:
 
@@ -200,11 +183,19 @@ class MVO{
 	void setImage(const cv::Mat& image, const cv::Mat& image_right, double timestamp = -1); // for stereo
 
 	// Get feature
+	uint32_t getCurrStep() const {return step_;};
+	uint32_t getCurrKeyStep() const {return keystep_;};
+	std::vector<uint32_t> getKeySteps() const {return keystep_array_;};
 	std::vector< std::tuple<uint32_t, cv::Point2f, Eigen::Vector3d, double> > getPoints() const;
 	std::vector< std::tuple<uint32_t, cv::Point2f, cv::Point2f> > getMotions() const;
 	void getPointsInRoi(const cv::Rect& roi, std::vector<uint32_t>& idx) const;
-	const std::vector<Feature>& getFeatures() const;
-	const Eigen::Matrix4d& getCurrentMotion() const;
+	std::vector<Feature>& getFeatures();
+	MVO::Bucket getBuckets() const;
+	Eigen::Matrix4d getCurrentMotion() const;
+	MVO::Frame getCurrFrame() const;
+	MVO::Frame getCurrKeyFrame() const;
+	std::unordered_map<uint32_t, std::shared_ptr<Landmark>>& getLandmark();
+	std::vector<Eigen::Matrix4d, Eigen::aligned_allocator<Eigen::Matrix4d>>& getTocRec();
 	cv::Point2f warpWithIMU(const cv::Point2f& uv) const;
 	cv::Point2f warpWithCAN(const Eigen::Vector3d& p) const;
 	cv::Point2f warpWithPreviousMotion(const Eigen::Vector3d& p) const;
@@ -216,10 +207,8 @@ class MVO{
 	void run(const cv::Mat& image, const cv::Mat& image_right, double timestamp = -1); // for stereo
 	void updateGyro(const double timestamp, const Eigen::Vector3d& gyro);
 	void updateVelocity(const double timestamp, const double speed);
-	void updateView();
-	void plot(const Eigen::MatrixXd * const depthMap = NULL) const;
 	void printFeatures() const;
-	void printPose(std::ofstream& os) const;
+	void printPose() const;
 
 	// Feature operations
 	void kltTrackerRough(std::vector<cv::Point2f>& points, std::vector<bool>& validity);

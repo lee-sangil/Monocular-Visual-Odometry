@@ -8,8 +8,10 @@
 #include "core/parser.hpp"
 #include "core/imageProc.hpp"
 #include "core/MVO.hpp"
+#include "core/Viewer.hpp"
 #include "core/time.hpp"
 #include "core/numerics.hpp"
+#include <memory>
 #include <boost/filesystem.hpp>
 #include <opencv2/imgcodecs.hpp>
 #include <dirent.h>
@@ -151,10 +153,11 @@ int main(int argc, char * argv[]){
 		MVO::s_file_logger_.open("log.txt");
 	if( Parser::hasOption("-gt") )
 		MVO::s_point_logger_.open("pointcloud.txt");
-	std::ofstream s_traj_logger("CamTrajectory.txt");
-	s_traj_logger << "# tx ty tz qw qx qy qz" << std::endl;
+	MVO::s_traj_logger_.open("CamTrajectory.txt");
+	MVO::s_traj_logger_ << "# tx ty tz qw qx qy qz" << std::endl;
 	
-	std::unique_ptr<MVO> vo(new MVO(fsname));
+	std::unique_ptr<MVO> vo = std::make_unique<MVO>(fsname);
+	std::unique_ptr<Viewer> viewer = std::make_unique<Viewer>(fsname);
 
 	if( Parser::hasOption("-jetson") && Parser::hasOption("-w") ){
 		vo->params_.Tic = Eigen::Matrix4d::Identity();
@@ -215,19 +218,19 @@ int main(int argc, char * argv[]){
 				vo->run(image, image_right, timestamp_image[it_rgb]);
 				std::cout << "Iteration: " << it_rgb << ", Execution time: " << lsi::toc()/1e3 << "ms       " << '\r' << std::flush;
 
-				vo->updateView();
+				viewer->updateView();
 				if( Parser::hasOption("-gt") ){
 					std::ostringstream dirDepth;
 					dirDepth << inputFile << "full_depth/" << std::setfill('0') << std::setw(10) << it_rgb+initFrame << ".bin";
 					Eigen::MatrixXd depth = readDepth(dirDepth.str().c_str(), vo->params_.im_size.height, vo->params_.im_size.width);
 					vo->calcReconstructionErrorGT(depth);
-					vo->plot(&depth);
+					viewer->plot(vo, &depth);
 				}else{
-					vo->plot();
+					viewer->plot(vo);
 				}
 
 				if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "# Plot: " << lsi::toc() << std::endl;
-				if( s_traj_logger.is_open() ) vo->printPose(s_traj_logger);
+				if( MVO::s_traj_logger_.is_open() ) vo->printPose();
 
 				it_rgb++;
 
@@ -243,7 +246,7 @@ int main(int argc, char * argv[]){
 							bStep = false;
 							break;
 						}else if( grabActiveKey(vo, key) ){
-							vo->plot();
+							viewer->plot(vo);
 							continue;
 						}
 					}
@@ -440,39 +443,39 @@ void directoryReader(const char * filePath, std::vector<std::vector<double> >& o
  * @author Sangil Lee (sangillee724@gmail.com)
  * @date 28-Dec-2019
  */
-bool grabActiveKey(std::unique_ptr<MVO>& vo, char key){
+bool grabActiveKey(std::unique_ptr<Viewer>& view, char key){
 	bool bRtn = true;
 	switch (key){
 	case 'a':
 	case 'A':
-		vo->params_.view.height /= D_METER;
-		vo->params_.view.height = std::max(vo->params_.view.height,5.0);
+		view->height /= D_METER;
+		view->height = std::max(view->height,5.0);
 		break;
 	case 'd':
 	case 'D':
-		vo->params_.view.height *= D_METER;
+		view->height *= D_METER;
 		break;
 	case 'h':
 	case 'H':
-		vo->params_.view.roll += D_RADIAN;
+		view->roll += D_RADIAN;
 		break;
 	case 'j':
 	case 'J':
-		vo->params_.view.pitch -= D_RADIAN;
+		view->pitch -= D_RADIAN;
 		break;
 	case 'k':
 	case 'K':
-		vo->params_.view.pitch += D_RADIAN;
+		view->pitch += D_RADIAN;
 		break;
 	case 'l':
 	case 'L':
-		vo->params_.view.roll -= D_RADIAN;
+		view->roll -= D_RADIAN;
 		break;
 	case 'e':
 	case 'E':
-		vo->params_.view.height =  vo->params_.view.height_default;
-		vo->params_.view.roll =    vo->params_.view.roll_default;
-		vo->params_.view.pitch =   vo->params_.view.pitch_default;
+		view->height =  view->height_default;
+		view->roll =    view->roll_default;
+		view->pitch =   view->pitch_default;
 		break;
 	default:
 		return false;

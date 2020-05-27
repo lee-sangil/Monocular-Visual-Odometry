@@ -8,8 +8,10 @@
 #include "core/parser.hpp"
 #include "core/imageProc.hpp"
 #include "core/MVO.hpp"
+#include "core/Viewer.hpp"
 #include "core/time.hpp"
 #include "core/numerics.hpp"
+#include <thread>
 #include <boost/filesystem.hpp>
 #include <opencv2/imgcodecs.hpp>
 #include <dirent.h>
@@ -22,7 +24,8 @@ void timeReader(const char *, std::vector<double>&);
 void computeVehicleSpeed( std::vector<std::vector<double> >, std::vector<double>&);
 void computeImuRotation( std::vector<std::vector<double> >, std::vector<Eigen::Vector3d>&);
 void directoryReader(const char *, std::vector<std::vector<double> >&);
-bool grabActiveKey(std::unique_ptr<MVO>&, char);
+bool grabActiveKey(std::unique_ptr<Viewer>&, char);
+void voMono(std::unique_ptr<MVO>& vo, std::unique_ptr<Viewer>& viewer, std::vector<double>& timestamp_speed, std::vector<double>& timestamp_imu, std::vector<double>& timestamp_image, std::vector<double>& data_speed, std::vector<Eigen::Vector3d>& data_gyro, std::string& inputFile, std::vector<std::string>& rgbNameRaw, int initFrame, int length, std::vector<int>& sensorID);
 
 /**
  * @brief 영상 항법 모듈 실행 스크립트
@@ -164,10 +167,15 @@ int main(int argc, char * argv[]){
 		MVO::s_file_logger_.open("log.txt");
 	if( Parser::hasOption("-gt") )
 		MVO::s_point_logger_.open("pointcloud.txt");
-	std::ofstream s_traj_logger("CamTrajectory.txt");
-	s_traj_logger << "# tx ty tz qw qx qy qz" << std::endl;
-	
-	std::unique_ptr<MVO> vo(new MVO(fsname));
+	MVO::s_traj_logger_.open("CamTrajectory.txt");
+	MVO::s_traj_logger_ << "# tx ty tz qw qx qy qz" << std::endl;
+
+	// MVO vo(fsname);
+	// Viewer viewer(fsname);
+	// MVO * vo = new MVO(fsname);
+	// Viewer * viewer = new Viewer(fsname);
+	std::unique_ptr<MVO> vo = std::make_unique<MVO>(fsname);
+	std::unique_ptr<Viewer> viewer = std::make_unique<Viewer>(fsname);
 
 	if( Parser::hasOption("-jetson") && Parser::hasOption("-w") ){
 		vo->params_.Tic = Eigen::Matrix4d::Identity();
@@ -177,7 +185,6 @@ int main(int argc, char * argv[]){
 	/**************************************************************************
 	 *  Run MVO object
 	 **************************************************************************/
-	char key;
 	std::cout << "# Key descriptions: " << std::endl;
 	std::cout << "- s: pause and process a one frame" << std::endl << 
 	"- w: play continuously" << std::endl << 
@@ -187,100 +194,18 @@ int main(int argc, char * argv[]){
 	"- e: reset to default parameters of view camera" << std::endl << 
 	"- q: quit" << std::endl;
 
-	cv::Mat image;
-	std::string dirRgb;
-
 	int length;
 	if( Parser::hasOption("-fl") ) length = Parser::getIntOption("-fl");
 	else length = sensorID.size();
 
-	bool bRun = true, bStep = false;
-	int it_imu = 0, it_vel = 0, it_rgb = 0;
+	std::mutex m;
 
-	lsi::tic();
+	std::thread t1(voMono, std::ref(vo), std::ref(viewer), std::ref(timestamp_speed), std::ref(timestamp_imu), std::ref(timestamp_image), std::ref(data_speed), std::ref(data_gyro), std::ref(inputFile), std::ref(rgbNameRaw), initFrame, length, std::ref(sensorID));
+	std::thread t2(&Viewer::plot, viewer.get(), std::ref(vo), static_cast<const Eigen::MatrixXd*>(NULL), &m);
 
-	for( int it = 0; it < length && bRun; it++ ){
-		switch (sensorID[it]) {
-			case 0:
-				// Fetch speed
-				if( Parser::hasOption("-v"))
-					vo->updateVelocity(timestamp_speed[it_vel], data_speed[it_vel]);
-				
-				it_vel++;
-				break;
+	t1.join();
+	t2.join();
 
-			case 1:
-				// Fetch imu
-				if( Parser::hasOption("-w"))
-					vo->updateGyro(timestamp_imu[it_imu], data_gyro[it_imu]);
-				
-				it_imu++;
-				break;
-
-			case 2:
-				// // Fetch velocity synchronously (erase switch statement)
-				// if( Parser::hasOption("-v"))
-				// 	vo->updateVelocity(timestamp_image[it_rgb], data_speed[it_rgb]);
-
-				// Fetch images
-				dirRgb.clear();
-				dirRgb.append(inputFile).append(rgbNameRaw[it_rgb]);
-				chk::getImgTUMdataset(dirRgb, image);
-				
-				vo->run(image, timestamp_image[it_rgb]);
-				std::cout << "Iteration: " << it_rgb << ", Execution time: " << lsi::toc()/1e3 << "ms       " << '\r' << std::flush;
-
-				vo->updateView();
-				if( Parser::hasOption("-gt") ){
-					std::ostringstream dirDepth;
-					dirDepth << inputFile << "full_depth/" << std::setfill('0') << std::setw(10) << it_rgb+initFrame << ".bin";
-					Eigen::MatrixXd depth = readDepth(dirDepth.str().c_str(), vo->params_.im_size.height, vo->params_.im_size.width);
-					vo->calcReconstructionErrorGT(depth);
-					vo->plot(&depth);
-				}else{
-					vo->plot();
-				}
-
-				if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "# Plot: " << lsi::toc() << std::endl;
-				if( s_traj_logger.is_open() ) vo->printPose(s_traj_logger);
-
-				it_rgb++;
-
-				if( bStep ){
-					while(true){
-						key = cv::waitKey(0);
-						if( key == 's' ){
-							break;
-						}else if( key == 'q' ){
-							bRun = false;
-							break;
-						}else if( key == 'w' ){
-							bStep = false;
-							break;
-						}else if( grabActiveKey(vo, key) ){
-							vo->plot();
-							continue;
-						}
-					}
-				}
-
-				break;
-		}
-
-		//KeyBoard Process
-		key = cv::waitKey(1);
-		switch (key) {
-			case 'q':	// press q to quit
-				bRun = false;
-				break;
-			case 's':
-				bStep = true;
-				break;
-			default:
-				grabActiveKey(vo, key);
-				break;
-		}
-	}
 	std::cout << std::endl;
 	MVO::s_file_logger_.close();
 	
@@ -455,39 +380,39 @@ void directoryReader(const char * filePath, std::vector<std::vector<double> >& o
  * @author Sangil Lee (sangillee724@gmail.com)
  * @date 28-Dec-2019
  */
-bool grabActiveKey(std::unique_ptr<MVO>& vo, char key){
+bool grabActiveKey(std::unique_ptr<Viewer>& view, char key){
 	bool bRtn = true;
 	switch (key){
 	case 'a':
 	case 'A':
-		vo->params_.view.height /= D_METER;
-		vo->params_.view.height = std::max(vo->params_.view.height,5.0);
+		view->height /= D_METER;
+		view->height = std::max(view->height,5.0);
 		break;
 	case 'd':
 	case 'D':
-		vo->params_.view.height *= D_METER;
+		view->height *= D_METER;
 		break;
 	case 'h':
 	case 'H':
-		vo->params_.view.roll += D_RADIAN;
+		view->roll += D_RADIAN;
 		break;
 	case 'j':
 	case 'J':
-		vo->params_.view.pitch -= D_RADIAN;
+		view->pitch -= D_RADIAN;
 		break;
 	case 'k':
 	case 'K':
-		vo->params_.view.pitch += D_RADIAN;
+		view->pitch += D_RADIAN;
 		break;
 	case 'l':
 	case 'L':
-		vo->params_.view.roll -= D_RADIAN;
+		view->roll -= D_RADIAN;
 		break;
 	case 'e':
 	case 'E':
-		vo->params_.view.height =  vo->params_.view.height_default;
-		vo->params_.view.roll =    vo->params_.view.roll_default;
-		vo->params_.view.pitch =   vo->params_.view.pitch_default;
+		view->height =  view->height_default;
+		view->roll =    view->roll_default;
+		view->pitch =   view->pitch_default;
 		break;
 	default:
 		return false;
@@ -557,5 +482,98 @@ void CANReader(const std::string& filePath, std::vector<double>& timestamp, std:
 		mSpeed /= 4 * 3.6; // km/h -> m/s
 		speed.push_back(mSpeed);
 		angular.push_back( (Eigen::Vector3d() << 0,(CAN_data[CAN_iter].at(4)-CAN_data[CAN_iter].at(5))/3.6/3.0,0).finished() ); // assume car-width is 3 meter while converting km/h -> m/s
+	}
+}
+
+void voMono(std::unique_ptr<MVO>& vo, std::unique_ptr<Viewer>& viewer, std::vector<double>& timestamp_speed, std::vector<double>& timestamp_imu, std::vector<double>& timestamp_image, std::vector<double>& data_speed, std::vector<Eigen::Vector3d>& data_gyro, std::string& inputFile, std::vector<std::string>& rgbNameRaw, int initFrame, int length, std::vector<int>& sensorID){
+	char key;
+	cv::Mat image;
+	std::string dirRgb;
+
+	bool bRun = true, bStep = false;
+	int it_imu = 0, it_vel = 0, it_rgb = 0;
+
+	lsi::tic();
+
+	for( int it = 0; it < length && bRun; it++ ){
+		switch (sensorID[it]) {
+			case 0:
+				// Fetch speed
+				if( Parser::hasOption("-v"))
+					vo->updateVelocity(timestamp_speed[it_vel], data_speed[it_vel]);
+				
+				it_vel++;
+				break;
+
+			case 1:
+				// Fetch imu
+				if( Parser::hasOption("-w"))
+					vo->updateGyro(timestamp_imu[it_imu], data_gyro[it_imu]);
+				
+				it_imu++;
+				break;
+
+			case 2:
+				// // Fetch velocity synchronously (erase switch statement)
+				// if( Parser::hasOption("-v"))
+				// 	vo->updateVelocity(timestamp_image[it_rgb], data_speed[it_rgb]);
+
+				// Fetch images
+				dirRgb.clear();
+				dirRgb.append(inputFile).append(rgbNameRaw[it_rgb]);
+				chk::getImgTUMdataset(dirRgb, image);
+				
+				vo->run(image, timestamp_image[it_rgb]);
+				std::cout << "Iteration: " << it_rgb << ", Execution time: " << lsi::toc()/1e3 << "ms       " << '\r' << std::flush;
+
+				// vo->updateView();
+				if( Parser::hasOption("-gt") ){
+					std::ostringstream dirDepth;
+					dirDepth << inputFile << "full_depth/" << std::setfill('0') << std::setw(10) << it_rgb+initFrame << ".bin";
+					Eigen::MatrixXd depth = readDepth(dirDepth.str().c_str(), vo->params_.im_size.height, vo->params_.im_size.width);
+					vo->calcReconstructionErrorGT(depth);
+					// vo->plot(&depth);
+				}else{
+					// vo->plot();
+				}
+
+				if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "# Plot: " << lsi::toc() << std::endl;
+				if( MVO::s_traj_logger_.is_open() ) vo->printPose();
+
+				it_rgb++;
+
+				if( bStep ){
+					while(true){
+						key = cv::waitKey(0);
+						if( key == 's' ){
+							break;
+						}else if( key == 'q' ){
+							bRun = false;
+							break;
+						}else if( key == 'w' ){
+							bStep = false;
+							break;
+						}else if( grabActiveKey(viewer, key) ){
+							continue;
+						}
+					}
+				}
+
+				break;
+		}
+
+		//KeyBoard Process
+		key = cv::waitKey(1);
+		switch (key) {
+			case 'q':	// press q to quit
+				bRun = false;
+				break;
+			case 's':
+				bStep = true;
+				break;
+			default:
+				grabActiveKey(viewer, key);
+				break;
+		}
 	}
 }
