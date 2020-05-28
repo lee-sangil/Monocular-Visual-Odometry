@@ -68,7 +68,7 @@ class Viewer{
         this->P = (Eigen::Matrix<double,3,4>() << this->K * this->R, this->K * this->t).finished();
     };
     void updateView();
-    void plot(std::unique_ptr<MVO>& vo, const Eigen::MatrixXd * const depthMap, std::mutex * m);
+    void plot(bool& bRun, std::unique_ptr<MVO>& vo, const Eigen::MatrixXd * const depthMap, std::mutex * m);
 };
 
 /**
@@ -127,8 +127,8 @@ void Viewer::updateView(){
  * @author Sangil Lee (sangillee724@gmail.com)
  * @date 29-Dec-2019
  */
-void Viewer::plot(std::unique_ptr<MVO>& vo, const Eigen::MatrixXd * const depthMap, std::mutex * m) {
-    while( true ){
+void Viewer::plot(bool& bRun, std::unique_ptr<MVO>& vo, const Eigen::MatrixXd * const depthMap, std::mutex * m) {
+    while( bRun ){
         if( vo->getCurrFrame().image.cols == 0 )
             continue;
 

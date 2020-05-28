@@ -25,7 +25,7 @@ void computeVehicleSpeed( std::vector<std::vector<double> >, std::vector<double>
 void computeImuRotation( std::vector<std::vector<double> >, std::vector<Eigen::Vector3d>&);
 void directoryReader(const char *, std::vector<std::vector<double> >&);
 bool grabActiveKey(std::unique_ptr<Viewer>&, char);
-void voMono(std::unique_ptr<MVO>& vo, std::unique_ptr<Viewer>& viewer, std::vector<double>& timestamp_speed, std::vector<double>& timestamp_imu, std::vector<double>& timestamp_image, std::vector<double>& data_speed, std::vector<Eigen::Vector3d>& data_gyro, std::string& inputFile, std::vector<std::string>& rgbNameRaw, int initFrame, int length, std::vector<int>& sensorID);
+void voMono(bool& bRun, std::unique_ptr<MVO>& vo, std::unique_ptr<Viewer>& viewer, std::vector<double>& timestamp_speed, std::vector<double>& timestamp_imu, std::vector<double>& timestamp_image, std::vector<double>& data_speed, std::vector<Eigen::Vector3d>& data_gyro, std::string& inputFile, std::vector<std::string>& rgbNameRaw, int initFrame, int length, std::vector<int>& sensorID, std::mutex * m);
 
 /**
  * @brief 영상 항법 모듈 실행 스크립트
@@ -199,9 +199,10 @@ int main(int argc, char * argv[]){
 	else length = sensorID.size();
 
 	std::mutex m;
+	bool bRun = true;
 
-	std::thread t1(voMono, std::ref(vo), std::ref(viewer), std::ref(timestamp_speed), std::ref(timestamp_imu), std::ref(timestamp_image), std::ref(data_speed), std::ref(data_gyro), std::ref(inputFile), std::ref(rgbNameRaw), initFrame, length, std::ref(sensorID));
-	std::thread t2(&Viewer::plot, viewer.get(), std::ref(vo), static_cast<const Eigen::MatrixXd*>(NULL), &m);
+	std::thread t1(voMono, std::ref(bRun), std::ref(vo), std::ref(viewer), std::ref(timestamp_speed), std::ref(timestamp_imu), std::ref(timestamp_image), std::ref(data_speed), std::ref(data_gyro), std::ref(inputFile), std::ref(rgbNameRaw), initFrame, length, std::ref(sensorID), &m);
+	std::thread t2(&Viewer::plot, viewer.get(), std::ref(bRun), std::ref(vo), static_cast<const Eigen::MatrixXd*>(NULL), &m);
 
 	t1.join();
 	t2.join();
@@ -485,12 +486,12 @@ void CANReader(const std::string& filePath, std::vector<double>& timestamp, std:
 	}
 }
 
-void voMono(std::unique_ptr<MVO>& vo, std::unique_ptr<Viewer>& viewer, std::vector<double>& timestamp_speed, std::vector<double>& timestamp_imu, std::vector<double>& timestamp_image, std::vector<double>& data_speed, std::vector<Eigen::Vector3d>& data_gyro, std::string& inputFile, std::vector<std::string>& rgbNameRaw, int initFrame, int length, std::vector<int>& sensorID){
+void voMono(bool& bRun, std::unique_ptr<MVO>& vo, std::unique_ptr<Viewer>& viewer, std::vector<double>& timestamp_speed, std::vector<double>& timestamp_imu, std::vector<double>& timestamp_image, std::vector<double>& data_speed, std::vector<Eigen::Vector3d>& data_gyro, std::string& inputFile, std::vector<std::string>& rgbNameRaw, int initFrame, int length, std::vector<int>& sensorID, std::mutex * m){
 	char key;
 	cv::Mat image;
 	std::string dirRgb;
 
-	bool bRun = true, bStep = false;
+	bool bStep = false;
 	int it_imu = 0, it_vel = 0, it_rgb = 0;
 
 	lsi::tic();
@@ -523,7 +524,10 @@ void voMono(std::unique_ptr<MVO>& vo, std::unique_ptr<Viewer>& viewer, std::vect
 				dirRgb.append(inputFile).append(rgbNameRaw[it_rgb]);
 				chk::getImgTUMdataset(dirRgb, image);
 				
+				m->lock();
 				vo->run(image, timestamp_image[it_rgb]);
+				m->unlock();
+
 				std::cout << "Iteration: " << it_rgb << ", Execution time: " << lsi::toc()/1e3 << "ms       " << '\r' << std::flush;
 
 				// vo->updateView();
