@@ -54,19 +54,26 @@ bool MVO::updateFeatures(){
         std::vector<cv::Point2f> points;
         std::vector<bool> validity;
 
-        // rough klt tracker
-        kltTrackerRough(points, validity);
+        // precise klt tracker
+        kltTrackerPrecise(points, validity);
         if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "## KLT tracker: " << lsi::toc() << std::endl;
 
         selectKeyframeNow(); // update the current keyframe by triggering low parallax
         if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "## Select keyframe: " << lsi::toc() << std::endl;
 
-        // precise klt tracker
-        kltTrackerPrecise(points, validity);
-        if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "## KLT tracker: " << lsi::toc() << std::endl;
+        // // rough klt tracker
+        // kltTrackerRough(points, validity);
+        // if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "## KLT tracker: " << lsi::toc() << std::endl;
 
-        selectKeyframeAfter(); // update the next keyframe by triggering low tracking ratio
-        if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "## Select keyframe: " << lsi::toc() << std::endl;
+        // selectKeyframeNow(); // update the current keyframe by triggering low parallax
+        // if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "## Select keyframe: " << lsi::toc() << std::endl;
+
+        // // precise klt tracker
+        // kltTrackerPrecise(points, validity);
+        // if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "## KLT tracker: " << lsi::toc() << std::endl;
+
+        // selectKeyframeAfter(); // update the next keyframe by triggering low tracking ratio
+        // if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "## Select keyframe: " << lsi::toc() << std::endl;
 
         if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "! Update features between: " << curr_keyframe_.id << " <--> " << curr_frame_.id << std::endl;
 
@@ -202,6 +209,29 @@ void MVO::selectKeyframeNow(){
                 
                 if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "! <keystep> low parallax: " << parallax_percentile << std::endl;
             }
+        }
+    }
+
+    // Low tracking ratio
+    if( !trigger_keystep_decrease_ && !trigger_keystep_decrease_previous_ ){ // only if there is no trigger about low parallax
+        if( num_feature_matched_ <= num_feature_ * params_.th_ratio_keyframe ){
+
+            // add new keystep and keyframe
+            keystep_array_.emplace_back(step_);
+
+            // update the previous keyframe
+            prev_keyframe_.assign(curr_keyframe_);
+
+            // Extract features in the current iteration, but curr_frame will be chosen as the current keyframe in the next iteration
+            next_keyframe_.assign(curr_frame_);
+            if( curr_keyframe_.linear_velocity_since_.size() > 0 )
+                next_keyframe_.linear_velocity_since_.push_back(curr_keyframe_.linear_velocity_since_.back());
+            if(curr_keyframe_.angular_velocity_since_.size() > 0 )
+                next_keyframe_.angular_velocity_since_.push_back(curr_keyframe_.angular_velocity_since_.back());
+
+            trigger_keystep_increase_ = true;
+            
+            if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "! <keystep> tracking loss: " << (double) num_feature_matched_ / num_feature_ << std::endl;
         }
     }
 
@@ -583,7 +613,7 @@ void MVO::addFeature(){
     }
     uint32_t num_feature_inside_bucket = idx_belong_to_bucket.size();
     
-    if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "### Find near features: " << lsi::toc() << std::endl;
+    // if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "### Find near features: " << lsi::toc() << std::endl;
 
     // Try to find a seperate feature
     std::vector<cv::Point2f> keypoints;
@@ -608,7 +638,7 @@ void MVO::addFeature(){
         }
     }
 
-    if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "### Find new features: " << lsi::toc() << std::endl;
+    // if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "### Find new features: " << lsi::toc() << std::endl;
 
     int key_idx;
     int prev_keystep = keystep_array_.back(); // Used when keystep is decreased only
@@ -698,7 +728,7 @@ void MVO::addFeature(){
 
             bucket_.saturated[row + bucket_.grid.height * col] = false;
 
-            if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "### Add best features: " << lsi::toc() << std::endl;
+            // if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "### Add best features: " << lsi::toc() << std::endl;
         }
     }
     

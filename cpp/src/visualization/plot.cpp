@@ -89,15 +89,15 @@ void MVO::plot(const Eigen::MatrixXd * const depthMap) const {
 	for( int i = 0; i < num_feature_; i++ ){
 		if( features_[i].life > 2 ){
 			if( features_[i].type == Type::Dynamic || features_[i].is_2D_inliered == false ){
-				cv::circle(img, cv::Point(features_[i].uv.back().x*ratio, features_[i].uv.back().y*ratio), 3, cv::Scalar(255,0,0), 1);
+				cv::circle(img, cv::Point(features_[i].uv.back().x*ratio, features_[i].uv.back().y*ratio), 3, cv::Scalar(255,0,0), CV_FILLED);
 				if( features_[i].uv_pred.x > 0 && features_[i].uv_pred.y > 0 )
 					cv::drawMarker(img, cv::Point(features_[i].uv_pred.x*ratio, features_[i].uv_pred.y*ratio), cv::Scalar(255,0,0), cv::MARKER_CROSS, 5);
 			}else if( features_[i].type == Type::Road ){
-				cv::circle(img, cv::Point(features_[i].uv.back().x*ratio, features_[i].uv.back().y*ratio), 3, cv::Scalar(50,50,255), 1);
+				cv::circle(img, cv::Point(features_[i].uv.back().x*ratio, features_[i].uv.back().y*ratio), 3, cv::Scalar(50,50,255), CV_FILLED);
 				if( features_[i].uv_pred.x > 0 && features_[i].uv_pred.y > 0 )
 					cv::drawMarker(img, cv::Point(features_[i].uv_pred.x*ratio, features_[i].uv_pred.y*ratio), cv::Scalar(50,50,255), cv::MARKER_CROSS, 5);
 			}else{
-				cv::circle(img, cv::Point(features_[i].uv.back().x*ratio, features_[i].uv.back().y*ratio), 3, cv::Scalar(0,200,0), 1);
+				cv::circle(img, cv::Point(features_[i].uv.back().x*ratio, features_[i].uv.back().y*ratio), 3, cv::Scalar(0,200,0), CV_FILLED);
 				if( features_[i].uv_pred.x > 0 && features_[i].uv_pred.y > 0 )
 					cv::drawMarker(img, cv::Point(features_[i].uv_pred.x*ratio, features_[i].uv_pred.y*ratio), cv::Scalar(0,200,0), cv::MARKER_CROSS, 5);
 			}

@@ -74,7 +74,7 @@ double DepthFilter::computeTau(const Eigen::Matrix4d& Toc, const Eigen::Vector3d
 	double beta_plus = beta + DepthFilter::s_px_error_angle_;
 	double gamma_plus = M_PI-alpha-beta_plus; // triangle angles sum to PI
 	double z_plus = t_norm*sin(beta_plus)/sin(gamma_plus); // law of sines
-	return std::abs(z_plus - p(2)); // tau
+	return std::abs((z_plus/p_norm - 1)*p(2)); // tau
 }
 
 /**
@@ -88,6 +88,6 @@ double DepthFilter::computeTau(const Eigen::Matrix4d& Toc, const Eigen::Vector3d
  */
 double DepthFilter::computeInverseTau(const double z, const double tau){
 	// return tau*tau/std::pow(z,4)+2*tau*tau*tau*tau/std::pow(z,6);
-	return std::max(1.0/(z-tau)-1.0/z, 1.0/z-1.0/(z+tau));
-	// return (0.5 * (1.0/std::max(0.0000001, z-tau) - 1.0/(z+tau)));
+	// return std::max(1.0/(z-tau)-1.0/z, 1.0/z-1.0/(z+tau));
+	return (0.5 * (1.0/std::max(0.0000001, z-tau) - 1.0/(z+tau)));
 }

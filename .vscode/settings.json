@@ -58,7 +58,8 @@
 		"string": "cpp",
 		"iterator": "cpp",
 		"matrixfunctions": "cpp",
-		"dense": "cpp"
+		"dense": "cpp",
+		"mutex": "cpp"
 	},
 	"C_Cpp.default.includePath": [
 		"cpp/include"
