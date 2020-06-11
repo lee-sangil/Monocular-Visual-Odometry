@@ -381,6 +381,9 @@ void MVO::setImage(const cv::Mat& image, double timestamp){
 
     prev_frame_.assign(curr_frame_);
 
+    // // convert rgb to gray
+    // cv::cvtColor(image, image, CV_RGB2GRAY);
+
     // undistort the current image
     cv::remap(image, image, distort_map1_, distort_map2_, CV_INTER_LINEAR);
     
@@ -479,6 +482,21 @@ void MVO::run(const cv::Mat& image, double timestamp){
     // num_feature.push_back(10);
     // num_feature.push_back(-1);
     // updateRoiFeatures(rois, num_feature); // Extract extra features in rois
+
+    if( std::system((std::string("mkdir -p ") + "features").c_str()) == -1 ){
+        std::cerr << "Error: cannot make directory" << std::endl;
+        std::abort();
+    }
+	
+    std::stringstream ss;
+    ss << "features/" << std::setprecision(6) << std::setfill('0') << std::setw(10) << timestamp << ".txt";
+    std::ofstream uvz_logger(ss.str());
+    uvz_logger << "ID" << '\t' << "UV" << '\t' << "XYZ" << '\t' << "InvDepthVariance" << std::endl;
+
+    std::vector< std::tuple<uint32_t, cv::Point2f, Eigen::Vector3d, double> > pts = MVO::getPoints();
+    for( const auto & pt : pts )
+        uvz_logger << std::get<0>(pt) << '\t' << std::get<1>(pt).x << '\t' << std::get<1>(pt).y << '\t' << std::get<2>(pt).transpose() << '\t' << std::get<3>(pt) << std::endl;
+    uvz_logger.close();
 }
 
 /**

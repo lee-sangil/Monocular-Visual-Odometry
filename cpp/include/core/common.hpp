@@ -28,6 +28,7 @@ class DepthFilter;
  */
 typedef struct Landmark{
 	Eigen::Vector4d point_init; /**< @brief 월드 좌표계에서 특징점 객체의 3차원 좌표 */
+	Type type; /**< @brief 특징점의 타입 */
 	double std;
 
 	static uint32_t getNewID() {return new_landmark_id++;}; /**< @brief 랜드마크가 생성되는 순에 따라 부여되는 id */

@@ -772,8 +772,10 @@ bool MVO::scalePropagation(const Eigen::Matrix3d &R, Eigen::Vector3d &t, std::ve
             if( std::count(plane_inlier.begin(), plane_inlier.end(), true) > (uint32_t) params_.th_inlier ){
                 double scale_from_height = 0;
                 for( uint32_t i = 0; i < road_idx.size(); i++ ){
-                    if( plane_inlier[i] )
+                    if( plane_inlier[i] ){
                         features_[road_idx[i]].type = Type::Road;
+                        if(features_[road_idx[i]].landmark) features_[road_idx[i]].landmark->type = Type::Road;
+                    }
                     // else
                     //     features_[road_idx[i]].type = Type::Unknown;
                 }

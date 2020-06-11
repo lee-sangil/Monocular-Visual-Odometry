@@ -49,7 +49,7 @@ Camera.T_VC: !!opencv-matrix
 #--------------------------------------------------------------------------------------------
 
 # Number of features
-Feature.number: 300
+Feature.number: 600
 
 # Number of features matching per image 
 Feature.minimum_num_inlier: 6
