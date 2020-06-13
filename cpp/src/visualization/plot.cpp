@@ -124,10 +124,12 @@ void MVO::plot(const Eigen::MatrixXd * const depthMap) const {
 		for( uint32_t i = 0; i < features_.size(); i++ ){
 			depth = (*depthMap)(features_[i].uv.back().y, features_[i].uv.back().x);
 
-			r = std::exp(-depth/150) * std::min(depth*18, 255);
-			g = std::exp(-depth/150) * std::max(255 - depth*8, 30);
-			b = std::exp(-depth/150) * std::max(100 - depth, 0);
-			cv::circle(gt_dist, features_[i].uv.back()*ratio*0.5, std::ceil(5*ratio), cv::Scalar(b, g, r), CV_FILLED);
+			if( depth > 0 ){
+				r = std::exp(-depth/150) * std::min(depth*18, 255);
+				g = std::exp(-depth/150) * std::max(255 - depth*8, 30);
+				b = std::exp(-depth/150) * std::max(100 - depth, 0);
+				cv::circle(gt_dist, features_[i].uv.back()*ratio*0.5, std::ceil(5*ratio), cv::Scalar(b, g, r), CV_FILLED);
+			}
 		}
 		gt_dist.copyTo(mvo(cv::Rect(img.cols+2*GAP,GAP,gt_dist.cols,gt_dist.rows)));
 		cv::putText(mvo, "Groundtruth", cv::Point(gt_dist.cols*0.5+img.cols+2*GAP,GAP*0.7), cv::FONT_HERSHEY_DUPLEX, 0.5, cv::Scalar::all(255), 1, CV_AA);
@@ -190,7 +192,7 @@ void MVO::plot(const Eigen::MatrixXd * const depthMap) const {
 		for( const auto & landmark : landmark_ ){
 			point = Tco * landmark.second->point_init;
 			uv = params_.view.P * point;
-			if( uv(2) > 1 ){
+			if( uv(2) > 1 && landmark.second->variance < params_.max_point_var ){
 				switch (landmark.second->type){
 				case Type::Unknown:
 					cv::circle(traj, cv::Point(uv(0)/uv(2), uv(1)/uv(2)), 1, cv::Scalar(128,128,128), CV_FILLED);
@@ -233,7 +235,7 @@ void MVO::plot(const Eigen::MatrixXd * const depthMap) const {
 				}
 			}
 		}
-		std::cout << std::endl;
+		// std::cout << std::endl;
 
 		// Camera
 		Eigen::Vector3d uv0, uv1, uv2, uv3, uv4;

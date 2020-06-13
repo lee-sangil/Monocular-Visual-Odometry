@@ -517,6 +517,7 @@ void MVO::update3DPoint(Feature& feature, const Eigen::Matrix4d& Toc, const Eige
             // apply the depth of depth filter; point_initframe/z is a homogeneous form of the current 3d position
             feature.depthfilter->update(1/z, tau_inverse);
             feature.landmark->point_init = TocRec_[feature.frame_3d_init] * (Eigen::Vector4d() << point_initframe / (z * feature.depthfilter->getMean()), 1).finished();
+            feature.landmark->variance = feature.depthfilter->getVariance();
             
             if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << feature.id << '\t' << tau_inverse << '\t' << 1/z << '\t' << feature.depthfilter->getMean() << std::endl;
         }
@@ -532,9 +533,9 @@ void MVO::update3DPoint(Feature& feature, const Eigen::Matrix4d& Toc, const Eige
         feature.depthfilter->update(1/z, tau_inverse);
 
         // remove feature with abnormally-high variance
-        if( feature.depthfilter->getVariance() > params_.max_point_var )
+        if( feature.depthfilter->getVariance() > params_.max_point_var ){
             feature.is_alive = false;
-        else{
+        }else{
             feature.landmark = std::make_shared<Landmark>();
             feature.landmark->point_init = Toc * T.inverse() * (Eigen::Vector4d() << point_initframe / (z * feature.depthfilter->getMean()), 1).finished();
             feature.frame_3d_init = keystep_; // reference frame to update depth filter

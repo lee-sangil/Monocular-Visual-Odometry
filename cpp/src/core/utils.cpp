@@ -65,22 +65,30 @@ void MVO::calcReconstructionErrorGT(Eigen::MatrixXd& depth) const {
     Eigen::Vector3d point;
 
     std::vector<double> relative_error;
+    double depth_v;
     
     if( idx.size() > 0 ){
         if( MVO::s_point_logger_.is_open() ) MVO::s_point_logger_ << "* Reconstruction:";
         for( const auto & i : idx ){
-            if( params_.output_filtered_depth ){
-                point = Tco.block(0,0,3,4) * features_[i].landmark->point_init;
-                if( MVO::s_point_logger_.is_open() ) MVO::s_point_logger_ << ' ' << point(0) << ' ' << point(1) << ' ' << point(2);
-            }else{
-                if( MVO::s_point_logger_.is_open() ) MVO::s_point_logger_ << ' ' << features_[i].point_curr(0) << ' ' << features_[i].point_curr(1) << ' ' << features_[i].point_curr(2);
+            depth_v = depth(features_[i].uv.back().y, features_[i].uv.back().x);
+            if( depth_v < 50 && depth_v > 0 ){
+                if( params_.output_filtered_depth ){
+                    point = Tco.block(0,0,3,4) * features_[i].landmark->point_init;
+                    if( MVO::s_point_logger_.is_open() ) MVO::s_point_logger_ << ' ' << point(0) << ' ' << point(1) << ' ' << point(2);
+                }else{
+                    if( MVO::s_point_logger_.is_open() ) MVO::s_point_logger_ << ' ' << features_[i].point_curr(0) << ' ' << features_[i].point_curr(1) << ' ' << features_[i].point_curr(2);
+                }
             }
         }
         if( MVO::s_point_logger_.is_open() ) MVO::s_point_logger_ << std::endl;
 
         if( MVO::s_point_logger_.is_open() ) MVO::s_point_logger_ << "* Groundtruth:";
-        for( const auto & i : idx )
-            if( MVO::s_point_logger_.is_open() ) MVO::s_point_logger_ << ' ' << features_[i].uv.back().x << ' ' << features_[i].uv.back().y << ' ' << depth(features_[i].uv.back().y, features_[i].uv.back().x);
+        for( const auto & i : idx ){
+            depth_v = depth(features_[i].uv.back().y, features_[i].uv.back().x);
+            if( depth_v < 50 && depth_v > 0 ){
+                if( MVO::s_point_logger_.is_open() ) MVO::s_point_logger_ << ' ' << features_[i].uv.back().x << ' ' << features_[i].uv.back().y << ' ' << depth_v;
+            }
+        }
         if( MVO::s_point_logger_.is_open() ) MVO::s_point_logger_ << std::endl;
 
         for( const auto & i : idx){
@@ -94,7 +102,7 @@ void MVO::calcReconstructionErrorGT(Eigen::MatrixXd& depth) const {
         }
         if( relative_error.size() > 0 ){
             std::sort(relative_error.begin(), relative_error.end());
-            std::cout << "Relative error at 25\% from the lowest: " << std::setw(8) << relative_error.at(std::floor(relative_error.size()*0.25)) << ", the lowest: " << relative_error.front() << ", the median: " << relative_error.at(std::floor(relative_error.size()*0.5)) << ", the greatest: " << relative_error.back() << std::endl;
+            std::cout << "Relative error at 25\% from the lowest: " << std::setw(8) << relative_error.at(std::floor(relative_error.size()*0.25)) << ", the lowest: " << relative_error.front() << ", the median: " << relative_error.at(std::floor(relative_error.size()*0.5)) << "the average: " << std::accumulate(relative_error.begin(), relative_error.end(), 0.0)/relative_error.size() << ", the greatest: " << relative_error.back() << std::endl;
         }
     }
 }

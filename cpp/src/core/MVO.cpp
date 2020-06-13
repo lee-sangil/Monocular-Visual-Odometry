@@ -260,9 +260,9 @@ MVO::MVO(std::string yaml):MVO(){
     params_.view.height =          params_.view.height_default;
     params_.view.roll =            params_.view.roll_default;
     params_.view.pitch =           params_.view.pitch_default;
-    params_.view.im_size = cv::Size(600,600);
-    params_.view.K <<  300,   0, 300,
-						      0, 300, 300,
+    params_.view.im_size = cv::Size(960,960);
+    params_.view.K <<  300,   0, 480,
+						      0, 300, 480,
 						      0,   0,   1;
     params_.view.upper_left =   cv::Point3d(-1,-.5, 1);
     params_.view.upper_right =  cv::Point3d( 1,-.5, 1);
@@ -522,6 +522,21 @@ void MVO::run(const cv::Mat& image, const cv::Mat& image_right, double timestamp
     if( !calculateEssentialStereo(R, t) ) { restart(); return; }
     if( !calculateMotionStereo(R, t) ) { restart(); return; }
 
+    //
+    if( std::system((std::string("mkdir -p ") + "features").c_str()) == -1 ){
+        std::cerr << "Error: cannot make directory" << std::endl;
+        std::abort();
+    }
+	
+    std::stringstream ss;
+    ss << "features/" << std::setprecision(6) << std::setfill('0') << std::setw(10) << timestamp << ".txt";
+    std::ofstream uvz_logger(ss.str());
+    uvz_logger << "ID" << '\t' << "UV" << '\t' << "XYZ" << '\t' << "InvDepthVariance" << std::endl;
+
+    std::vector< std::tuple<uint32_t, cv::Point2f, Eigen::Vector3d, double> > pts = MVO::getPoints();
+    for( const auto & pt : pts )
+        uvz_logger << std::get<0>(pt) << '\t' << std::get<1>(pt).x << '\t' << std::get<1>(pt).y << '\t' << std::get<2>(pt).transpose() << '\t' << std::get<3>(pt) << std::endl;
+    uvz_logger.close();
 }
 
 /**
