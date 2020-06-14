@@ -475,11 +475,11 @@ void MVO::run(const cv::Mat& image, double timestamp){
     
     // std::vector<cv::Rect> rois;
     // std::vector<int> num_feature;
-    // rois.push_back(cv::Rect(200,200,200,200));
-    // rois.push_back(cv::Rect(400,400,200,200));
+    // rois.push_back(cv::Rect(000,000,200,200));
+    // rois.push_back(cv::Rect(400,200,200,200));
     // rois.push_back(cv::Rect(600,400,200,200));
     // num_feature.push_back(-1);
-    // num_feature.push_back(10);
+    // num_feature.push_back(-1);
     // num_feature.push_back(-1);
     // updateRoiFeatures(rois, num_feature); // Extract extra features in rois
 

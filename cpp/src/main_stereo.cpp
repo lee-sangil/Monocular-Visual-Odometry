@@ -243,6 +243,7 @@ int main(int argc, char * argv[]){
 							bStep = false;
 							break;
 						}else if( grabActiveKey(vo, key) ){
+							vo->updateView();
 							vo->plot();
 							continue;
 						}
@@ -266,6 +267,32 @@ int main(int argc, char * argv[]){
 				break;
 		}
 	}
+
+	bRun = true;
+	while(bRun){
+		vo->updateView();
+		if( Parser::hasOption("-gt") ){
+			std::ostringstream dirDepth;
+			dirDepth << inputFile << "full_depth/" << std::setfill('0') << std::setw(10) << it_rgb+initFrame << ".bin";
+			Eigen::MatrixXd depth = readDepth(dirDepth.str().c_str(), vo->params_.im_size.height, vo->params_.im_size.width);
+			vo->calcReconstructionErrorGT(depth);
+			vo->plot(&depth);
+		}else{
+			vo->plot();
+		}
+
+		//KeyBoard Process
+		key = cv::waitKey(0);
+		switch (key) {
+			case 'q':	// press q to quit
+				bRun = false;
+				break;
+			default:
+				grabActiveKey(vo, key);
+				break;
+		}
+	}
+
 	std::cout << std::endl;
 	MVO::s_file_logger_.close();
 	

@@ -538,9 +538,10 @@ void MVO::addFeatures(){
 
     int num = num_feature_;
     int numTry = 0;
+    int maxNumTry = bucket_.grid.height * bucket_.grid.width;
 
     // add feature until the number of feature reaches the desired value or all buckets are fail to extract separable feature
-    while( num_feature_ < bucket_.max_features && all(bucket_.saturated, bucket_.grid.height * bucket_.grid.width) == false ){
+    while( num_feature_ < bucket_.max_features && all(bucket_.saturated, bucket_.grid.height * bucket_.grid.width) == false && numTry < maxNumTry ){
         addFeature();
         numTry++;
     }

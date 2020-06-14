@@ -308,7 +308,6 @@ int main(int argc, char * argv[]){
 		}
 	}
 
-
 	std::cout << std::endl;
 	MVO::s_file_logger_.close();
 

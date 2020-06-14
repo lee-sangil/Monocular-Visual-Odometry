@@ -104,8 +104,8 @@ void MVO::plot(const Eigen::MatrixXd * const depthMap) const {
 			if( MVO::s_file_logger_.is_open() ){
 				int key_idx = features_[i].life - 1 - (step_ - keystep_);
 				if( key_idx >= 0 )
-					cv::line(img, features_[i].uv.back()*ratio, features_[i].uv[key_idx]*ratio, cv::Scalar::all(0), 1, CV_AA);
-				cv::putText(img, decimalTo36Base(features_[i].id), (features_[i].uv.back()+cv::Point2f(5,5))*ratio, cv::FONT_HERSHEY_DUPLEX, 0.4, cv::Scalar(0,255,0), 1, CV_AA);
+					cv::line(img, features_[i].uv.back()*ratio, features_[i].uv[key_idx]*ratio, cv::Scalar(0,255,255), 1, CV_AA);
+				// cv::putText(img, decimalTo36Base(features_[i].id), (features_[i].uv.back()+cv::Point2f(5,5))*ratio, cv::FONT_HERSHEY_DUPLEX, 0.4, cv::Scalar(0,255,0), 1, CV_AA);
 			}
 		}
 	}
@@ -161,7 +161,7 @@ void MVO::plot(const Eigen::MatrixXd * const depthMap) const {
 				g = std::exp(-depth/150) * std::max(255 - depth*8, 30);
 				b = std::exp(-depth/150) * std::max(100 - depth, 0);
 				cv::circle(distance, features_[i].uv.back()*ratio*0.5, std::ceil(5*ratio), cv::Scalar(b, g, r), CV_FILLED);
-				if( MVO::s_file_logger_.is_open() && point(2) > 0 ) cv::putText(distance, std::to_string(point(2)).substr(0, std::to_string(point(2)).find(".") + 2), (features_[i].uv.back()+cv::Point2f(8,8))*ratio*0.5, cv::FONT_HERSHEY_DUPLEX, 0.3, cv::Scalar(128,128,128), 1, CV_AA);
+				// if( MVO::s_file_logger_.is_open() && point(2) > 0 ) cv::putText(distance, std::to_string(point(2)).substr(0, std::to_string(point(2)).find(".") + 2), (features_[i].uv.back()+cv::Point2f(8,8))*ratio*0.5, cv::FONT_HERSHEY_DUPLEX, 0.3, cv::Scalar(128,128,128), 1, CV_AA);
 			}
 		}else{
 			if( features_[i].is_3D_reconstructed && features_[i].type != Type::Dynamic ){
@@ -172,7 +172,7 @@ void MVO::plot(const Eigen::MatrixXd * const depthMap) const {
 				g = std::exp(-depth/150) * std::max(255 - depth*8, 30);
 				b = std::exp(-depth/150) * std::max(100 - depth, 0);
 				cv::circle(distance, features_[i].uv.back()*ratio*0.5, std::ceil(5*ratio), cv::Scalar(b, g, r), CV_FILLED);
-				if( MVO::s_file_logger_.is_open() && point(2) > 0 ) cv::putText(distance, std::to_string(point(2)).substr(0, std::to_string(point(2)).find(".") + 2), (features_[i].uv.back()+cv::Point2f(8,8))*ratio*0.5, cv::FONT_HERSHEY_DUPLEX, 0.3, cv::Scalar(128,128,128), 1, CV_AA);
+				// if( MVO::s_file_logger_.is_open() && point(2) > 0 ) cv::putText(distance, std::to_string(point(2)).substr(0, std::to_string(point(2)).find(".") + 2), (features_[i].uv.back()+cv::Point2f(8,8))*ratio*0.5, cv::FONT_HERSHEY_DUPLEX, 0.3, cv::Scalar(128,128,128), 1, CV_AA);
 			}
 		}
 	}

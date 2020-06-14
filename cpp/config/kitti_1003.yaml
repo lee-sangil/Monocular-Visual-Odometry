@@ -59,7 +59,7 @@ Feature.minimum_num_inlier: 6
 Feature.minimum_matching_ratio: 0.9
 
 # Min. feature distance between for extraction
-Feature.minimum_distance_between: 10
+Feature.minimum_distance_between: 5
 
 # Min. feature distance between for reconstruction
 Feature.minimum_triangulation_baseline: 3
@@ -94,7 +94,7 @@ RANSAC.scale.num_sample: 1
 
 # Inlier threshold
 RANSAC.scale.threshold_dist_inlier: 0.5
-RANSAC.plane.threshold_dist_inlier: 0.01
+RANSAC.plane.threshold_dist_inlier: 0.02
 
 # Rejection threshold
 RANSAC.scale.threshold_dist_outlier: 1
@@ -106,7 +106,7 @@ Scale.reference_height: 1.65
 # For scale-propagation, the weight for scale referenced from a vehicle's fixed height
 # If you choose *negative* value, scale-propagation does not executed. It means that the 
 # algorithm *does not minimize* the difference between initialized 3d points and reconstructed points.
-Scale.reference_weight: 00
+Scale.reference_weight: 100
 
 # For scale-propagation, regularization weight for scale smoothness
 Scale.regularization_weight: 0.5
