@@ -15,13 +15,13 @@
 bool MVO::extractFeatures(){
     // Update features using KLT tracker
     if( updateFeatures() ){
-        if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "# Update features: " << lsi::toc() << std::endl;
+        if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "# Track features: " << lsi::toc() << std::endl;
         
         if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "* Tracking rate: " << 100.0 * num_feature_matched_ / num_feature_ << std::endl;
 
         // Delete features which is failed to track by KLT tracker
         deleteDeadFeatures();
-        if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "# Delete features: " << lsi::toc() << std::endl;
+        if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "## Delete features: " << lsi::toc() << std::endl;
         
         // Add features to the number of the lost features
         addFeatures();
@@ -29,7 +29,7 @@ bool MVO::extractFeatures(){
         // Add extra feature points
         addExtraFeatures();
 
-        if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "# Add features: " << lsi::toc() << std::endl;
+        if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "# Extract/remove features: " << lsi::toc() << std::endl;
         
         // Print features for debugging
         printFeatures();
@@ -784,7 +784,7 @@ void MVO::addFeature(){
  * @author Sangil Lee (sangillee724@gmail.com) Haram Kim (rlgkfka614@gmail.com)
  * @date 29-Dec-2019
  */
-bool MVO::calculateEssential(Eigen::Matrix3d & R, Eigen::Vector3d & t)
+bool MVO::calculateEssential()
 {
     if (step_ == 0){
         return true;
@@ -821,7 +821,7 @@ bool MVO::calculateEssential(Eigen::Matrix3d & R, Eigen::Vector3d & t)
     // calculate essential matrix with ransac
     cv::Mat inlier_mat, essential;
     essential = cv::findEssentialMat(points1, points2, params_.Kcv, CV_RANSAC, 0.999, 1.5, inlier_mat);
-    if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "# Calculate essential: " << lsi::toc() << std::endl;
+    if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "# Calculate motion: " << lsi::toc() << std::endl;
     
     Eigen::Matrix3d E_, fundamental;
     cv::cv2eigen(essential, E_);
@@ -906,8 +906,8 @@ bool MVO::calculateEssential(Eigen::Matrix3d & R, Eigen::Vector3d & t)
      **************************************************/
     std::vector<bool> max_inlier;
     std::vector<Eigen::Vector3d> X_curr;
-    if( !verifySolutions(R_vec, t_vec, R, t, max_inlier, X_curr) ) return false;
-    if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "# Verify unique pose: " << lsi::toc() << std::endl;
+    if( !verifySolutions(R_vec, t_vec, R_, t_, max_inlier, X_curr) ) return false;
+    if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "## Verify unique pose: " << lsi::toc() << std::endl;
 
     for( int i = 0; i < max_inlier.size(); i++ ){
         if( max_inlier[i] ){
@@ -917,7 +917,7 @@ bool MVO::calculateEssential(Eigen::Matrix3d & R, Eigen::Vector3d & t)
         }
     }
 
-    if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "# Extract R, t: " << lsi::toc() << std::endl;
+    if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "# Triangulation: " << lsi::toc() << std::endl;
     if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "! Extract essential between: " << curr_keyframe_.id << " <--> " << curr_frame_.id << std::endl;
 
     if (num_feature_2D_inliered_ < params_.th_inlier){
@@ -936,7 +936,7 @@ bool MVO::calculateEssential(Eigen::Matrix3d & R, Eigen::Vector3d & t)
  * @author Sangil Lee (sangillee724@gmail.com)
  * @date 14-Apr-2020
  */
-bool MVO::calculateEssentialStereo(Eigen::Matrix3d & R, Eigen::Vector3d & t)
+bool MVO::calculateEssentialStereo()
 {
     if (step_ == 0){
         return true;
@@ -992,7 +992,7 @@ bool MVO::calculateEssentialStereo(Eigen::Matrix3d & R, Eigen::Vector3d & t)
     // calculate essential matrix with ransac to reject outliers
     cv::Mat inlier_mat, essential;
     essential = cv::findEssentialMat(points1, points2, params_.Kcv, CV_RANSAC, 0.999, 1.5, inlier_mat);
-    if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "# Calculate essential: " << lsi::toc() << std::endl;
+    if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "## Calculate essential: " << lsi::toc() << std::endl;
     
     Eigen::Matrix3d E_, fundamental;
     cv::cv2eigen(essential, E_);
@@ -1069,8 +1069,8 @@ bool MVO::calculateEssentialStereo(Eigen::Matrix3d & R, Eigen::Vector3d & t)
 
     std::vector<bool> depth_inlier;
     std::vector<Eigen::Vector3d> X_curr;
-    if( !verifySolutions(R_vec, t_vec, R, t, depth_inlier, X_curr) ) return false;
-    if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "# Verify unique pose: " << lsi::toc() << std::endl;
+    if( !verifySolutions(R_vec, t_vec, R_, t_, depth_inlier, X_curr) ) return false;
+    if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "## Verify unique pose: " << lsi::toc() << std::endl;
 
     /**************************************************
      * Find proper scale from disparity map
@@ -1099,9 +1099,9 @@ bool MVO::calculateEssentialStereo(Eigen::Matrix3d & R, Eigen::Vector3d & t)
     std::vector<bool> scale_inlier, scale_outlier;
     lsi::ransac<std::pair<cv::Point3f,cv::Point3f>,double>(Points, params_.ransac_coef_scale, scale, scale_inlier, scale_outlier);
 
-    t *= scale;
+    t_ *= scale;
 
-    if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "# Extract R, t: " << lsi::toc() << std::endl;
+    if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "# Calculate motion: " << lsi::toc() << std::endl;
     if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "! Extract essential between: " << curr_keyframe_.id << " <--> " << curr_frame_.id << std::endl;
 
     if (num_feature_2D_inliered_ < params_.th_inlier){
@@ -1347,6 +1347,7 @@ bool MVO::updateRoiFeature(const cv::Rect& roi, const std::vector<cv::Point2f>& 
         // Add new feature to VO object
         Feature newFeature;
 
+        newFeature.id = Feature::getNewID(); // unique id of the feature
         newFeature.frame_2d_init = -1; // frame step when the 2d point is tracked
         newFeature.frame_3d_init = -1; // frame step when the 3d point is initialized
         newFeature.parallax = 0; // parallax between associated features

@@ -49,20 +49,20 @@ Camera.T_VC: !!opencv-matrix
 #--------------------------------------------------------------------------------------------
 
 # Number of features
-Feature.number: 600
+Feature.number: 1000
 
 # Number of features matching per image 
 Feature.minimum_num_inlier: 6
 
 # Threshold ratio for keyframe, which is updated when nFeatureMatched < nFeature * ratio
 # if threshold is 1, keyframe effect is disappeared.
-Feature.minimum_matching_ratio: 0.8
+Feature.minimum_matching_ratio: 0.9
 
 # Min. feature distance between for extraction
-Feature.minimum_distance_between: 5
+Feature.minimum_distance_between: 10
 
 # Min. feature distance between for reconstruction
-Feature.minimum_triangulation_baseline: 5
+Feature.minimum_triangulation_baseline: 3
 
 # Max. distance between the current feature attribute and predicted data
 Feature.maximum_prediction_distance: 20
@@ -75,15 +75,15 @@ Bucket.rows: 8
 Bucket.cols: 16
 
 # Parallax
-Feature.threshold_parallax: 0.002
-Feature.percentile_parallax: 0.75
+Feature.threshold_parallax: 0.001
+Feature.percentile_parallax: 0.4
 
 #--------------------------------------------------------------------------------------------
 # Reconstruction Parameters (tunable).
 #--------------------------------------------------------------------------------------------
 
 # Iteration
-RANSAC.maximum_iteration: 1000
+RANSAC.maximum_iteration: 500
 
 # Inlier ratio
 RANSAC.threshold_inlier_ratio: 0.99
@@ -94,7 +94,7 @@ RANSAC.scale.num_sample: 1
 
 # Inlier threshold
 RANSAC.scale.threshold_dist_inlier: 0.5
-RANSAC.plane.threshold_dist_inlier: 0.01
+RANSAC.plane.threshold_dist_inlier: 0.02
 
 # Rejection threshold
 RANSAC.scale.threshold_dist_outlier: 1
@@ -106,7 +106,7 @@ Scale.reference_height: 1.65
 # For scale-propagation, the weight for scale referenced from a vehicle's fixed height
 # If you choose *negative* value, scale-propagation does not executed. It means that the 
 # algorithm *does not minimize* the difference between initialized 3d points and reconstructed points.
-Scale.reference_weight: 100
+Scale.reference_weight: 200
 
 # For scale-propagation, regularization weight for scale smoothness
 Scale.regularization_weight: 0.5
@@ -125,7 +125,7 @@ PnP.reprojection_error: 0.2
 
 # Depth filter
 DepthFilter.minimum_depth: 0.1
-DepthFilter.pixel_noise: 2
+DepthFilter.pixel_noise: 1
 DepthFilter.maximum_variance: 0.001
 
 #--------------------------------------------------------------------------------------------
@@ -146,4 +146,4 @@ Debug.update_init_points: 1
 Debug.output_filtered_depths: 1
 
 # Mapping option: no scaling(0), only essential constraint(1), only PnP(2), both essential and pnp(3), both essential and pnp modified(4)
-Debug.mapping_options: 0
+Debug.mapping_options: 1

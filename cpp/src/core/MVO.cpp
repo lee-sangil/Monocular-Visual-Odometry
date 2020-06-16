@@ -467,22 +467,36 @@ void MVO::run(const cv::Mat& image, double timestamp){
     refresh();
 
     if( !extractFeatures() ) { restart(); return; }
-
-    Eigen::Matrix3d R;
-    Eigen::Vector3d t;
-    if( !calculateEssential(R, t) ) { restart(); return; }
-    if( !calculateMotion(R, t) ) { restart(); return; }
+    if( !calculateEssential() ) { restart(); return; }
+    if( !calculateMotion() ) { restart(); return; }
     
-    // std::vector<cv::Rect> rois;
-    // std::vector<int> num_feature;
-    // rois.push_back(cv::Rect(000,000,200,200));
-    // rois.push_back(cv::Rect(400,200,200,200));
-    // rois.push_back(cv::Rect(600,400,200,200));
-    // num_feature.push_back(-1);
-    // num_feature.push_back(-1);
-    // num_feature.push_back(-1);
-    // updateRoiFeatures(rois, num_feature); // Extract extra features in rois
+    // Import ROIs from depth estimation
+    std::vector<cv::Rect> rois;
+    std::vector<int> num_feature;
 
+    std::ifstream fid;
+    std::stringstream ss_txt;
+    static int l = 0;
+    ss_txt << "/home/icsl/Downloads/result_det/" << std::setfill('0') << std::setw(10) << l++ << ".txt";
+    fid.open(ss_txt.str());
+    if( fid.is_open() ){
+        std::string str;
+        while( std::getline(fid,str) ){
+
+            int id, x, y, w, h;
+            float prob;
+            sscanf(str.c_str(), "%d\t%d\t%d\t%d\t%d\t%f\n", &id, &x, &y, &w, &h, &prob);
+            if( id == 10 ){
+                rois.push_back(cv::Rect(x, y, w, h));
+                num_feature.push_back(-1);
+            }
+        }
+    }
+    fid.close();
+
+    updateRoiFeatures(rois, num_feature); // Extract extra features in rois
+
+    // Export feature for depth estimation
     if( std::system((std::string("mkdir -p ") + "features").c_str()) == -1 ){
         std::cerr << "Error: cannot make directory" << std::endl;
         std::abort();
@@ -516,13 +530,36 @@ void MVO::run(const cv::Mat& image, const cv::Mat& image_right, double timestamp
     refresh();
 
     if( !extractFeatures() ) { restart(); return; }
+    if( !calculateEssentialStereo() ) { restart(); return; }
+    if( !calculateMotionStereo() ) { restart(); return; }
 
-    Eigen::Matrix3d R;
-    Eigen::Vector3d t;
-    if( !calculateEssentialStereo(R, t) ) { restart(); return; }
-    if( !calculateMotionStereo(R, t) ) { restart(); return; }
+    // Import ROIs from depth estimation
+    std::vector<cv::Rect> rois;
+    std::vector<int> num_feature;
 
-    //
+    std::ifstream fid;
+    std::stringstream ss_txt;
+    static int l = 0;
+    ss_txt << "/home/icsl/Downloads/result_det/" << std::setfill('0') << std::setw(10) << l++ << ".txt";
+    fid.open(ss_txt.str());
+    if( fid.is_open() ){
+        std::string str;
+        while( std::getline(fid,str) ){
+
+            int id, x, y, w, h;
+            float prob;
+            sscanf(str.c_str(), "%d\t%d\t%d\t%d\t%d\t%f\n", &id, &x, &y, &w, &h, &prob);
+            if( id == 10 ){
+                rois.push_back(cv::Rect(x, y, w, h));
+                num_feature.push_back(-1);
+            }
+        }
+    }
+    fid.close();
+
+    updateRoiFeatures(rois, num_feature); // Extract extra features in rois
+
+    // Export feature for depth estimation
     if( std::system((std::string("mkdir -p ") + "features").c_str()) == -1 ){
         std::cerr << "Error: cannot make directory" << std::endl;
         std::abort();

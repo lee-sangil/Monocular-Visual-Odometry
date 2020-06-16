@@ -10,7 +10,7 @@
  * @author Sangil Lee (sangillee724@gmail.com)
  * @date 29-Dec-2019
  */
-bool MVO::calculateMotion(const Eigen::Matrix3d & R_e, Eigen::Vector3d & t_e)
+bool MVO::calculateMotion()
 {
     if (!is_start_)
         return true;
@@ -30,17 +30,17 @@ bool MVO::calculateMotion(const Eigen::Matrix3d & R_e, Eigen::Vector3d & t_e)
         num_feature_inlier_ = num_feature_3D_reconstructed_;
 
         /**** mapping without scaling ****/
-        update3DPoints(R_e, t_e, inlier, outlier, T, Toc, Poc);
-        if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "# Update 3D Points with Essential: " << lsi::toc() << std::endl;
+        update3DPoints(R_, t_, inlier, outlier, T, Toc, Poc);
+        if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "# Update landmarks: " << lsi::toc() << std::endl;
 
         break;
 
     case 1:
         /**** mapping and scaling with essential 3d reconstruction only ****/
-        if( !scalePropagation(R_e ,t_e, inlier, outlier) ) return false;
+        if( !scalePropagation(R_ ,t_, inlier, outlier) ) return false;
 
-        update3DPoints(R_e, t_e, inlier, outlier, T, Toc, Poc); // overloading function
-        if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "# Update 3D Points with Essential: " << lsi::toc() << std::endl;
+        update3DPoints(R_, t_, inlier, outlier, T, Toc, Poc); // overloading function
+        if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "# Update landmarks: " << lsi::toc() << std::endl;
 
         break;
 
@@ -49,12 +49,12 @@ bool MVO::calculateMotion(const Eigen::Matrix3d & R_e, Eigen::Vector3d & t_e)
         if( is_scale_initialized_ == true ){
             findPoseFrom3DPoints(R, t, idx_inlier, idx_outlier);
         }else{
-            R = R_e;
-            t = t_e;
+            R = R_;
+            t = t_;
             num_feature_inlier_ = features_.size();
         }
 
-        update3DPoints(R, t, inlier, outlier, R_e, t_e, false, T, Toc, Poc); // overloading function
+        update3DPoints(R, t, inlier, outlier, R_, t_, false, T, Toc, Poc); // overloading function
         break;
 
     case 3:
@@ -63,36 +63,36 @@ bool MVO::calculateMotion(const Eigen::Matrix3d & R_e, Eigen::Vector3d & t_e)
             if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "# Find pose from PnP: " << lsi::toc() << std::endl;
 
             // Update 3D points
-            bool success = scalePropagation(R_e, t_e, inlier, outlier);
+            bool success = scalePropagation(R_, t_, inlier, outlier);
             
             // Update 3D points
-            update3DPoints(R, t, inlier, outlier, R_e, t_e, success, T, Toc, Poc); // overloading function
+            update3DPoints(R, t, inlier, outlier, R_, t_, success, T, Toc, Poc); // overloading function
             if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "# Update 3D Points with PnP: " << lsi::toc() << std::endl;
 
         }else{
             if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "# Find pose from PnP: " << lsi::toc() << std::endl;
 
             // Update 3D points
-            if( !scalePropagation(R_e ,t_e, inlier, outlier) ) return false;
+            if( !scalePropagation(R_ ,t_, inlier, outlier) ) return false;
 
-            update3DPoints(R_e, t_e, inlier, outlier, T, Toc, Poc); // overloading function
+            update3DPoints(R_, t_, inlier, outlier, T, Toc, Poc); // overloading function
             if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "# Update 3D Points with Essential: " << lsi::toc() << std::endl;
         }
         break;
 
     case 4:
         /**** use both PnP and essential 3d reconstruction - modified ****/
-        if( scalePropagation(R_e, t_e, inlier, outlier) ){
+        if( scalePropagation(R_, t_, inlier, outlier) ){
             if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "# Find scale from Essential: " << lsi::toc() << std::endl;
 
-            R = R_e;
-            t = t_e;
+            R = R_;
+            t = t_;
 
             findPoseFrom3DPoints(R, t, idx_inlier, idx_outlier);
             if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "# Find pose from PnP: " << lsi::toc() << std::endl;
 
             // Update 3D points
-            update3DPoints(R, t, inlier, outlier, R_e, t_e, true, T, Toc, Poc);
+            update3DPoints(R, t, inlier, outlier, R_, t_, true, T, Toc, Poc);
         }else{
             if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "# Find scale from Essential: " << lsi::toc() << std::endl;
 
@@ -100,7 +100,7 @@ bool MVO::calculateMotion(const Eigen::Matrix3d & R_e, Eigen::Vector3d & t_e)
             if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "# Find pose from PnP: " << lsi::toc() << std::endl;
 
             // Update 3D points
-            update3DPoints(R, t, inlier, outlier, R_e, t_e, false, T, Toc, Poc);
+            update3DPoints(R, t, inlier, outlier, R_, t_, false, T, Toc, Poc);
         }
         break;
     }
@@ -114,7 +114,7 @@ bool MVO::calculateMotion(const Eigen::Matrix3d & R_e, Eigen::Vector3d & t_e)
         return false;
     }else{
         if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "Temporal velocity: " << T.block(0,3,3,1).norm() << std::endl;
-        if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "Optimized scale: " << t_e.norm() << std::endl;
+        if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "Optimized scale: " << t_.norm() << std::endl;
 
         // Save solution
         TRec_.emplace_back(T);
@@ -133,7 +133,7 @@ bool MVO::calculateMotion(const Eigen::Matrix3d & R_e, Eigen::Vector3d & t_e)
  * @author Sangil Lee (sangillee724@gmail.com)
  * @date 8-May-2020
  */
-bool MVO::calculateMotionStereo(const Eigen::Matrix3d & R_e, Eigen::Vector3d & t_e)
+bool MVO::calculateMotionStereo()
 {
     if (!is_start_)
         return true;
@@ -153,17 +153,17 @@ bool MVO::calculateMotionStereo(const Eigen::Matrix3d & R_e, Eigen::Vector3d & t
         num_feature_inlier_ = num_feature_3D_reconstructed_;
 
         /**** mapping without scaling ****/
-        update3DPointsStereo(R_e, t_e, inlier, outlier, T, Toc, Poc);
-        if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "# Update 3D Points with Essential: " << lsi::toc() << std::endl;
+        update3DPointsStereo(R_, t_, inlier, outlier, T, Toc, Poc);
+        if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "# Update landmarks: " << lsi::toc() << std::endl;
 
         break;
 
     case 1:
         /**** mapping and scaling with essential 3d reconstruction only ****/
-        if( !scalePropagation(R_e ,t_e, inlier, outlier) ) return false;
+        if( !scalePropagation(R_ ,t_, inlier, outlier) ) return false;
 
-        update3DPointsStereo(R_e, t_e, inlier, outlier, T, Toc, Poc); // overloading function
-        if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "# Update 3D Points with Essential: " << lsi::toc() << std::endl;
+        update3DPointsStereo(R_, t_, inlier, outlier, T, Toc, Poc); // overloading function
+        if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "# Update landmarks: " << lsi::toc() << std::endl;
 
         break;
     }
@@ -177,7 +177,7 @@ bool MVO::calculateMotionStereo(const Eigen::Matrix3d & R_e, Eigen::Vector3d & t
         return false;
     }else{
         if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "Temporal velocity: " << T.block(0,3,3,1).norm() << std::endl;
-        if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "Optimized scale: " << t_e.norm() << std::endl;
+        if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "Optimized scale: " << t_.norm() << std::endl;
 
         // Save solution
         TRec_.emplace_back(T);
@@ -519,7 +519,7 @@ void MVO::update3DPoint(Feature& feature, const Eigen::Matrix4d& Toc, const Eige
             feature.landmark->point_init = TocRec_[feature.frame_3d_init] * (Eigen::Vector4d() << point_initframe / (z * feature.depthfilter->getMean()), 1).finished();
             feature.landmark->variance = feature.depthfilter->getVariance();
             
-            if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << feature.id << '\t' << tau_inverse << '\t' << 1/z << '\t' << feature.depthfilter->getMean() << std::endl;
+            // if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << feature.id << '\t' << tau_inverse << '\t' << 1/z << '\t' << feature.depthfilter->getMean() << std::endl;
         }
 
     }else{ // if( feature.is_wide ){
@@ -916,7 +916,7 @@ bool MVO::scalePropagation(const Eigen::Matrix3d &R, Eigen::Vector3d &t, std::ve
             flag = true;
     }
 
-    if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "# Propagate scale: " << lsi::toc() << std::endl;
+    if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "# Compensate scale: " << lsi::toc() << std::endl;
 
     if( t.hasNaN() ){
         if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "Warning: A scale value is nan" << std::endl;

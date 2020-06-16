@@ -10,14 +10,14 @@ Version: 2.5
 Camera.fps: 15
 
 # Camera image resolution
-Camera.width: 1241
-Camera.height: 376
+Camera.width: 1224
+Camera.height: 370
 
 # Camera intrinsics
-Camera.fx: 7.188560e+02
-Camera.fy: 7.188560e+02
-Camera.cx: 6.071928e+02
-Camera.cy: 1.852157e+02
+Camera.fx: 7.070493e+02
+Camera.fy: 7.070493e+02
+Camera.cx: 6.040814e+02
+Camera.cy: 1.805066e+02
 
 Camera.k1: 0.0
 Camera.k2: 0.0
@@ -39,9 +39,9 @@ Camera.T_VC: !!opencv-matrix
      rows: 4
      cols: 4
      dt: d
-     data: [7.967514e-03, -9.999679e-01, -8.462264e-04, -1.377769e-02,
-           -2.771053e-03,  8.241710e-04, -9.999958e-01, -5.542117e-02,
-            9.999644e-01,  7.969825e-03, -2.764397e-03, -2.918589e-01,
+     data: [6.927964e-03, -9.999722e-01, -2.757829e-03, -2.457729e-02,
+           -1.162982e-03, 2.749836e-03, -9.999955e-01,  -6.127237e-02,
+            9.999753e-01, 6.931141e-03, -1.143899e-03,  -3.321029e-01,
             0,0,0,1]
 
 #--------------------------------------------------------------------------------------------
@@ -49,7 +49,7 @@ Camera.T_VC: !!opencv-matrix
 #--------------------------------------------------------------------------------------------
 
 # Number of features
-Feature.number: 2000
+Feature.number: 600
 
 # Number of features matching per image 
 Feature.minimum_num_inlier: 6
@@ -106,7 +106,7 @@ Scale.reference_height: 1.65
 # For scale-propagation, the weight for scale referenced from a vehicle's fixed height
 # If you choose *negative* value, scale-propagation does not executed. It means that the 
 # algorithm *does not minimize* the difference between initialized 3d points and reconstructed points.
-Scale.reference_weight: 0
+Scale.reference_weight: 100
 
 # For scale-propagation, regularization weight for scale smoothness
 Scale.regularization_weight: 0.5

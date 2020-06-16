@@ -234,10 +234,10 @@ class MVO{
 	void addFeature();
 
 	// Calculations
-	bool calculateEssential(Eigen::Matrix3d & R, Eigen::Vector3d & t);
-	bool calculateEssentialStereo(Eigen::Matrix3d & R, Eigen::Vector3d & t);
-	bool calculateMotion(const Eigen::Matrix3d & R, Eigen::Vector3d & t);
-	bool calculateMotionStereo(const Eigen::Matrix3d & R, Eigen::Vector3d & t);
+	bool calculateEssential();
+	bool calculateEssentialStereo();
+	bool calculateMotion();
+	bool calculateMotionStereo();
 
 	bool verifySolutions(const std::vector<Eigen::Matrix3d>& R_vec, const std::vector<Eigen::Vector3d>& t_vec,
 						  Eigen::Matrix3d& R, Eigen::Vector3d& t, std::vector<bool>& max_inlier, std::vector<Eigen::Vector3d>& opt_X_curr);
@@ -321,6 +321,8 @@ class MVO{
 	std::vector<Eigen::Matrix4d, Eigen::aligned_allocator<Eigen::Matrix4d>> TRec_; /**< @brief 두 이미지 사이의 변환 행렬 */
 	std::vector<Eigen::Matrix4d, Eigen::aligned_allocator<Eigen::Matrix4d>> TocRec_; /**< @brief 초기 위치로부터의 변환 행렬 */
 	std::vector<Eigen::Vector4d, Eigen::aligned_allocator<Eigen::Vector4d>> PocRec_; /**< @brief 초기 위치로부터의 변위 */
+	Eigen::Matrix3d R_;
+	Eigen::Vector3d t_;
 
 	// std::vector<cv::Mat> prev_pyramid_template_, curr_pyramid_template_;
 	Eigen::MatrixXd map_matrix_template_; /**< @brief 빠른 SVD 계산을 위한 임시 메모리 공간 할당 */
