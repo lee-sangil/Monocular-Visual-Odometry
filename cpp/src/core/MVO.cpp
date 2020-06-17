@@ -50,9 +50,9 @@ MVO::MVO(){
     // random seed
     lsi::seed();
 
-    // G2O optimizer
-    optimizer_->setAlgorithm(algorithm_);
-    optimizer_->setVerbose(false);
+    // // G2O optimizer
+    // optimizer_->setAlgorithm(algorithm_);
+    // optimizer_->setVerbose(false);
 }
 
 /**
@@ -280,11 +280,11 @@ MVO::MVO(std::string yaml):MVO(){
 	params_.view.t = -(Eigen::Vector3d() << 0,0,-params_.view.height).finished();
 	params_.view.P = (Eigen::Matrix<double,3,4>() << params_.view.K * params_.view.R, params_.view.K * params_.view.t).finished();
 
-    cam_params_ = new g2o::CameraParameters((params_.fx+params_.fy)/2.,g2o::Vector2D(params_.cx,params_.cy),0);
-    cam_params_->setId(0); // Optimizer의 Parameter에 ID가 0인 카메라 파라미터를 추가한다.
-    if( !optimizer_->addParameter(cam_params_) ){
-        assert(false);
-    }
+    // cam_params_ = new g2o::CameraParameters((params_.fx+params_.fy)/2.,g2o::Vector2D(params_.cx,params_.cy),0);
+    // cam_params_->setId(0); // Optimizer의 Parameter에 ID가 0인 카메라 파라미터를 추가한다.
+    // if( !optimizer_->addParameter(cam_params_) ){
+    //     assert(false);
+    // }
 }
 
 /**

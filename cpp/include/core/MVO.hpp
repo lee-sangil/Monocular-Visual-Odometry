@@ -18,7 +18,7 @@
 
 #include "core/common.hpp"
 #include "core/ransac.hpp"
-#include "core/g2o.hpp"
+// #include "core/g2o.hpp"
 
 /**
  * @brief 영상 항법 모듈 클래스.
@@ -328,11 +328,11 @@ class MVO{
 	Eigen::MatrixXd map_matrix_template_; /**< @brief 빠른 SVD 계산을 위한 임시 메모리 공간 할당 */
 	std::shared_ptr< Eigen::SelfAdjointEigenSolver<Eigen::MatrixXd> > eigen_solver_; /**< @brief eigen 벡터 계산기 객체 */
 
-	g2o::BlockSolverX::LinearSolverType * linear_solver_ = new g2o::LinearSolverDense<g2o::BlockSolverX::PoseMatrixType>();
-    g2o::BlockSolverX * block_solver_ = new g2o::BlockSolverX(linear_solver_);
-    g2o::OptimizationAlgorithm * algorithm_ = new g2o::OptimizationAlgorithmLevenberg(block_solver_);
-    g2o::SparseOptimizer * optimizer_ = new g2o::SparseOptimizer;
-	g2o::CameraParameters * cam_params_;
+	// g2o::BlockSolverX::LinearSolverType * linear_solver_ = new g2o::LinearSolverDense<g2o::BlockSolverX::PoseMatrixType>();
+    // g2o::BlockSolverX * block_solver_ = new g2o::BlockSolverX(linear_solver_);
+    // g2o::OptimizationAlgorithm * algorithm_ = new g2o::OptimizationAlgorithmLevenberg(block_solver_);
+    // g2o::SparseOptimizer * optimizer_ = new g2o::SparseOptimizer;
+	// g2o::CameraParameters * cam_params_;
 };
 
 #endif //__MVO_HPP__
