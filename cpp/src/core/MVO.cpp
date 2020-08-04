@@ -1,6 +1,8 @@
 #include "core/MVO.hpp"
 #include "core/time.hpp"
 #include "core/DepthFilter.hpp"
+#include <boost/filesystem/fstream.hpp>
+#include <boost/filesystem/operations.hpp>
 
 double DepthFilter::s_px_error_angle_;
 double DepthFilter::s_meas_max_;
@@ -46,6 +48,13 @@ MVO::MVO(){
     // file_logger
     if( MVO::s_file_logger_.is_open() ) std::cout << "# Generate log.txt" << std::endl;
     if( MVO::s_point_logger_.is_open() ) std::cout << "# Generate pointcloud.txt" << std::endl;
+
+    // Export feature for depth estimation
+    boost::filesystem::remove_all(boost::filesystem::path("features"));
+    if( !boost::filesystem::create_directory(boost::filesystem::path("features")) ){
+        std::cerr << "Error: cannot make directory" << std::endl;
+        std::abort();
+    }
 
     // random seed
     lsi::seed();
@@ -470,38 +479,33 @@ void MVO::run(const cv::Mat& image, double timestamp){
     if( !calculateEssential() ) { restart(); return; }
     if( !calculateMotion() ) { restart(); return; }
     
-    // Import ROIs from depth estimation
-    std::vector<cv::Rect> rois;
-    std::vector<int> num_feature;
+    // // Import ROIs from depth estimation
+    // std::vector<cv::Rect> rois;
+    // std::vector<int> num_feature;
 
-    std::ifstream fid;
-    std::stringstream ss_txt;
-    static int l = 0;
-    ss_txt << "/home/icsl/Downloads/result_det/" << std::setfill('0') << std::setw(10) << l++ << ".txt";
-    fid.open(ss_txt.str());
-    if( fid.is_open() ){
-        std::string str;
-        while( std::getline(fid,str) ){
+    // std::ifstream fid;
+    // std::stringstream ss_txt;
+    // static int l = 0;
+    // ss_txt << "/home/icsl/Downloads/result_det/" << std::setfill('0') << std::setw(10) << l++ << ".txt";
+    // fid.open(ss_txt.str());
+    // if( fid.is_open() ){
+    //     std::string str;
+    //     while( std::getline(fid,str) ){
 
-            int id, x, y, w, h;
-            float prob;
-            sscanf(str.c_str(), "%d\t%d\t%d\t%d\t%d\t%f\n", &id, &x, &y, &w, &h, &prob);
-            if( id == 10 ){
-                rois.push_back(cv::Rect(x, y, w, h));
-                num_feature.push_back(-1);
-            }
-        }
-    }
-    fid.close();
+    //         int id, x, y, w, h;
+    //         float prob;
+    //         sscanf(str.c_str(), "%d\t%d\t%d\t%d\t%d\t%f\n", &id, &x, &y, &w, &h, &prob);
+    //         if( id == 10 ){
+    //             rois.push_back(cv::Rect(x, y, w, h));
+    //             num_feature.push_back(-1);
+    //         }
+    //     }
+    // }
+    // fid.close();
 
-    updateRoiFeatures(rois, num_feature); // Extract extra features in rois
+    // updateRoiFeatures(rois, num_feature); // Extract extra features in rois
 
     // Export feature for depth estimation
-    if( std::system((std::string("mkdir -p ") + "features").c_str()) == -1 ){
-        std::cerr << "Error: cannot make directory" << std::endl;
-        std::abort();
-    }
-	
     std::stringstream ss;
     ss << "features/" << std::setprecision(6) << std::setfill('0') << std::setw(10) << timestamp << ".txt";
     std::ofstream uvz_logger(ss.str());
@@ -560,11 +564,6 @@ void MVO::run(const cv::Mat& image, const cv::Mat& image_right, double timestamp
     updateRoiFeatures(rois, num_feature); // Extract extra features in rois
 
     // Export feature for depth estimation
-    if( std::system((std::string("mkdir -p ") + "features").c_str()) == -1 ){
-        std::cerr << "Error: cannot make directory" << std::endl;
-        std::abort();
-    }
-	
     std::stringstream ss;
     ss << "features/" << std::setprecision(6) << std::setfill('0') << std::setw(10) << timestamp << ".txt";
     std::ofstream uvz_logger(ss.str());

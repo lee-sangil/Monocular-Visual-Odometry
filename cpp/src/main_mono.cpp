@@ -43,6 +43,7 @@ int main(int argc, char * argv[]){
 				"\tOptional -fl: length frame (default: eof).\n"
 				"\tOptional -gt: compare with ground-truth if exists (default: false).\n"
 				"\tOptional -db: print log (default: false).\n"
+				"\tOptional -script: quit algorithm immediately.\n"
 				"\tOptional -h: print help.\n"
 				"Example: $ ./mono -c /path/to/setting.yaml -i /path/to/input_folder/ -c /path/to/camera_settings.yaml" << std::endl;
         return 1;
@@ -283,28 +284,30 @@ int main(int argc, char * argv[]){
 		}
 	}
 
-	bRun = true;
-	while(bRun){
-		vo->updateView();
-		if( Parser::hasOption("-gt") ){
-			std::ostringstream dirDepth;
-			dirDepth << inputFile << "full_depth/" << std::setfill('0') << std::setw(10) << it_rgb+initFrame << ".bin";
-			Eigen::MatrixXd depth = readDepth(dirDepth.str().c_str(), vo->params_.im_size.height, vo->params_.im_size.width);
-			vo->calcReconstructionErrorGT(depth);
-			vo->plot(&depth);
-		}else{
-			vo->plot();
-		}
+	if( !Parser::hasOption("-script") ){
+		bRun = true;
+		while(bRun){
+			vo->updateView();
+			if( Parser::hasOption("-gt") ){
+				std::ostringstream dirDepth;
+				dirDepth << inputFile << "full_depth/" << std::setfill('0') << std::setw(10) << it_rgb+initFrame << ".bin";
+				Eigen::MatrixXd depth = readDepth(dirDepth.str().c_str(), vo->params_.im_size.height, vo->params_.im_size.width);
+				vo->calcReconstructionErrorGT(depth);
+				vo->plot(&depth);
+			}else{
+				vo->plot();
+			}
 
-		//KeyBoard Process
-		key = cv::waitKey(0);
-		switch (key) {
-			case 'q':	// press q to quit
-				bRun = false;
-				break;
-			default:
-				grabActiveKey(vo, key);
-				break;
+			//KeyBoard Process
+			key = cv::waitKey(0);
+			switch (key) {
+				case 'q':	// press q to quit
+					bRun = false;
+					break;
+				default:
+					grabActiveKey(vo, key);
+					break;
+			}
 		}
 	}
 

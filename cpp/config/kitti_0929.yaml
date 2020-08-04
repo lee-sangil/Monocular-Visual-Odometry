@@ -10,14 +10,14 @@ Version: 2.5
 Camera.fps: 15
 
 # Camera image resolution
-Camera.width: 1224
-Camera.height: 370
+Camera.width: 1238
+Camera.height: 374
 
 # Camera intrinsics
-Camera.fx: 7.070493e+02
-Camera.fy: 7.070493e+02
-Camera.cx: 6.040814e+02
-Camera.cy: 1.805066e+02
+Camera.fx: 7.183351e+02
+Camera.fy: 7.183351e+02
+Camera.cx: 6.003891e+02
+Camera.cy: 1.815122e+02
 
 Camera.k1: 0.0
 Camera.k2: 0.0
@@ -30,26 +30,26 @@ Camera.T_IV: !!opencv-matrix
      rows: 4
      cols: 4
      dt: d
-     data: [9.999976e-01, 7.553071e-04, -2.035826e-03, -8.086759e-01,
-           -7.854027e-04, 9.998898e-01, -1.482298e-02,  3.195559e-01,
-            2.024406e-03, 1.482454e-02,  9.998881e-01, -7.997231e-01,
-            0,0,0,1]
+     data: [9.999976e-01, 7.553071e-04, -2.035826e-03, -8.086759e-01,  
+           -7.854027e-04, 9.998898e-01, -1.482298e-02, 3.195559e-01,
+            2.024406e-03, 1.482454e-02, 9.998881e-01, -7.997231e-01,
+            0, 0, 0, 1]
 
 Camera.T_VC: !!opencv-matrix
      rows: 4
      cols: 4
      dt: d
-     data: [6.927964e-03, -9.999722e-01, -2.757829e-03, -2.457729e-02,
-           -1.162982e-03, 2.749836e-03, -9.999955e-01,  -6.127237e-02,
-            9.999753e-01, 6.931141e-03, -1.143899e-03,  -3.321029e-01,
-            0,0,0,1]
+     data: [7.755449e-03, -9.999694e-01, -1.014303e-03, -7.275538e-03,
+            2.294056e-03, 1.032122e-03, -9.999968e-01, -6.324057e-02,
+            9.999673e-01, 7.753097e-03, 2.301990e-03, -2.670414e-01,
+            0, 0, 0, 1]
 
 #--------------------------------------------------------------------------------------------
 # Feature Parameters (tunable).
 #--------------------------------------------------------------------------------------------
 
 # Number of features
-Feature.number: 1000
+Feature.number: 600
 
 # Number of features matching per image 
 Feature.minimum_num_inlier: 6
@@ -75,8 +75,8 @@ Bucket.rows: 8
 Bucket.cols: 16
 
 # Parallax
-Feature.threshold_parallax: 0.001
-Feature.percentile_parallax: 0.6
+Feature.threshold_parallax: 0.002
+Feature.percentile_parallax: 0.5
 
 #--------------------------------------------------------------------------------------------
 # Reconstruction Parameters (tunable).
