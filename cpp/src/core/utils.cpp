@@ -1,4 +1,5 @@
 #include "core/MVO.hpp"
+#include <numeric>
 
 /*********************
  *   For debugging   *

@@ -59,7 +59,7 @@ Feature.minimum_num_inlier: 6
 Feature.minimum_matching_ratio: 0.9
 
 # Min. feature distance between for extraction
-Feature.minimum_distance_between: 10
+Feature.minimum_distance_between: 5
 
 # Min. feature distance between for reconstruction
 Feature.minimum_triangulation_baseline: 3
@@ -72,11 +72,11 @@ Bucket.border_safety: 20
 
 # Bucket size
 Bucket.rows: 8
-Bucket.cols: 16
+Bucket.cols: 8
 
 # Parallax
 Feature.threshold_parallax: 0.001
-Feature.percentile_parallax: 0.4
+Feature.percentile_parallax: 0.5
 
 #--------------------------------------------------------------------------------------------
 # Reconstruction Parameters (tunable).
@@ -106,10 +106,10 @@ Scale.reference_height: 1.65
 # For scale-propagation, the weight for scale referenced from a vehicle's fixed height
 # If you choose *negative* value, scale-propagation does not executed. It means that the 
 # algorithm *does not minimize* the difference between initialized 3d points and reconstructed points.
-Scale.reference_weight: 200
+Scale.reference_weight: 400
 
 # For scale-propagation, regularization weight for scale smoothness
-Scale.regularization_weight: 0.5
+Scale.regularization_weight: 0.3
 
 # SVD Methods: mid-point(0: recommended), linear least square(1)
 Triangulation.method: 0
@@ -124,9 +124,9 @@ PnP.method: 2
 PnP.reprojection_error: 0.2
 
 # Depth filter
-DepthFilter.minimum_depth: 0.1
+DepthFilter.minimum_depth: 0.5
 DepthFilter.pixel_noise: 1
-DepthFilter.maximum_variance: 0.001
+DepthFilter.maximum_variance: 0.0003
 
 #--------------------------------------------------------------------------------------------
 # Display Parameters (tunable).

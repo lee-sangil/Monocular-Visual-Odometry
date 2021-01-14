@@ -479,31 +479,34 @@ void MVO::run(const cv::Mat& image, double timestamp){
     if( !calculateEssential() ) { restart(); return; }
     if( !calculateMotion() ) { restart(); return; }
     
-    // // Import ROIs from depth estimation
-    // std::vector<cv::Rect> rois;
-    // std::vector<int> num_feature;
+    // Import ROIs from depth estimation
+    std::vector<cv::Rect> rois;
+    std::vector<int> num_feature;
 
-    // std::ifstream fid;
-    // std::stringstream ss_txt;
-    // static int l = 0;
-    // ss_txt << "/home/icsl/Downloads/result_det/" << std::setfill('0') << std::setw(10) << l++ << ".txt";
-    // fid.open(ss_txt.str());
-    // if( fid.is_open() ){
-    //     std::string str;
-    //     while( std::getline(fid,str) ){
+    std::ifstream fid;
+    std::stringstream ss_txt;
+    static int l = 0;
+    ss_txt << this->path_to_yolo_result_ << std::setfill('0') << std::setw(10) << l++ << ".txt";
+    fid.open(ss_txt.str());
+    if( fid.is_open() ){
+        std::string str;
+        while( std::getline(fid,str) ){
 
-    //         int id, x, y, w, h;
-    //         float prob;
-    //         sscanf(str.c_str(), "%d\t%d\t%d\t%d\t%d\t%f\n", &id, &x, &y, &w, &h, &prob);
-    //         if( id == 10 ){
-    //             rois.push_back(cv::Rect(x, y, w, h));
-    //             num_feature.push_back(-1);
-    //         }
-    //     }
-    // }
-    // fid.close();
+            int id, x, y, w, h;
+            float prob;
+            sscanf(str.c_str(), "%d\t%d\t%d\t%d\t%d\t%f\n", &id, &x, &y, &w, &h, &prob);
+            if( id == 10 ){
+                rois.push_back(cv::Rect(x, y, w, h));
+                num_feature.push_back(-1);
+            }else{
+                rois.push_back(cv::Rect(x, y, w, h));
+                num_feature.push_back( std::min( static_cast<int>(std::floor(w*h/5000.0)),2) );
+            }
+        }
+    }
+    fid.close();
 
-    // updateRoiFeatures(rois, num_feature); // Extract extra features in rois
+    updateRoiFeatures(rois, num_feature); // Extract extra features in rois
 
     // Export feature for depth estimation
     std::stringstream ss;

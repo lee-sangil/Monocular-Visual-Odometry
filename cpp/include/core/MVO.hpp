@@ -186,6 +186,7 @@ class MVO{
 	Parameter params_; /**< @brief 영상 항법 모듈 파라미터 */
 	static std::ofstream s_point_logger_; /**< @brief 포인트 클라우드 텍스트 파일 출력 */
 	static std::ofstream s_file_logger_; /**< @brief 알고리즘 로그 출력 */
+	std::string path_to_yolo_result_; /**< @brief YOLO 결과가 저장된 경로 */
 	
 	public:
 

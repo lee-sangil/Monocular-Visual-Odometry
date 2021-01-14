@@ -49,14 +49,14 @@ Camera.T_VC: !!opencv-matrix
 #--------------------------------------------------------------------------------------------
 
 # Number of features
-Feature.number: 1000
+Feature.number: 1200
 
 # Number of features matching per image 
 Feature.minimum_num_inlier: 6
 
 # Threshold ratio for keyframe, which is updated when nFeatureMatched < nFeature * ratio
 # if threshold is 1, keyframe effect is disappeared.
-Feature.minimum_matching_ratio: 0.9
+Feature.minimum_matching_ratio: 0.95
 
 # Min. feature distance between for extraction
 Feature.minimum_distance_between: 5
@@ -76,7 +76,7 @@ Bucket.cols: 16
 
 # Parallax
 Feature.threshold_parallax: 0.001
-Feature.percentile_parallax: 0.6
+Feature.percentile_parallax: 0.7
 
 #--------------------------------------------------------------------------------------------
 # Reconstruction Parameters (tunable).
@@ -106,10 +106,10 @@ Scale.reference_height: 1.65
 # For scale-propagation, the weight for scale referenced from a vehicle's fixed height
 # If you choose *negative* value, scale-propagation does not executed. It means that the 
 # algorithm *does not minimize* the difference between initialized 3d points and reconstructed points.
-Scale.reference_weight: 100
+Scale.reference_weight: 200
 
 # For scale-propagation, regularization weight for scale smoothness
-Scale.regularization_weight: 0.5
+Scale.regularization_weight: 0.2
 
 # SVD Methods: mid-point(0: recommended), linear least square(1)
 Triangulation.method: 0

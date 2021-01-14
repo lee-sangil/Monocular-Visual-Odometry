@@ -1268,12 +1268,12 @@ void MVO::updateRoiFeatures(const std::vector<cv::Rect>& rois, const std::vector
                 }
             }else{
                 if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "Warning: There is no keypoints within the bucket" << std::endl;
-                try{
-                    cv::goodFeaturesToTrack(next_keyframe_.image(roi), keypoints, 50, 0.1, params_.min_px_dist, excludeMask_(roi), 3, true);
-                }catch(std::exception& msg){
-                    if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "Warning: " << msg.what() << std::endl;
-                    continue;
-                }
+                // try{
+                //     cv::goodFeaturesToTrack(next_keyframe_.image(roi), keypoints, 50, 0.1, params_.min_px_dist, excludeMask_(roi), 3, true);
+                // }catch(std::exception& msg){
+                //     if( MVO::s_file_logger_.is_open() ) MVO::s_file_logger_ << "Warning: " << msg.what() << std::endl;
+                //     continue;
+                // }
             }
 
             int num_success = 0;

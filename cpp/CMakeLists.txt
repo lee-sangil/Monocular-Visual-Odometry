@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 2.8)
 project(MonoVO)
 
-SET(DEBUG false)
+SET(DEBUG true)
 
 # Set our build type
 IF(${DEBUG})

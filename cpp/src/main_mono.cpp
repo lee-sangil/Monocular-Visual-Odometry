@@ -175,6 +175,10 @@ int main(int argc, char * argv[]){
 		vo->params_.Tci = Eigen::Matrix4d::Identity();
 	}
 
+	std::string sequence(input_path.substr(input_path.rfind("/",input_path.length()-2)+1));
+	vo->path_to_yolo_result_ = "/media/icsl/Samsung_T5/yolo/result_all/" + sequence;
+	std::cout << vo->path_to_yolo_result_ << std::endl;
+
 	/**************************************************************************
 	 *  Run MVO object
 	 **************************************************************************/

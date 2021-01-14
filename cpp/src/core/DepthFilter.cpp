@@ -74,7 +74,8 @@ double DepthFilter::computeTau(const Eigen::Matrix4d& Toc, const Eigen::Vector3d
 	double beta_plus = beta + DepthFilter::s_px_error_angle_;
 	double gamma_plus = M_PI-alpha-beta_plus; // triangle angles sum to PI
 	double z_plus = t_norm*sin(beta_plus)/sin(gamma_plus); // law of sines
-	return std::abs((z_plus/p_norm - 1)*p(2)); // tau
+	// return std::abs(z_plus - p_norm); // tau
+	return std::abs((z_plus/p_norm - 1)*p(2)); // revised tau
 }
 
 /**

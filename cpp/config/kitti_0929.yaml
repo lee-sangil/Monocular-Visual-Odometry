@@ -49,7 +49,7 @@ Camera.T_VC: !!opencv-matrix
 #--------------------------------------------------------------------------------------------
 
 # Number of features
-Feature.number: 600
+Feature.number: 1000
 
 # Number of features matching per image 
 Feature.minimum_num_inlier: 6
@@ -59,10 +59,10 @@ Feature.minimum_num_inlier: 6
 Feature.minimum_matching_ratio: 0.9
 
 # Min. feature distance between for extraction
-Feature.minimum_distance_between: 5
+Feature.minimum_distance_between: 3
 
 # Min. feature distance between for reconstruction
-Feature.minimum_triangulation_baseline: 3
+Feature.minimum_triangulation_baseline: 8
 
 # Max. distance between the current feature attribute and predicted data
 Feature.maximum_prediction_distance: 20
@@ -72,10 +72,10 @@ Bucket.border_safety: 20
 
 # Bucket size
 Bucket.rows: 8
-Bucket.cols: 16
+Bucket.cols: 8
 
 # Parallax
-Feature.threshold_parallax: 0.002
+Feature.threshold_parallax: 0.001
 Feature.percentile_parallax: 0.5
 
 #--------------------------------------------------------------------------------------------
@@ -106,7 +106,7 @@ Scale.reference_height: 1.65
 # For scale-propagation, the weight for scale referenced from a vehicle's fixed height
 # If you choose *negative* value, scale-propagation does not executed. It means that the 
 # algorithm *does not minimize* the difference between initialized 3d points and reconstructed points.
-Scale.reference_weight: 100
+Scale.reference_weight: 300
 
 # For scale-propagation, regularization weight for scale smoothness
 Scale.regularization_weight: 0.5
